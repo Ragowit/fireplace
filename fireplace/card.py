@@ -3,7 +3,6 @@ import logging
 from itertools import chain
 from . import cards as CardDB, targeting
 from .actions import Damage, Destroy, Heal
-from .exceptions import *
 from .entity import Entity, booleanProperty, intProperty
 from .enums import AuraType, CardClass, CardType, PlayReq, Race, Rarity, Zone
 from .managers import *
@@ -47,6 +46,7 @@ class BaseCard(Entity):
 		self.silenced = False
 		self.secret = data.secret
 		self.spellpower = 0
+		self.turnsInPlay = 0
 		self.tags.update(data.tags)
 
 	def __str__(self):
@@ -124,7 +124,6 @@ class PlayableCard(BaseCard):
 
 	def __init__(self, id, data):
 		self.buffs = CardList()
-		self.exhausted = False
 		self.freeze = False
 		self.hasBattlecry = False
 		self.hasCombo = False
@@ -244,6 +243,15 @@ class PlayableCard(BaseCard):
 		logging.info("Discarding %r" % (self))
 		self.zone = Zone.GRAVEYARD
 
+	def draw(self):
+		if len(self.controller.hand) >= self.controller.maxHandSize:
+			logging.info("%s overdraws and loses %r!", self.controller, self)
+			self.destroy()
+		else:
+			logging.info("%s draws %r", self.controller, self)
+			self.zone = Zone.HAND
+			self.controller.cardsDrawnThisTurn += 1
+
 	def heal(self, target, amount):
 		return self.game.queueActions(self, [Heal(target, amount)])
 
@@ -318,6 +326,7 @@ class Character(PlayableCard):
 		self.cantAttack = False
 		self.cantBeTargetedByAbilities = False
 		self.cantBeTargetedByHeroPowers = False
+		self.numAttacks = 0
 		self.race = Race.INVALID
 		self.shouldExitCombat = False
 		super().__init__(*args)
@@ -342,20 +351,31 @@ class Character(PlayableCard):
 		return ret
 
 	def canAttack(self):
+		if not self.zone == Zone.PLAY:
+			return False
 		if self.cantAttack:
 			return False
-		if self.windfury:
-			if self.numAttacks >= 2:
-				return False
-		elif self.numAttacks >= 1:
+		if not self.atk:
 			return False
-		if self.atk == 0:
-			return False
-		if self.exhausted and not self.charge:
+		if self.exhausted:
 			return False
 		if self.frozen:
 			return False
+		if not self.targets:
+			return False
 		return True
+
+	@property
+	def maxAttacks(self):
+		if self.windfury:
+			return 2
+		return 1
+
+	@property
+	def exhausted(self):
+		if self.numAttacks >= self.maxAttacks:
+			return True
+		return False
 
 	def _setZone(self, zone):
 		if self.attacking:
@@ -366,10 +386,6 @@ class Character(PlayableCard):
 		assert target.zone == Zone.PLAY
 		assert self.controller.currentPlayer
 		self.game.attack(self, target)
-
-	def summon(self):
-		super().summon()
-		self.numAttacks = 0
 
 	def _destroy(self):
 		if self.attacking:
@@ -444,9 +460,6 @@ class Hero(Character):
 			amount = newAmount
 		super()._hit(source, amount)
 
-	def destroy(self):
-		raise GameOver("%s wins!" % (self.controller.opponent))
-
 	def summon(self):
 		super().summon()
 		self.controller.hero = self
@@ -491,6 +504,16 @@ class Minion(Character):
 		if self.stealthed:
 			return False
 		return super().attackable
+
+	@property
+	def asleep(self):
+		return not self.turnsInPlay and not self.charge
+
+	@property
+	def exhausted(self):
+		if self.asleep:
+			return True
+		return super().exhausted
 
 	@property
 	def slots(self):
@@ -578,7 +601,6 @@ class Minion(Character):
 		if len(self.controller.field) >= self.game.MAX_MINIONS_ON_FIELD:
 			return
 		super().summon()
-		self.exhausted = True
 
 
 class Spell(PlayableCard):
@@ -842,3 +864,4 @@ class HeroPower(PlayableCard):
 		if self.controller.hero.power:
 			self.controller.hero.power.destroy()
 		self.controller.hero.power = self
+		self.exhausted = False

@@ -6,9 +6,13 @@ from itertools import chain
 from .actions import Attack, BeginTurn, Death, Deaths, EndTurn, EventListener
 from .card import Card, THE_COIN
 from .entity import Entity
-from .enums import CardType, Step, Zone
+from .enums import CardType, PlayState, Step, Zone
 from .managers import GameManager
 from .utils import CardList
+
+
+class GameOver(Exception):
+	pass
 
 
 class Game(Entity):
@@ -104,17 +108,38 @@ class Game(Entity):
 		self.manager.new_entity(card)
 		return card
 
+	def end(self, *losers):
+		"""
+		End the game.
+		\a *losers: Players that lost the game.
+		"""
+		for player in self.players:
+			if player in losers:
+				player.playstate = PlayState.LOST
+			else:
+				player.playstate = PlayState.WON
+		raise GameOver("The game has ended.")
+
 	def processDeaths(self):
 		return self.queueActions(self, [Deaths()])
 
 	def _processDeaths(self):
 		actions = []
+		losers = []
 		for card in self.liveEntities:
 			if card.toBeDestroyed:
 				actions.append(Death(card))
 				if card.type == CardType.MINION:
 					self.minionsKilledThisTurn += 1
 					card.controller.minionsKilledThisTurn += 1
+				elif card.type == CardType.HERO:
+					card.controller.playstate = PlayState.LOSING
+					losers.append(card.controller)
+
+		if losers:
+			self.end(*losers)
+			return
+
 		if actions:
 			self.queueActions(self, actions)
 
@@ -165,6 +190,7 @@ class Game(Entity):
 				card.controller = player
 				card.zone = Zone.DECK
 			player.shuffleDeck()
+			player.playstate = PlayState.PLAYING
 
 		self.player1.draw(3)
 		self.player2.draw(4)
@@ -222,10 +248,12 @@ class Game(Entity):
 		player.maxMana += 1
 		player.usedMana = player.overloaded
 		player.overloaded = 0
-		for character in player.characters:
-			character.numAttacks = 0
-			character.exhausted = False
-		if player.hero.power:
-			player.hero.power.exhausted = False
+		for entity in player.entities:
+			if entity.type != CardType.PLAYER:
+				entity.turnsInPlay += 1
+				if entity.type == CardType.HERO_POWER:
+					entity.exhausted = False
+				elif entity.type in (CardType.HERO, CardType.MINION):
+					entity.numAttacks = 0
 
 		player.draw()
