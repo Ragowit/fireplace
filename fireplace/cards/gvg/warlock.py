@@ -16,7 +16,7 @@ class GVG_018:
 # Fel Cannon
 class GVG_020:
 	events = [
-		OWN_TURN_END.on(Hit(RANDOM_MINION - MECH, 2))
+		OWN_TURN_END.on(Hit(RANDOM(ALL_MINIONS - MECH), 2))
 	]
 
 
@@ -33,7 +33,7 @@ class GVG_077:
 class GVG_100:
 	events = [
 		Damage(FRIENDLY_HERO).on(
-			lambda self, target, amount: self.controller.currentPlayer and [Buff(SELF, "GVG_100e")] or []
+			lambda self, target, amount, source: self.controller.currentPlayer and [Buff(SELF, "GVG_100e")] or []
 		)
 	]
 

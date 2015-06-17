@@ -40,6 +40,7 @@ class BaseCard(Entity):
 		super().__init__()
 		self._auras = []
 		self.requirements = data.requirements.copy()
+		self.entourage = CardList(self.data.entourage)
 		self.id = id
 		self.controller = None
 		self.aura = False
@@ -220,9 +221,6 @@ class PlayableCard(BaseCard):
 			logging.info("Clearing buffs from %r" % (self))
 			for buff in self.buffs[:]:
 				buff.destroy()
-				if buff.auraSource:
-					# Clean up the buff from its source auras
-					buff.auraSource._buffs.remove(buff)
 
 	def destroy(self):
 		return self.game.queueActions(self, [Destroy(self)])
@@ -272,11 +270,7 @@ class PlayableCard(BaseCard):
 		if len(self.controller.game.board) < self.requirements.get(PlayReq.REQ_MINIMUM_TOTAL_MINIONS, 0):
 			return False
 		if PlayReq.REQ_ENTIRE_ENTOURAGE_NOT_IN_PLAY in self.requirements:
-			entourage = list(self.data.entourage)
-			for minion in self.controller.field:
-				if minion.id in entourage:
-					entourage.remove(minion.id)
-			if not entourage:
+			if not [id for id in self.entourage if not self.controller.field.contains(id)]:
 				return False
 		if PlayReq.REQ_WEAPON_EQUIPPED in self.requirements:
 			if not self.controller.weapon:
@@ -355,6 +349,8 @@ class Character(PlayableCard):
 			return False
 		if self.cantAttack:
 			return False
+		if not self.controller.currentPlayer:
+			return False
 		if not self.atk:
 			return False
 		if self.exhausted:
@@ -423,6 +419,7 @@ class Character(PlayableCard):
 
 	def _hit(self, source, amount):
 		self.damage += amount
+		return amount
 
 	@property
 	def targets(self):
@@ -458,7 +455,7 @@ class Hero(Character):
 			newAmount = max(0, amount - self.armor)
 			self.armor -= min(self.armor, amount)
 			amount = newAmount
-		super()._hit(source, amount)
+		return super()._hit(source, amount)
 
 	def summon(self):
 		super().summon()
@@ -563,7 +560,7 @@ class Minion(Character):
 			logging.info("%r is destroyed because of %r is poisonous", self, source)
 			self.destroy()
 
-		super()._hit(source, amount)
+		return super()._hit(source, amount)
 
 	def morph(self, id):
 		into = self.game.card(id)
@@ -640,15 +637,12 @@ class Secret(Spell):
 
 class Enchantment(BaseCard):
 	Manager = EnchantmentManager
+	slots = []
 
 	def __init__(self, *args):
 		self.auraSource = None
 		self.oneTurnEffect = False
 		super().__init__(*args)
-
-	@property
-	def slots(self):
-		return []
 
 	def _setZone(self, zone):
 		if zone == Zone.PLAY:
@@ -672,6 +666,9 @@ class Enchantment(BaseCard):
 		if hasattr(self.data.scripts, "destroy"):
 			self.data.scripts.destroy(self)
 		self.zone = Zone.GRAVEYARD
+		if self.auraSource:
+			# Clean up the buff from its source auras
+			self.auraSource._buffs.remove(self)
 	_destroy = destroy
 
 
@@ -701,6 +698,9 @@ class Aura(object):
 	def isValidTarget(self, target):
 		if self._auraType == AuraType.PLAYER_AURA:
 			return target == self.controller
+		elif self._auraType == AuraType.HAND_AURA:
+			if target.zone != Zone.HAND:
+				return False
 		return targeting.isValidTarget(self.source, target, requirements=self.requirements)
 
 	@property
@@ -750,13 +750,12 @@ class Aura(object):
 				buff = self._entityBuff(target)
 				if buff:
 					buff.destroy()
-					self._buffs.remove(buff)
 				self._buffed.remove(target)
 
 	def destroy(self):
 		logging.info("Removing %r affecting %r" % (self, self._buffed))
 		self.game.auras.remove(self)
-		for buff in self._buffs:
+		for buff in self._buffs[:]:
 			buff.destroy()
 		del self._buffs
 		del self._buffed

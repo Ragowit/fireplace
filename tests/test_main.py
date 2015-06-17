@@ -18,6 +18,7 @@ DREAM = "DREAM_04"
 SILENCE = "EX1_332"
 SPELLBENDERT = "tt_010a"
 THE_COIN = "GAME_005"
+HAND_OF_PROTECTION = "EX1_371"
 TIME_REWINDER = "PART_002"
 RESTORE_1 = "XXX_003"
 
@@ -400,6 +401,20 @@ def test_divine_shield():
 	archer2.play(target=squire)
 	assert len(game.currentPlayer.opponent.field) == 0
 	assert not squire.divineShield
+	game.endTurn(); game.endTurn()
+
+	# test damage events with Divine Shield
+	gurubashi = game.currentPlayer.summon("EX1_399")
+	assert gurubashi.atk == 2
+	assert gurubashi.health == 7
+	assert not gurubashi.divineShield
+	prot = game.currentPlayer.give(HAND_OF_PROTECTION)
+	prot.play(target=gurubashi)
+	assert gurubashi.divineShield
+	game.currentPlayer.give(MOONFIRE).play(target=gurubashi)
+	assert not gurubashi.divineShield
+	assert gurubashi.atk == 2
+	assert gurubashi.health == 7
 
 
 def test_divine_spirit():
@@ -973,6 +988,31 @@ def test_secretkeeper():
 	game.currentPlayer.give(WISP).play()
 	assert secretkeeper.atk == 2
 	assert secretkeeper.health == 3
+
+
+def test_solemn_vigil():
+	game = prepare_game()
+	game.player1.discardHand()
+	vigil = game.player1.give("BRM_001")
+	assert vigil.cost == 5
+	game.player1.summon(WISP).destroy()
+	assert vigil.cost == 4
+	game.player2.summon(WISP).destroy()
+	assert vigil.cost == 3
+	wisp1 = game.player1.summon(WISP)
+	game.player1.give(MOONFIRE).play(target=wisp1)
+	assert vigil.cost == 2
+	wisp2 = game.player1.summon(WISP)
+	game.player1.give(MOONFIRE).play(target=wisp2)
+	assert vigil.cost == 1
+	game.player1.summon(WISP).destroy()
+	assert vigil.cost == 0
+	game.player1.summon(WISP).destroy()
+	assert vigil.cost == 0
+	vigil.play()
+	assert len(game.player1.hand) == 2
+	assert game.player1.mana == 1
+	assert game.player1.usedMana == 0
 
 
 def test_southsea_deckhand():
@@ -1718,22 +1758,29 @@ def test_mana_wraith():
 
 def test_mechwarper():
 	game = prepare_game()
-	mechwarper = game.currentPlayer.give("GVG_006")
-	goldshire = game.currentPlayer.give(GOLDSHIRE_FOOTMAN)
-	harvest = game.currentPlayer.give("EX1_556")
+	mechwarper = game.player1.give("GVG_006")
+	goldshire = game.player1.give(GOLDSHIRE_FOOTMAN)
+	harvest = game.player1.give("EX1_556")
+	clockwork = game.player1.give("GVG_082")
 	game.endTurn(); game.endTurn()
 
 	assert harvest.cost == 3
 	assert goldshire.cost == 1
+	assert clockwork.cost == 1
 	mechwarper.play()
 	assert harvest.cost == 3 - 1
 	assert goldshire.cost == 1
+	assert clockwork.cost == 0
+	clockwork.play()
+	assert clockwork.cost == 1
 	game.currentPlayer.give(SILENCE).play(target=mechwarper)
 	assert harvest.cost == 3
 	assert goldshire.cost == 1
+	assert clockwork.cost == 1
 	mechwarper.destroy()
 	assert harvest.cost == 3
 	assert goldshire.cost == 1
+	assert clockwork.cost == 1
 
 
 def test_metaltooth_leaper():
@@ -2928,25 +2975,28 @@ def test_nerubar_weblord():
 	assert perdition1.cost == perdition2.cost == 3
 
 
-def test_nortshire_cleric():
+def test_northshire_cleric():
 	game = prepare_game(PRIEST, PRIEST)
-	cleric = game.currentPlayer.give("CS2_235")
+	cleric = game.player1.give("CS2_235")
 	cleric.play()
 	game.endTurn(); game.endTurn()
 	game.endTurn(); game.endTurn()
 	game.endTurn(); game.endTurn()
-	game.currentPlayer.discardHand()
-	assert not game.currentPlayer.hand
-	game.currentPlayer.hero.power.play(target=game.currentPlayer.hero)
-	assert not game.currentPlayer.hand
-	pyro = game.currentPlayer.give("NEW1_020")
+
+	game.player1.discardHand()
+	game.player2.discardHand()
+	game.player1.hero.power.play(target=game.currentPlayer.hero)
+	assert not game.player1.hand
+	pyro = game.player1.give("NEW1_020")
 	pyro.play()
-	game.currentPlayer.give(CIRCLE_OF_HEALING).play()
-	assert not game.currentPlayer.hand
-	game.currentPlayer.give(CIRCLE_OF_HEALING).play()
-	assert len(game.currentPlayer.hand) == 2
-	game.currentPlayer.give(CIRCLE_OF_HEALING).play()
-	assert len(game.currentPlayer.hand) == 4
+	game.player1.give(CIRCLE_OF_HEALING).play()
+	assert not game.player1.hand
+	game.player2.summon(SPELLBENDERT)
+	game.player1.give(CIRCLE_OF_HEALING).play()
+	assert len(game.player1.hand) == 2
+	game.player1.give(CIRCLE_OF_HEALING).play()
+	assert len(game.player1.hand) == 5
+	assert not game.player2.hand
 
 
 def test_ragnaros():
@@ -3661,6 +3711,38 @@ def test_faerie_dragon():
 	assert dragon in archer.targets
 
 
+def test_fel_cannon():
+	game = prepare_game()
+	cannon = game.player1.give("GVG_020")
+	game.endTurn(); game.endTurn()
+	game.endTurn(); game.endTurn()
+	game.endTurn(); game.endTurn()
+
+	cannon.play()
+	game.endTurn(); game.endTurn()
+
+	assert game.player1.hero.health == game.player2.hero.health == 30
+	assert cannon.health == 5
+
+	dummy1 = game.player1.give(TARGET_DUMMY)
+	dummy1.play()
+	game.endTurn()
+
+	dummy2 = game.player2.give(TARGET_DUMMY)
+	dummy2.play()
+	wisp = game.player2.give(WISP)
+	wisp.play()
+	game.endTurn()
+
+	assert not wisp.dead
+	game.endTurn()
+
+	assert dummy1.health == dummy2.health == 2
+	assert not dummy1.dead
+	assert not dummy2.dead
+	assert wisp.dead
+
+
 def test_far_sight():
 	game = prepare_game()
 	game.endTurn(); game.endTurn()
@@ -3719,6 +3801,21 @@ def test_freezing_trap():
 	assert wisp.cost == 0
 
 
+def test_floating_watcher():
+	game = prepare_game()
+	game = prepare_game(WARLOCK, WARLOCK)
+	game.endTurn(); game.endTurn()
+
+	watcher = game.player1.summon("GVG_100")
+	assert watcher.atk == watcher.health == 4
+	game.player1.give(MOONFIRE).play(target=game.player2.hero)
+	assert watcher.atk == watcher.health == 4
+	game.player1.give(MOONFIRE).play(target=game.player1.hero)
+	assert watcher.atk == watcher.health == 4 + 2
+	game.player1.hero.power.play()
+	assert watcher.atk == watcher.health == 4 + 4
+
+
 def test_warlock():
 	game = prepare_game(WARLOCK, WARLOCK)
 	sacpact = game.currentPlayer.give("NEW1_003")
@@ -3730,6 +3827,18 @@ def test_warlock():
 	sacpact.play(target=flameimp)
 	assert game.currentPlayer.hero.health == 30
 	game.endTurn()
+
+
+def test_discard_enchanted_cards():
+	# Test for bug #58
+	game = prepare_game()
+	deathwing = game.player1.give("NEW1_030")
+	thaurissan = game.player1.summon("BRM_028")
+	for i in range(10):
+		game.endTurn(); game.endTurn()
+
+	deathwing.play()
+	assert not game.player1.hand
 
 
 def main():

@@ -4,7 +4,6 @@ from ..utils import *
 ##
 # Free basic minions
 
-
 # Frostwolf Warlord
 class CS2_226:
 	def action(self):
@@ -42,7 +41,7 @@ class EX1_398:
 # Gurubashi Berserker
 class EX1_399:
 	events = [
-		Damage(SELF).on(Buff(SELF, "EX1_399e"))
+		SELF_DAMAGE.on(Buff(SELF, "EX1_399e"))
 	]
 
 
@@ -106,6 +105,11 @@ class CS2_196:
 	action = [Summon(CONTROLLER, "CS2_boar")]
 
 
+# Ironbeak Owl
+class CS2_203:
+	action = [Silence(TARGET)]
+
+
 # Darkscale Healer
 class DS1_055:
 	action = [Heal(FRIENDLY_CHARACTERS, 2)]
@@ -114,7 +118,7 @@ class DS1_055:
 # Acolyte of Pain
 class EX1_007:
 	events = [
-		Damage(SELF).on(Draw(CONTROLLER))
+		SELF_DAMAGE.on(Draw(CONTROLLER))
 	]
 
 
