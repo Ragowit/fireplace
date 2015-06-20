@@ -5,6 +5,35 @@ from .enums import CardType, PowSubType, Step, Zone
 from .entity import Entity
 
 
+class RandomCardGenerator(object):
+	"""
+	Store filters and generate a random card matching the filters on pick()
+	"""
+	def __init__(self, **filters):
+		self.filters = filters
+
+	def pick(self) -> str:
+		from . import cards
+		return random.choice(cards.filter(**self.filters))
+
+
+def _eval_card(game, card):
+	"""
+	Return a Card instance from \a card
+	The card argument can be:
+	 - A Card instance (nothing is done)
+	 - The string ID of the card (the card is created)
+	 - A RandomCardGenerator instance (a random card is picked)
+	Also returns True if the card was created
+	"""
+	if isinstance(card, str):
+		return game.card(card), True
+	elif isinstance(card, RandomCardGenerator):
+		return game.card(card.pick()), True
+
+	return card, False
+
+
 class EventListener:
 	ON = 1
 	AFTER = 2
@@ -355,19 +384,17 @@ class Give(TargetedAction):
 	"""
 	Give player targets card \a id.
 	"""
-	args = ("targets", "id")
+	args = ("targets", "card")
 
-	def do(self, source, game, target):
-		target.give(self.id)
+	def get_args(self, source, game, target):
+		card, _ = _eval_card(game, self.card)
+		return (target, card)
 
-
-class GiveSparePart(TargetedAction):
-	"""
-	Give player targets a random Spare Part.
-	This currently assumes the source has a Spare Part entourage.
-	"""
-	def do(self, source, game, target):
-		target.give(random.choice(source.data.entourage))
+	def do(self, source, game, target, card):
+		logging.debug("Giving %r to %s", card, target)
+		card.controller = target
+		card.zone = Zone.HAND
+		return card
 
 
 class Hit(TargetedAction):
@@ -494,9 +521,8 @@ class Summon(TargetedAction):
 	args = ("targets", "card")
 
 	def get_args(self, source, game, target):
-		card = self.card
-		if isinstance(card, str):
-			card = game.card(self.card)
+		card, created = _eval_card(game, self.card)
+		if created:
 			card.controller = target
 		return (target, card)
 

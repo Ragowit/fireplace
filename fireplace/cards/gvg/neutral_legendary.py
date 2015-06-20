@@ -16,15 +16,12 @@ class GVG_110t:
 
 # Sneed's Old Shredder
 class GVG_114:
-	def deathrattle(self):
-		legendary = randomCollectible(type=CardType.MINION, rarity=Rarity.LEGENDARY)
-		return [Summon(CONTROLLER, legendary)]
+	deathrattle = [Summon(CONTROLLER, RandomMinion(rarity=Rarity.LEGENDARY))]
 
 
 # Toshley
 class GVG_115:
-	action = [GiveSparePart(CONTROLLER)]
-	deathrattle = [GiveSparePart(CONTROLLER)]
+	action = deathrattle = [Give(CONTROLLER, RandomSparePart())]
 
 
 # Mekgineer Thermaplugg
@@ -39,7 +36,7 @@ class GVG_117:
 	events = [
 		Play(CONTROLLER, SPELL).on(
 			lambda self, player, card, *args: card.cost == 1 and [
-				Give(player, randomCollectible(race=Race.MECHANICAL))
+				Give(player, RandomMinion(race=Race.MECHANICAL))
 			] or []
 		)
 	]
@@ -56,7 +53,7 @@ class GVG_118:
 class GVG_119:
 	def action(self):
 		for player in self.game.players:
-			yield Summon(player, randomCollectible(type=CardType.WEAPON))
+			yield Summon(player, RandomWeapon())
 
 
 # Hemet Nesingwary

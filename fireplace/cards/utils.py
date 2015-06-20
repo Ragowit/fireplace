@@ -14,12 +14,9 @@ def hand(func):
 	func.zone = Zone.HAND
 	return func
 
-drawCard = lambda self, *args: self.controller.draw()
 
-
-def RandomCard(**kwargs):
-	return random.choice(fireplace.cards.filter(**kwargs))
-
-
-def randomCollectible(**kwargs):
-	return RandomCard(collectible=True, **kwargs)
+RandomCard = lambda **kw: RandomCardGenerator(**kw)
+RandomCollectible = lambda **kw: RandomCardGenerator(collectible=True, **kw)
+RandomMinion = lambda **kw: RandomCollectible(type=CardType.MINION, **kw)
+RandomWeapon = lambda **kw: RandomCollectible(type=CardType.WEAPON, **kw)
+RandomSparePart = lambda **kw: RandomCardGenerator(spare_part=True, **kw)

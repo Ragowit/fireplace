@@ -45,12 +45,12 @@ class GVG_076:
 
 # Mechanical Yeti
 class GVG_078:
-	deathrattle = [GiveSparePart(ALL_PLAYERS)]
+	deathrattle = [Give(ALL_PLAYERS, RandomSparePart())]
 
 
 # Clockwork Gnome
 class GVG_082:
-	deathrattle = [GiveSparePart(CONTROLLER)]
+	deathrattle = [Give(CONTROLLER, RandomSparePart())]
 
 
 # Madder Bomber
@@ -60,15 +60,14 @@ class GVG_090:
 
 # Piloted Shredder
 class GVG_096:
-	def deathrattle(self):
-		return [Summon(CONTROLLER, randomCollectible(type=CardType.MINION, cost=2))]
+	deathrattle = [Summon(CONTROLLER, RandomMinion(cost=2))]
 
 
 # Tinkertown Technician
 class GVG_102:
 	def action(self):
 		if self.poweredUp:
-			return [Buff(SELF, "GVG_102e"), GiveSparePart(CONTROLLER)]
+			return [Buff(SELF, "GVG_102e"), Give(CONTROLLER, RandomSparePart())]
 
 
 # Micro Machine
