@@ -23,10 +23,10 @@ import time
 import sys, traceback
 from enum import Enum
 from fireplace import cards
+from fireplace.cards.heroes import *
 from fireplace.deck import Deck
 from fireplace.enums import CardType, Rarity
 from fireplace.game import Game
-from fireplace.heroes import *
 from fireplace.player import Player
 
 logging.getLogger().setLevel(logging.DEBUG)
@@ -102,6 +102,11 @@ class HearthState:
         #st.game = self.game.copy()
         #st.game = copy.copy(self.game)
         st.game = copy.deepcopy(self.game)
+        
+        #if self.game is not None:
+        #    if len(self.game.auras) > 0:
+        #        foo = 123
+        
         return st
 
     def DoMove(self, move):
@@ -109,17 +114,17 @@ class HearthState:
             Must update playerJustMoved if end_turn.
         """
         if self.game is not None:
-            assert self.game.players[0].hero.health > 0 and self.game.players[1].hero.health > 0
+            assert self.game.players[0].hero.health > 0 and self.game.players[1].hero.health > 0 and not self.game.game_over
     
-            if self.game.currentPlayer is not None:
-                if self.game.currentPlayer.name == "one":
+            if self.game.current_player is not None:
+                if self.game.current_player.name == "one":
                     self.playerJustMoved = 1
                 else:
                     self.playerJustMoved = 2
 
         if move[0] == MOVE.PRE_GAME:
-            self.player1.prepareDeck(self.deck1, self.hero1)
-            self.player2.prepareDeck(self.deck2, self.hero2)
+            self.player1.prepare_deck(self.deck1, self.hero1)
+            self.player2.prepare_deck(self.deck2, self.hero2)
             self.game = Game(players=(self.player1, self.player2))
             self.game.start()
             #self.game.players[0].hero.hit(self.game.players[0].hero, 24)
@@ -132,24 +137,24 @@ class HearthState:
             else:
                 self.deck2.append(move[1].id)
         elif move[0] == MOVE.END_TURN:
-            self.game.endTurn()
+            self.game.end_turn()
         elif move[0] == MOVE.HERO_POWER:
-            heropower = self.game.currentPlayer.hero.power
+            heropower = self.game.current_player.hero.power
             if move[3] is None:
-                heropower.play()
+                heropower.use()
             else:
-                heropower.play(target=heropower.targets[move[3]])
+                heropower.use(target=heropower.targets[move[3]])
         elif move[0] == MOVE.PLAY_CARD:
-            card = self.game.currentPlayer.hand[move[2]]
+            card = self.game.current_player.hand[move[2]]
             if move[3] is None:
                 card.play()
             else:
                 card.play(target=card.targets[move[3]])
         elif move[0] == MOVE.MINION_ATTACK:
-            minion = self.game.currentPlayer.field[move[2]]
+            minion = self.game.current_player.field[move[2]]
             minion.attack(minion.targets[move[3]])
         elif move[0] == MOVE.HERO_ATTACK:
-            hero = self.game.currentPlayer.hero
+            hero = self.game.current_player.hero
             hero.attack(hero.targets[move[3]])
         else:
             raise NameError("DoMove ran into unclassified card", move)
@@ -158,7 +163,7 @@ class HearthState:
         """ Get all possible moves from this state.
         """
         if self.game is not None:
-            if self.game.players[0].hero.health <= 0 or self.game.players[1].hero.health <= 0:
+            if self.game.game_over or self.game.players[0].hero.health <= 0 or self.game.players[1].hero.health <= 0:
                 return []
         valid_moves = []  # Move format is [enum, card, index of card in hand, target index]
 
@@ -301,7 +306,7 @@ class HearthState:
                     if cls.type == CardType.HERO:
                         # Heroes are collectible...
                         continue
-                    if cls.cardClass and cls.cardClass != hero.cardClass:
+                    if cls.card_class and cls.card_class != hero.card_class:
                         continue
                     collection.append(cls)
 
@@ -320,7 +325,7 @@ class HearthState:
                     if cls.type == CardType.HERO:
                         # Heroes are collectible...
                         continue
-                    if cls.cardClass and cls.cardClass != hero.cardClass:
+                    if cls.card_class and cls.card_class != hero.card_class:
                         continue
                     collection.append(cls)
 
@@ -331,38 +336,38 @@ class HearthState:
                         valid_moves.append([MOVE.PICK_CARD, card])
         else:
             # Play card
-            for card in self.game.currentPlayer.hand:
+            for card in self.game.current_player.hand:
                 dupe = False
                 for i in range(len(valid_moves)):
                     if valid_moves[i][1].id == card.id:
                         dupe = True
                         break
                 if not dupe:
-                    if card.isPlayable():
-                        if card.hasTarget():
+                    if card.is_playable():
+                        if card.has_target():
                             for t in range(len(card.targets)):
-                                valid_moves.append([MOVE.PLAY_CARD, card, self.game.currentPlayer.hand.index(card), t])
+                                valid_moves.append([MOVE.PLAY_CARD, card, self.game.current_player.hand.index(card), t])
                         else:
-                            valid_moves.append([MOVE.PLAY_CARD, card, self.game.currentPlayer.hand.index(card), None])
+                            valid_moves.append([MOVE.PLAY_CARD, card, self.game.current_player.hand.index(card), None])
 
             # Hero Power
-            heropower = self.game.currentPlayer.hero.power
-            if heropower.isPlayable():
-                if heropower.hasTarget():
+            heropower = self.game.current_player.hero.power
+            if heropower.is_usable():
+                if heropower.has_target():
                     for t in range(len(heropower.targets)):
                         valid_moves.append([MOVE.HERO_POWER, None, None, t])
                 else:
                     valid_moves.append([MOVE.HERO_POWER, None, None, None])
 
             # Minion Attack
-            for minion in self.game.currentPlayer.field:
-                if minion.canAttack():
+            for minion in self.game.current_player.field:
+                if minion.can_attack():
                     for t in range(len(minion.targets)):
-                        valid_moves.append([MOVE.MINION_ATTACK, minion, self.game.currentPlayer.field.index(minion), t])
+                        valid_moves.append([MOVE.MINION_ATTACK, minion, self.game.current_player.field.index(minion), t])
 
             # Hero Attack
-            hero = self.game.currentPlayer.hero
-            if hero.canAttack():
+            hero = self.game.current_player.hero
+            if hero.can_attack():
                 for t in range(len(hero.targets)):
                     valid_moves.append([MOVE.HERO_ATTACK, hero, None, t])
 
