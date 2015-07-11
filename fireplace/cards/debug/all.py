@@ -129,9 +129,14 @@ class XXX_041:
 	action = [Destroy(HERO_POWER + CONTROLLED_BY_TARGET)]
 
 
+# Hand to Deck
+class XXX_042:
+	action = [Shuffle(TARGET_PLAYER, IN_HAND + CONTROLLED_BY_TARGET)]
+
+
 # Mill 30
 class XXX_043:
-	action = [Mill(PLAYER + CONTROLLED_BY_TARGET, 30)]
+	action = [Mill(TARGET_PLAYER, 30)]
 
 
 # Hand Swapper Minion
@@ -151,12 +156,12 @@ class XXX_048:
 # Destroy All Mana
 class XXX_049:
 	def action(self, target):
-		return [GainMana(-target.controller.maxMana)]
+		return [GainMana(-target.controller.max_mana)]
 
 
 # Destroy a Mana Crystal
 class XXX_050:
-	action = [GainMana(PLAYER + CONTROLLED_BY_TARGET, -1)]
+	action = [GainMana(TARGET_PLAYER, -1)]
 
 
 # Armor

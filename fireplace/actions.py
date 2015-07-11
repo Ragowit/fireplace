@@ -1,7 +1,7 @@
 import logging
 import random
 from itertools import chain
-from .enums import CardType, PowSubType, Step, Zone
+from .enums import CardType, PowSubType, Zone
 from .entity import Entity
 
 
@@ -11,27 +11,62 @@ class RandomCardGenerator(object):
 	"""
 	def __init__(self, **filters):
 		self.filters = filters
+		self._cards = None
+
+	@property
+	def cards(self):
+		if self._cards is None:
+			from . import cards
+			self._cards = cards.filter(**self.filters)
+		return self._cards
 
 	def pick(self) -> str:
-		from . import cards
-		return random.choice(cards.filter(**self.filters))
+		return random.choice(self.cards)
 
 
-def _eval_card(game, card):
+class Copy(object):
+	"""
+	Lazily return a list of copies of the target
+	"""
+	def __init__(self, selector):
+		self.selector = selector
+
+	def __repr__(self):
+		return "%s(%r)" % (self.__class__.__name__, self.selector)
+
+	def pick(self, source, game) -> [str]:
+		return self.selector.eval(game, source)
+
+
+def _eval_card(source, game, card):
 	"""
 	Return a Card instance from \a card
 	The card argument can be:
-	 - A Card instance (nothing is done)
-	 - The string ID of the card (the card is created)
-	 - A RandomCardGenerator instance (a random card is picked)
-	Also returns True if the card was created
+	- A Card instance (nothing is done)
+	- The string ID of the card (the card is created)
+	- A RandomCardGenerator instance (a random card is picked)
+	- A Copy instance (a selector is evaluated and copies its results)
 	"""
-	if isinstance(card, str):
-		return game.card(card), True
-	elif isinstance(card, RandomCardGenerator):
-		return game.card(card.pick()), True
 
-	return card, False
+	if isinstance(card, RandomCardGenerator):
+		card = card.pick()
+	elif isinstance(card, Copy):
+		c = card.pick(source, game)
+		card = [entity.id if not isinstance(entity, str) else entity for entity in c]
+
+	if not isinstance(card, list):
+		cards = [card]
+	else:
+		cards = card
+
+	ret = []
+	for card in cards:
+		if isinstance(card, str):
+			ret.append(game.card(card))
+		else:
+			ret.append(card)
+
+	return ret
 
 
 class EventListener:
@@ -49,7 +84,7 @@ class EventListener:
 		return "<EventListener %r>" % (self.trigger)
 
 
-class Action: # Lawsuit
+class Action:  # Lawsuit
 	args = ()
 	type = PowSubType.TRIGGER
 
@@ -78,6 +113,8 @@ class Action: # Lawsuit
 
 	def broadcast(self, game, at, *args):
 		for entity in chain(game.hands, game.entities):
+			if entity.ignore_events:
+				continue
 			for event in entity._events:
 				if event.zone != entity.zone:
 					continue
@@ -88,7 +125,7 @@ class Action: # Lawsuit
 							actions += action(entity, *args)
 						else:
 							actions.append(action)
-					game.queueActions(entity, actions)
+					game.queue_actions(entity, actions)
 					if event.once:
 						entity._events.remove(event)
 
@@ -131,8 +168,8 @@ class Attack(GameAction):
 		return ret
 
 	def do(self, source, game, *args):
-		game.proposedAttacker = self.source
-		game.proposedDefender = self.target
+		game.proposed_attacker = self.source
+		game.proposed_defender = self.target
 		logging.info("%r attacks %r", self.source, self.target)
 		self.broadcast(game, EventListener.ON, *args)
 		game._attack()
@@ -147,7 +184,7 @@ class BeginTurn(GameAction):
 
 	def do(self, source, game, *args):
 		self.broadcast(game, EventListener.ON, self.player)
-		game._beginTurn(self.player)
+		game._begin_turn(self.player)
 
 
 class Deaths(GameAction):
@@ -156,7 +193,7 @@ class Deaths(GameAction):
 	"""
 
 	def do(self, source, game, *args):
-		game._processDeaths()
+		game.process_deaths()
 
 
 class Death(GameAction):
@@ -169,10 +206,10 @@ class Death(GameAction):
 		self.broadcast(game, EventListener.ON, target)
 		if target.deathrattles:
 			logging.info("Triggering Deathrattle for %r", target)
-			target.triggerDeathrattles()
-			if target.controller.extraDeathrattles:
+			target.trigger_deathrattles()
+			if target.controller.extra_deathrattles:
 				logging.info("Triggering Deathrattle for %r again", target)
-				target.triggerDeathrattles()
+				target.trigger_deathrattles()
 
 
 class EndTurn(GameAction):
@@ -184,7 +221,7 @@ class EndTurn(GameAction):
 
 	def do(self, source, game, *args):
 		self.broadcast(game, EventListener.ON, self.player)
-		game._endTurn()
+		game._end_turn()
 
 
 class Play(GameAction):
@@ -200,23 +237,23 @@ class Play(GameAction):
 
 	def do(self, source, game, *args):
 		card = self.card
-		if card.hasTarget():
+		if card.has_target():
 			assert self.target
 		card.target = self.target
 
 		if self.choose:
 			# Choose One cards replace the action on the played card
-			assert self.choose in card.data.chooseCards
+			assert self.choose in card.data.choose_cards
 			chosen = game.card(self.choose)
 			chosen.controller = source
 			logging.info("Choose One from %r: %r", card, chosen)
-			if chosen.hasTarget():
+			if chosen.has_target():
 				chosen.target = self.target
 			card.chosen = chosen
 		card.choose = self.choose
 
 		self.broadcast(game, EventListener.ON, *args)
-		source._play(card)
+		game.play(card)
 		self.broadcast(game, EventListener.AFTER, *args)
 
 		card.target = None
@@ -246,6 +283,9 @@ class TargetedAction(Action):
 			if k in self.selectors:
 				if isinstance(v, Entity):
 					ret.append([v])
+				elif isinstance(v, Action):
+					# eg. Unstable Portal: Buff(Give(...), ...)
+					ret.append(v.trigger(source, game)[0])
 				else:
 					ret.append(v.eval(game, source))
 			else:
@@ -359,6 +399,7 @@ class FullHeal(TargetedAction):
 	def do(self, source, game, target):
 		source.heal(target, target.health)
 
+
 class GainArmor(TargetedAction):
 	"""
 	Make hero targets gain \a amount armor.
@@ -377,7 +418,7 @@ class GainMana(TargetedAction):
 	args = ("targets", "amount")
 
 	def do(self, source, game, target):
-		target.maxMana += self.amount
+		target.max_mana += self.amount
 
 
 class Give(TargetedAction):
@@ -387,14 +428,15 @@ class Give(TargetedAction):
 	args = ("targets", "card")
 
 	def get_args(self, source, game, target):
-		card, _ = _eval_card(game, self.card)
-		return (target, card)
+		cards = _eval_card(source, game, self.card)
+		return (target, cards)
 
-	def do(self, source, game, target, card):
-		logging.debug("Giving %r to %s", card, target)
-		card.controller = target
-		card.zone = Zone.HAND
-		return card
+	def do(self, source, game, target, cards):
+		logging.debug("Giving %r to %s", cards, target)
+		for card in cards:
+			card.controller = target
+			card.zone = Zone.HAND
+		return cards
 
 
 class Hit(TargetedAction):
@@ -423,11 +465,12 @@ class Heal(TargetedAction):
 	args = ("targets", "amount")
 
 	def do(self, source, game, target):
-		if source.controller.outgoingHealingAdjustment:
+		if source.controller.outgoing_healing_adjustment:
 			# "healing as damage" (hack-ish)
 			return source.hit(target, self.amount)
 
-		amount = min(self.amount, target.damage)
+		amount = self.amount * (source.controller.healing_double + 1)
+		amount = min(amount, target.damage)
 		if amount:
 			# Undamaged targets do not receive heals
 			logging.info("%r heals %r for %i", source, target, amount)
@@ -442,7 +485,7 @@ class ManaThisTurn(TargetedAction):
 	args = ("targets", "amount")
 
 	def do(self, source, game, target):
-		target.tempMana += self.amount
+		target.temp_mana += self.amount
 
 
 class Mill(TargetedAction):
@@ -480,7 +523,7 @@ class FillMana(TargetedAction):
 	args = ("targets", "amount")
 
 	def do(self, source, game, target):
-		target.usedMana -= self.amount
+		target.used_mana -= self.amount
 
 
 class Reveal(TargetedAction):
@@ -521,16 +564,42 @@ class Summon(TargetedAction):
 	args = ("targets", "card")
 
 	def get_args(self, source, game, target):
-		card, created = _eval_card(game, self.card)
-		if created:
-			card.controller = target
-		return (target, card)
+		cards = _eval_card(source, game, self.card)
+		return (target, cards)
 
-	def do(self, source, game, target, card):
-		logging.info("%s summons %r", target, card)
-		self.broadcast(game, EventListener.ON, target, card)
-		card.summon()
-		self.broadcast(game, EventListener.AFTER, target, card)
+	def do(self, source, game, target, cards):
+		logging.info("%s summons %r", target, cards)
+		if not isinstance(cards, list):
+			cards = [cards]
+
+		for card in cards:
+			if card.controller != target:
+				card.controller = target
+			self.broadcast(game, EventListener.ON, target, card)
+			card.summon()
+			self.broadcast(game, EventListener.AFTER, target, card)
+
+
+class Shuffle(TargetedAction):
+	"""
+	Shuffle card targets into player target's deck.
+	"""
+	args = ("targets", "card")
+
+	def get_args(self, source, game, target):
+		cards = _eval_card(source, game, self.card)
+		return (target, cards)
+
+	def do(self, source, game, target, cards):
+		logging.info("%r shuffles into %s's deck", cards, target)
+		if not isinstance(cards, list):
+			cards = [cards]
+
+		for card in cards:
+			if card.controller != target:
+				card.controller = target
+			card.zone = Zone.DECK
+			target.shuffle_deck()
 
 
 class Swap(TargetedAction):
@@ -556,4 +625,4 @@ class TakeControl(TargetedAction):
 	The controller is the controller of the source of the action.
 	"""
 	def do(self, source, game, target):
-		source.controller.takeControl(target)
+		source.controller.take_control(target)

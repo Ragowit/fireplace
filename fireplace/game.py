@@ -15,7 +15,7 @@ class GameOver(Exception):
 	pass
 
 
-class Game(Entity):
+class BaseGame(Entity):
 	type = CardType.GAME
 	MAX_MINIONS_ON_FIELD = 8
 	Manager = GameManager
@@ -26,11 +26,14 @@ class Game(Entity):
 		self.players = players
 		for player in players:
 			player.game = self
-		self.step = Step.BEGIN_FIRST
+		self.step = None
+		self.next_step = None
 		self.turn = 0
-		self.currentPlayer = None
+		self.current_player = None
 		self.auras = []
-		self._actionQueue = []
+		self.minions_killed = CardList()
+		self.minions_killed_this_turn = CardList()
+		self._action_queue = []
 
 	def __repr__(self):
 		return "<%s %s>" % (self.__class__.__name__, self)
@@ -39,111 +42,138 @@ class Game(Entity):
 		return "%s vs %s" % (self.players)
 
 	def __iter__(self):
-		return self.allEntities.__iter__()
+		return self.all_entities.__iter__()
 
 	@property
 	def board(self):
-		return CardList(chain(self.player1.field, self.player2.field))
+		return CardList(chain(self.players[0].field, self.players[1].field))
 
 	@property
 	def decks(self):
-		return CardList(chain(self.player1.deck, self.player2.deck))
+		return CardList(chain(self.players[0].deck, self.players[1].deck))
 
 	@property
 	def hands(self):
-	    return CardList(chain(self.player1.hand, self.player2.hand))
+		return CardList(chain(self.players[0].hand, self.players[1].hand))
 
 	@property
 	def characters(self):
-		return CardList(chain(self.player1.characters, self.player2.characters))
+		return CardList(chain(self.players[0].characters, self.players[1].characters))
 
 	@property
-	def allEntities(self):
+	def all_entities(self):
 		return CardList(chain(self.entities, self.hands, self.decks))
 
 	@property
 	def entities(self):
-		return CardList(chain([self], self.player1.entities, self.player2.entities))
+		return CardList(chain([self], self.players[0].entities, self.players[1].entities))
 
 	@property
-	def liveEntities(self):
-		return CardList(chain(self.player1.liveEntities, self.player2.liveEntities))
+	def live_entities(self):
+		return CardList(chain(self.players[0].live_entities, self.players[1].live_entities))
 
 	def filter(self, *args, **kwargs):
-		return self.allEntities.filter(*args, **kwargs)
+		return self.all_entities.filter(*args, **kwargs)
 
 	def attack(self, source, target):
-		return self.queueActions(source, [Attack(source, target)])
+		return self.queue_actions(source, [Attack(source, target)])
 
 	def _attack(self):
 		"""
 		See https://github.com/jleclanche/fireplace/wiki/Combat
 		for information on how attacking works
 		"""
-		attacker = self.proposedAttacker
-		defender = self.proposedDefender
-		self.proposedAttacker = None
-		self.proposedDefender = None
-		if attacker.shouldExitCombat:
+		attacker = self.proposed_attacker
+		defender = self.proposed_defender
+		self.proposed_attacker = None
+		self.proposed_defender = None
+		if attacker.should_exit_combat:
 			logging.info("Attack has been interrupted.")
-			attacker.shouldExitCombat = False
+			attacker.should_exit_combat = False
 			attacker.attacking = False
 			defender.defending = False
 			return
 		# Save the attacker/defender atk values in case they change during the attack
 		# (eg. in case of Enrage)
-		attAtk = attacker.atk
-		defAtk = defender.atk
-		attacker.hit(defender, attAtk)
-		if defAtk:
-			defender.hit(attacker, defAtk)
-		if attacker.type == CardType.HERO and attacker.controller.weapon:
-			attacker.controller.weapon.loseDurability()
+		def_atk = defender.atk
+		attacker.hit(defender, attacker.atk)
+		if def_atk:
+			defender.hit(attacker, def_atk)
 		attacker.attacking = False
 		defender.defending = False
-		attacker.numAttacks += 1
+		attacker.num_attacks += 1
+
+	def play(self, card):
+		"""
+		Plays \a card from a Player's hand
+		"""
+		player = card.controller
+		logging.info("%s plays %r", player, card)
+		cost = card.cost
+		if player.temp_mana:
+			# The coin, Innervate etc
+			cost -= player.temp_mana
+			player.temp_mana = max(0, player.temp_mana - card.cost)
+		player.used_mana += cost
+		if card.overload:
+			logging.info("%s overloads for %i mana", player, card.overload)
+			player.overloaded += card.overload
+		player.last_card_played = card
+		player.summon(card)
+		player.combo = True
+		player.cards_played_this_turn += 1
+		if card.type == CardType.MINION:
+			player.minions_played_this_turn += 1
 
 	def card(self, id):
 		card = Card(id)
 		self.manager.new_entity(card)
 		return card
 
-	def end(self, *losers):
+	def check_for_end_game(self):
 		"""
-		End the game.
-		\a *losers: Players that lost the game.
+		Check if one or more player is currently losing.
+		End the game if they are.
 		"""
+		gameover = False
 		for player in self.players:
-			if player in losers:
+			if player.playstate == PlayState.LOSING:
 				player.playstate = PlayState.LOST
+				gameover = True
 			else:
 				player.playstate = PlayState.WON
-		raise GameOver("The game has ended.")
 
-	def processDeaths(self):
-		return self.queueActions(self, [Deaths()])
+		if gameover:
+			raise GameOver("The game has ended.")
 
-	def _processDeaths(self):
+	def process_deaths(self):
 		actions = []
-		losers = []
-		for card in self.liveEntities:
-			if card.toBeDestroyed:
-				actions.append(Death(card))
-				if card.type == CardType.MINION:
-					self.minionsKilledThisTurn += 1
-					card.controller.minionsKilledThisTurn += 1
-				elif card.type == CardType.HERO:
-					card.controller.playstate = PlayState.LOSING
-					losers.append(card.controller)
+		for card in self.live_entities:
+			if card.to_be_destroyed:
+				actions += self._schedule_death(card)
 
-		if losers:
-			self.end(*losers)
-			return
+		self.check_for_end_game()
 
 		if actions:
-			self.queueActions(self, actions)
+			self.queue_actions(self, actions)
 
-	def queueActions(self, source, actions):
+	def _schedule_death(self, card):
+		"""
+		Prepare a card for its death. Will run any related Death
+		trigger attached to the Game object.
+		Returns a list of actions to perform during the death sweep.
+		"""
+		card.ignore_events = True
+		if card.type == CardType.MINION:
+			self.minions_killed.append(card)
+			self.minions_killed_this_turn.append(card)
+			card.controller.minions_killed_this_turn += 1
+		elif card.type == CardType.HERO:
+			card.controller.playstate = PlayState.LOSING
+
+		return [Death(card)]
+
+	def queue_actions(self, source, actions):
 		"""
 		Queue a list of \a actions for processing from \a source.
 		"""
@@ -153,107 +183,138 @@ class Game(Entity):
 				logging.debug("Registering %r on %r", action, self)
 				source.controller._events.append(action)
 			else:
-				self._actionQueue.append(action)
+				self._action_queue.append(action)
 				ret.append(action.trigger(source, self))
-				self.refreshAuras()
-				self._actionQueue.pop()
-		if not self._actionQueue:
-			self._processDeaths()
+				self.refresh_auras()
+				self._action_queue.pop()
+		if not self._action_queue:
+			self.process_deaths()
 
 		return ret
 
-	def tossCoin(self):
-		outcome = random.randint(0, 1)
-		# player who wins the outcome is the index
-		winner = self.players[outcome]
-		loser = winner.opponent
-		logging.info("Tossing the coin... %s wins!" % (winner))
-		return winner, loser
+	def pick_first_player(self):
+		"""
+		Picks and returns first player, second player
+		In the default implementation, the first player is always
+		"Player 0". Use CoinRules to decide it randomly.
+		"""
+		return self.players[0], self.players[1]
 
-	def refreshAuras(self):
+	def refresh_auras(self):
 		for aura in self.auras:
 			aura.update()
 
-	def start(self):
-		logging.info("Starting game: %r" % (self))
-		self.player1, self.player2 = self.tossCoin()
-		self.manager.new_entity(self.player1)
-		self.manager.new_entity(self.player2)
-		self.currentPlayer = self.player1
-		# XXX: Mulligan events should handle the following, but unimplemented for now
-		self.player1.cardsDrawnThisTurn = 0
-		self.player2.cardsDrawnThisTurn = 0
+	def prepare(self):
+		self.players[0].opponent = self.players[1]
+		self.players[1].opponent = self.players[0]
 		for player in self.players:
+			self.manager.new_entity(player)
 			player.zone = Zone.PLAY
-			player.summon(player.originalDeck.hero)
-			for card in player.originalDeck:
+			player.summon(player.original_deck.hero)
+			for card in player.original_deck:
 				card.controller = player
 				card.zone = Zone.DECK
-			player.shuffleDeck()
+			player.shuffle_deck()
 			player.playstate = PlayState.PLAYING
+			player.cards_drawn_this_turn = 0
 
+		first, second = self.pick_first_player()
+		self.player1 = first
+		self.player1.first_player = True
+		self.player2 = second
+		self.player2.first_player = False
 		self.player1.draw(3)
 		self.player2.draw(4)
-		self.beginMulligan()
-		self.player1.firstPlayer = True
-		self.player2.firstPlayer = False
+		self.current_player = self.player1
 
-	def beginMulligan(self):
-		logging.info("Entering mulligan phase")
-		self.step = Step.BEGIN_MULLIGAN
-		self.nextStep = Step.MAIN_READY
-		logging.info("%s gets The Coin (%s)" % (self.player2, THE_COIN))
-		self.player2.give(THE_COIN)
-		self.beginTurn(self.player1)
+	def start(self):
+		logging.info("Starting game: %r" % (self))
+		self.prepare()
+		self.begin_turn(self.player1)
 
-	def endTurn(self):
-		return self.queueActions(self, [EndTurn(self.currentPlayer)])
+	def end_turn(self):
+		return self.queue_actions(self, [EndTurn(self.current_player)])
 
-	def _endTurn(self):
-		logging.info("%s ends turn %i", self.currentPlayer, self.turn)
-		self.step, self.nextStep = self.nextStep, Step.MAIN_CLEANUP
+	def _end_turn(self):
+		logging.info("%s ends turn %i", self.current_player, self.turn)
+		self.step, self.next_step = self.next_step, Step.MAIN_CLEANUP
 
-		self.currentPlayer.tempMana = 0
-		for character in self.currentPlayer.characters.filter(frozen=True):
-			if not character.numAttacks:
+		self.current_player.temp_mana = 0
+		for character in self.current_player.characters.filter(frozen=True):
+			if not character.num_attacks:
 				character.frozen = False
-		for buff in self.currentPlayer.entities.filter(oneTurnEffect=True):
+		for buff in self.current_player.entities.filter(one_turn_effect=True):
 			logging.info("Ending One-Turn effect: %r", buff)
 			buff.destroy()
 
-		self.step, self.nextStep = self.nextStep, Step.MAIN_NEXT
-		self.beginTurn(self.currentPlayer.opponent)
+		self.step, self.next_step = self.next_step, Step.MAIN_NEXT
+		self.begin_turn(self.current_player.opponent)
 
-	def beginTurn(self, player):
-		return self.queueActions(self, [BeginTurn(player)])
+	def begin_turn(self, player):
+		return self.queue_actions(self, [BeginTurn(player)])
 
-	def _beginTurn(self, player):
-		self.step, self.nextStep = self.nextStep, Step.MAIN_START_TRIGGERS
-		self.step, self.nextStep = self.nextStep, Step.MAIN_START
+	def _begin_turn(self, player):
+		self.step, self.next_step = self.next_step, Step.MAIN_START_TRIGGERS
+		self.step, self.next_step = self.next_step, Step.MAIN_START
 		self.turn += 1
 		logging.info("%s begins turn %i", player, self.turn)
-		self.step, self.nextStep = self.nextStep, Step.MAIN_ACTION
-		self.currentPlayer = player
-		self.minionsKilledThisTurn = 0
+		self.step, self.next_step = self.next_step, Step.MAIN_ACTION
+		self.current_player = player
+		self.minions_killed_this_turn = CardList()
 
 		for p in self.players:
-			p.cardsDrawnThisTurn = 0
-			p.currentPlayer = p is player
+			p.cards_drawn_this_turn = 0
+			p.current_player = p is player
 
-		player.turnStart = timegm(time.gmtime())
-		player.cardsPlayedThisTurn = 0
-		player.minionsPlayedThisTurn = 0
-		player.minionsKilledThisTurn = 0
+		player.turn_start = timegm(time.gmtime())
+		player.cards_played_this_turn = 0
+		player.minions_played_this_turn = 0
+		player.minions_killed_this_turn = 0
 		player.combo = False
-		player.maxMana += 1
-		player.usedMana = player.overloaded
+		player.max_mana += 1
+		player.used_mana = player.overloaded
 		player.overloaded = 0
 		for entity in player.entities:
 			if entity.type != CardType.PLAYER:
-				entity.turnsInPlay += 1
+				entity.turns_in_play += 1
 				if entity.type == CardType.HERO_POWER:
 					entity.exhausted = False
 				elif entity.type in (CardType.HERO, CardType.MINION):
-					entity.numAttacks = 0
+					entity.num_attacks = 0
 
 		player.draw()
+
+
+class CoinRules:
+	"""
+	Randomly determines the starting player when the Game starts.
+	The second player gets "The Coin" (GAME_005).
+	"""
+	def pick_first_player(self):
+		winner = random.choice(self.players)
+		logging.info("Tossing the coin... %s wins!", winner)
+		return winner, winner.opponent
+
+	def start(self):
+		super().start()
+		logging.info("%s gets The Coin (%s)", self.player2, THE_COIN)
+		self.player2.give(THE_COIN)
+
+
+class MulliganRules:
+	"""
+	Performs a Mulligan phase when the Game starts.
+	Currently just a dummy phase.
+	"""
+	def start(self):
+		self.next_step = Step.BEGIN_MULLIGAN
+		super().start()
+		self.begin_mulligan()
+
+	def begin_mulligan(self):
+		logging.info("Entering mulligan phase")
+		self.step, self.next_step = self.next_step, Step.MAIN_READY
+
+
+class Game(MulliganRules, CoinRules, BaseGame):
+	pass

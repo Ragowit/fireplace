@@ -7,7 +7,7 @@ from test_main import prepare_game
 
 def test_selector():
 	game = prepare_game()
-	game.player1.discardHand()
+	game.player1.discard_hand()
 	alex = game.player1.give("EX1_561")
 	selector = Selector(Race.PIRATE, Race.DRAGON) + Selector(CardType.MINION)
 	assert len(selector.eval(game.player1.hand, game.player1)) >= 1
@@ -19,9 +19,19 @@ def test_selector():
 	assert targets[0] == alex
 
 
+def test_empty_selector():
+	game = prepare_game()
+	game.player1.discard_hand()
+	game.player2.discard_hand()
+	selector = Selector(Zone.HAND)
+
+	targets = selector.eval(game.player1.hand, game.player1)
+	assert not targets
+
+
 def main():
 	for name, f in globals().items():
-		if name.startswith("test_") and hasattr(f, "__call__"):
+		if name.startswith("test_") and callable(f):
 			f()
 	print("All tests ran OK")
 

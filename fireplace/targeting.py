@@ -9,7 +9,7 @@ from .utils import CardList
 
 
 # Requirements-based targeting
-def isValidTarget(self, target, requirements=None):
+def is_valid_target(self, target, requirements=None):
 	if target.type == CardType.MINION:
 		if target.dead:
 			return False
@@ -17,9 +17,9 @@ def isValidTarget(self, target, requirements=None):
 			return False
 		if target.immune and self.controller != target.controller:
 			return False
-		if self.type == CardType.SPELL and target.cantBeTargetedByAbilities:
+		if self.type == CardType.SPELL and target.cant_be_targeted_by_abilities:
 			return False
-		if self.type == CardType.HERO_POWER and target.cantBeTargetedByHeroPowers:
+		if self.type == CardType.HERO_POWER and target.cant_be_targeted_by_hero_powers:
 			return False
 
 	if requirements is None:
@@ -39,7 +39,7 @@ def isValidTarget(self, target, requirements=None):
 			if not target.damage:
 				return False
 		elif req == PlayReq.REQ_YOUR_TURN:
-			if not self.controller.currentPlayer:
+			if not self.controller.current_player:
 				return False
 		elif req == PlayReq.REQ_TARGET_MAX_ATTACK:
 			if target.atk > param or 0:
@@ -74,10 +74,10 @@ def isValidTarget(self, target, requirements=None):
 			if target.type != CardType.WEAPON:
 				return False
 		elif req == PlayReq.REQ_NO_MINIONS_PLAYED_THIS_TURN:
-			if self.controller.minionsPlayedThisTurn:
+			if self.controller.minions_played_this_turn:
 				return False
 		elif req == PlayReq.REQ_TARGET_HAS_BATTLECRY:
-			if not target.hasBattlecry:
+			if not target.has_battlecry:
 				return False
 		elif req == PlayReq.REQ_SOURCE_IS_ENRAGED:
 			if not self.enraged:
@@ -88,9 +88,8 @@ def isValidTarget(self, target, requirements=None):
 class Selector:
 	"""
 	A Forth-like program consisting of methods of Selector and members of
-	IntEnum classes. The IntEnums must have appropriate test() methods
-	    def test(self, entity)
-	returning a boolean, true if entity matches the condition.
+	IntEnum classes. The IntEnums must have appropriate test(entity)
+	methods returning a boolean, true if entity matches the condition.
 	"""
 	class MergeFilter:
 		"""
@@ -101,9 +100,8 @@ class Selector:
 
 	class Merge:
 		"""
-		Ops between Merge and Unmerge are classes with merge() methods
-		    def merge(self, selector, entities)
-		that operate on the full collection specified by the ops between
+		Ops between Merge and Unmerge are classes with merge(selector, entities)
+		methods that operate on the full collection specified by the ops between
 		MergeFilter and Merge.
 		"""
 		pass
@@ -152,7 +150,9 @@ class Selector:
 		return result
 
 	def eval(self, entities, source):
-		self.opc = 0 # outer program counter
+		if not entities:
+			return []
+		self.opc = 0  # outer program counter
 		result = []
 		while self.opc < len(self.program):
 			if self.program[self.opc] != Selector.MergeFilter:
@@ -195,7 +195,7 @@ class Selector:
 
 	def test(self, entity, source):
 		stack = []
-		self.pc = self.opc # program counter
+		self.pc = self.opc  # program counter
 		while self.pc < len(self.program):
 			op = self.program[self.pc]
 			self.pc += 1
@@ -293,7 +293,7 @@ class AdjacentSelector(Selector):
 		def merge(self, selector, entities):
 			result = []
 			for e in entities:
-				result.extend(e.adjacentMinions)
+				result.extend(e.adjacent_minions)
 			return result
 
 	def __init__(self, selector):
@@ -317,10 +317,13 @@ class RandomSelector(Selector):
 			self.times = times
 
 		def merge(self, selector, entities):
+			if not entities and self.fallback:
+				return [self.fallback]
 			return random.sample(entities, min(len(entities), self.times))
 
 	def __init__(self, selector):
 		self.random = self.SelectRandom(1)
+		self.random.fallback = None
 		self.selector = selector
 		self.program = [Selector.MergeFilter]
 		self.program.extend(selector.program)
@@ -332,6 +335,10 @@ class RandomSelector(Selector):
 		result = RandomSelector(self.selector)
 		result.random.times = self.random.times * other
 		return result
+
+	def __or__(self, other):
+		self.random.fallback = other
+		return self
 
 RANDOM = RandomSelector
 
@@ -351,8 +358,9 @@ ENEMY = Selector(Affiliation.HOSTILE)
 CONTROLLED_BY_TARGET = Selector(Affiliation.TARGET)
 
 ALL_PLAYERS = PLAYER = Selector(CardType.PLAYER)
-CONTROLLER = ALL_PLAYERS + FRIENDLY
-OPPONENT = ALL_PLAYERS + ENEMY
+CONTROLLER = PLAYER + FRIENDLY
+OPPONENT = PLAYER + ENEMY
+TARGET_PLAYER = ALL_PLAYERS + CONTROLLED_BY_TARGET
 
 HERO = Selector(CardType.HERO)
 MINION = Selector(CardType.MINION)
@@ -372,7 +380,7 @@ TOTEM = Selector(Race.TOTEM)
 CONTROLLER_HAND = IN_HAND + FRIENDLY
 CONTROLLER_DECK = IN_DECK + FRIENDLY
 OPPONENT_HAND = IN_HAND + ENEMY
-OPPONENT_DECK = IN_DECK + OPPONENT
+OPPONENT_DECK = IN_DECK + ENEMY
 
 ALL_HEROES = IN_PLAY + HERO
 ALL_MINIONS = IN_PLAY + MINION

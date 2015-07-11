@@ -80,7 +80,7 @@ class EX1_355:
 	action = [Buff(TARGET, "EX1_355e")]
 
 class EX1_355e:
-	atk = lambda self, i: i*2
+	atk = lambda self, i: i * 2
 
 
 # Humility
@@ -117,7 +117,7 @@ class EX1_371:
 # Avenging Wrath
 class EX1_384:
 	def action(self):
-		count = 8 + self.controller.spellpower
+		count = self.controller.get_spell_damage(8)
 		return [Hit(RANDOM_ENEMY_CHARACTER, 1) * count]
 
 
@@ -126,7 +126,7 @@ class EX1_619:
 	action = [Buff(ALL_MINIONS, "EX1_619e")]
 
 class EX1_619e:
-	maxHealth = lambda self, i: 1
+	max_health = lambda self, i: 1
 
 
 ##

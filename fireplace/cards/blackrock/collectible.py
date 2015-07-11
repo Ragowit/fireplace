@@ -26,7 +26,7 @@ class BRM_008:
 # Volcanic Lumberer
 class BRM_009:
 	def cost(self, value):
-		return value - self.game.minionsKilledThisTurn
+		return value - len(self.game.minions_killed_this_turn)
 
 
 # Axe Flinger
@@ -46,12 +46,21 @@ class BRM_022:
 # Volcanic Drake
 class BRM_025:
 	def cost(self, value):
-		return value - self.game.minionsKilledThisTurn
+		return value - len(self.game.minions_killed_this_turn)
 
 
 # Hungry Dragon
 class BRM_026:
 	action = [Summon(OPPONENT, RandomMinion(cost=1))]
+
+
+# Majordomo Executus
+class BRM_027:
+	deathrattle = [Summon(CONTROLLER, "BRM_027h"), Summon(CONTROLLER, "BRM_027p")]
+
+# DIE, INSECT!
+class BRM_027p:
+	activate = [Hit(RANDOM_ENEMY_CHARACTER, 8)]
 
 
 ##
@@ -62,7 +71,7 @@ class BRM_001:
 	action = [Draw(CONTROLLER) * 2]
 
 	def cost(self, value):
-		return value - self.game.minionsKilledThisTurn
+		return value - len(self.game.minions_killed_this_turn)
 
 
 # Dragon's Breath
@@ -70,9 +79,30 @@ class BRM_003:
 	action = [Hit(TARGET, 4)]
 
 	def cost(self, value):
-		return value - self.game.minionsKilledThisTurn
+		return value - len(self.game.minions_killed_this_turn)
 
 
 # Demonwrath
 class BRM_005:
 	action = [Hit(ALL_MINIONS - DEMON, 2)]
+
+
+# Gang Up
+class BRM_007:
+	action = [Shuffle(CONTROLLER, Copy(TARGET)) * 3]
+
+
+# Quick Shot
+class BRM_013:
+	def action(self, target):
+		yield Hit(target, 3)
+		if not self.controller.hand:
+			yield Draw(self.controller, 1)
+
+
+# Resurrect
+class BRM_017:
+	def action(self):
+		minions = self.game.minions_killed.filter(controller=self.controller)
+		if minions:
+			return [Summon(CONTROLLER, random.choice(minions).id)]

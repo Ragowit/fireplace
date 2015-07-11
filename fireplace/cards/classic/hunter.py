@@ -44,7 +44,7 @@ class CS2_084:
 	action = [Buff(TARGET, "CS2_084e")]
 
 class CS2_084e:
-	maxHealth = lambda self, i: 1
+	max_health = lambda self, i: 1
 
 # Multi-Shot
 class DS1_183:
@@ -71,7 +71,7 @@ class EX1_538:
 # Kill Command
 class EX1_539:
 	def action(self, target):
-		return [Hit(TARGET, 5 if self.poweredUp else 3)]
+		return [Hit(TARGET, 5 if self.powered_up else 3)]
 
 
 # Flare

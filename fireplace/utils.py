@@ -35,7 +35,7 @@ class CardList(list):
 		return self.__class__(e for k, v in kwargs.items() for e in self if getattr(e, k, 0) == v)
 
 
-def randomDraft(hero, exclude=[]):
+def random_draft(hero, exclude=[]):
 	"""
 	Return a deck of 30 random cards from the \a hero's collection
 	"""
@@ -57,7 +57,7 @@ def randomDraft(hero, exclude=[]):
 		if cls.type == CardType.HERO:
 			# Heroes are collectible...
 			continue
-		if cls.cardClass and cls.cardClass != hero.cardClass:
+		if cls.card_class and cls.card_class != hero.card_class:
 			continue
 		collection.append(cls)
 

@@ -1,4 +1,4 @@
-from .enums import CardClass, CardType, GameTag, Race, Rarity
+from .enums import GameTag
 
 
 class Manager(object):
@@ -38,10 +38,10 @@ class Manager(object):
 
 class GameManager(Manager):
 	map = {
-		GameTag.NEXT_STEP: "nextStep",
-		GameTag.NUM_MINIONS_KILLED_THIS_TURN: "minionsKilledThisTurn",
-		GameTag.PROPOSED_ATTACKER: "proposedAttacker",
-		GameTag.PROPOSED_DEFENDER: "proposedDefender",
+		GameTag.NEXT_STEP: "next_step",
+		GameTag.NUM_MINIONS_KILLED_THIS_TURN: "minions_killed_this_turn",
+		GameTag.PROPOSED_ATTACKER: "proposed_attacker",
+		GameTag.PROPOSED_DEFENDER: "proposed_defender",
 		GameTag.STEP: "step",
 		GameTag.TURN: "turn",
 	}
@@ -70,26 +70,29 @@ class PlayerManager(Manager):
 	map = {
 		GameTag.CARDTYPE: "type",
 		GameTag.COMBO_ACTIVE: "combo",
-		GameTag.FATIGUE: "fatigueCounter",
-		GameTag.FIRST_PLAYER: "firstPlayer",
+		GameTag.FATIGUE: "fatigue_counter",
+		GameTag.FIRST_PLAYER: "first_player",
+		GameTag.HEALING_DOUBLE: "healing_double",
 		GameTag.HERO_ENTITY: "hero",
-		GameTag.LAST_CARD_PLAYED: "lastCardPlayed",
-		GameTag.MAXHANDSIZE: "maxHandSize",
-		GameTag.MAXRESOURCES: "maxResources",
-		GameTag.NUM_CARDS_DRAWN_THIS_TURN: "cardsDrawnThisTurn",
-		GameTag.NUM_CARDS_PLAYED_THIS_TURN: "cardsPlayedThisTurn",
-		GameTag.NUM_MINIONS_PLAYED_THIS_TURN: "minionsPlayedThisTurn",
-		GameTag.NUM_MINIONS_PLAYER_KILLED_THIS_TURN: "minionsKilledThisTurn",
-		GameTag.NUM_TIMES_HERO_POWER_USED_THIS_GAME: "timesHeroPowerUsedThisGame",
-		GameTag.OUTGOING_HEALING_ADJUSTMENT: "outgoingHealingAdjustment",
+		GameTag.LAST_CARD_PLAYED: "last_card_played",
+		GameTag.MAXHANDSIZE: "max_hand_size",
+		GameTag.MAXRESOURCES: "max_resources",
+		GameTag.NUM_CARDS_DRAWN_THIS_TURN: "cards_drawn_this_turn",
+		GameTag.NUM_CARDS_PLAYED_THIS_TURN: "cards_played_this_turn",
+		GameTag.NUM_MINIONS_PLAYED_THIS_TURN: "minions_played_this_turn",
+		GameTag.NUM_MINIONS_PLAYER_KILLED_THIS_TURN: "minions_killed_this_turn",
+		GameTag.NUM_TIMES_HERO_POWER_USED_THIS_GAME: "times_hero_power_used_this_game",
+		GameTag.OUTGOING_HEALING_ADJUSTMENT: "outgoing_healing_adjustment",
 		GameTag.PLAYSTATE: "playstate",
 		GameTag.CURRENT_SPELLPOWER: "spellpower",
 		GameTag.RECALL_OWED: "overloaded",
-		GameTag.RESOURCES: "maxMana",
-		GameTag.RESOURCES_USED: "usedMana",
-		GameTag.TEMP_RESOURCES: "tempMana",
+		GameTag.RESOURCES: "max_mana",
+		GameTag.RESOURCES_USED: "used_mana",
+		GameTag.SPELLPOWER_DOUBLE: "spellpower_double",
+		GameTag.TAG_HERO_POWER_DOUBLE: "hero_power_double",
+		GameTag.TEMP_RESOURCES: "temp_mana",
 		GameTag.TIMEOUT: "timeout",
-		GameTag.TURN_START: "turnStart",
+		GameTag.TURN_START: "turn_start",
 	}
 
 
@@ -100,11 +103,11 @@ class CardManager(Manager):
 		GameTag.CONTROLLER: "controller",
 		GameTag.CARDNAME: "name",
 		GameTag.CARDTYPE: "type",
-		GameTag.CLASS: "cardClass",
+		GameTag.CLASS: "card_class",
 		GameTag.COST: "cost",
-		GameTag.DEATHRATTLE: "hasDeathrattle",
+		GameTag.DEATHRATTLE: "has_deathrattle",
 		GameTag.EXHAUSTED: "exhausted",
-		GameTag.NUM_TURNS_IN_PLAY: "turnsInPlay",
+		GameTag.NUM_TURNS_IN_PLAY: "turns_in_play",
 		GameTag.RARITY: "rarity",
 		GameTag.SPELLPOWER: "spellpower",
 		GameTag.ZONE: "zone",
@@ -131,13 +134,13 @@ class CardManager(Manager):
 class PlayableCardManager(Manager):
 	map = CardManager.map.copy()
 	map.update({
-		GameTag.BATTLECRY: "hasBattlecry",
+		GameTag.BATTLECRY: "has_battlecry",
 		GameTag.CARD_TARGET: "target",
-		GameTag.COMBO: "hasCombo",
+		GameTag.COMBO: "has_combo",
 		GameTag.DEFENDING: "defending",
-		GameTag.FREEZE: "freeze",
 		GameTag.RECALL: "overload",
 		GameTag.WINDFURY: "windfury",
+		GameTag.FREEZE: None,
 		GameTag.TARGETING_ARROW_TEXT: None,
 		GameTag.TOPDECK: None,
 	})
@@ -148,15 +151,15 @@ class CharacterManager(Manager):
 	map.update({
 		GameTag.ATK: "atk",
 		GameTag.ATTACKING: "attacking",
-		GameTag.CANT_ATTACK: "cantAttack",
+		GameTag.CANT_ATTACK: "cant_attack",
 		GameTag.CANT_BE_DAMAGED: "immune",
-		GameTag.CANT_BE_TARGETED_BY_ABILITIES: "cantBeTargetedByAbilities",
-		GameTag.CANT_BE_TARGETED_BY_HERO_POWERS: "cantBeTargetedByHeroPowers",
+		GameTag.CANT_BE_TARGETED_BY_ABILITIES: "cant_be_targeted_by_abilities",
+		GameTag.CANT_BE_TARGETED_BY_HERO_POWERS: "cant_be_targeted_by_hero_powers",
 		GameTag.DAMAGE: "damage",
 		GameTag.FROZEN: "frozen",
-		GameTag.HEALTH: "maxHealth",
-		GameTag.NUM_ATTACKS_THIS_TURN: "numAttacks",
-		GameTag.SHOULDEXITCOMBAT: "shouldExitCombat",
+		GameTag.HEALTH: "max_health",
+		GameTag.NUM_ATTACKS_THIS_TURN: "num_attacks",
+		GameTag.SHOULDEXITCOMBAT: "should_exit_combat",
 		GameTag.TAG_AI_MUST_PLAY: None,
 		GameTag.SHOWN_HERO_POWER: None,
 	})
@@ -168,13 +171,14 @@ class HeroManager(Manager):
 		GameTag.ARMOR: "armor",
 	})
 
+
 class MinionManager(Manager):
 	map = CharacterManager.map.copy()
 	map.update({
-		GameTag.ADJACENT_BUFF: "adjacentBuff",
+		GameTag.ADJACENT_BUFF: "adjacent_buff",
 		GameTag.CARDRACE: "race",
 		GameTag.CHARGE: "charge",
-		GameTag.DIVINE_SHIELD: "divineShield",
+		GameTag.DIVINE_SHIELD: "divine_shield",
 		GameTag.ENRAGED: "enrage",
 		GameTag.FORGETFUL: "forgetful",
 		GameTag.POISONOUS: "poisonous",
@@ -199,7 +203,7 @@ class WeaponManager(Manager):
 class SpellManager(Manager):
 	map = PlayableCardManager.map.copy()
 	map.update({
-		GameTag.ImmuneToSpellpower: "immuneToSpellpower",
+		GameTag.ImmuneToSpellpower: "immune_to_spellpower",
 		GameTag.SECRET: "secret",
 		GameTag.SPARE_PART: None,
 		GameTag.AFFECTED_BY_SPELL_POWER: None,
@@ -213,17 +217,20 @@ class EnchantmentManager(Manager):
 		GameTag.ATK: "atk",
 		GameTag.ATTACHED: "owner",
 		GameTag.CANT_BE_DAMAGED: "immune",
-		GameTag.CANT_BE_TARGETED_BY_ABILITIES: "cantBeTargetedByAbilities",
-		GameTag.CANT_BE_TARGETED_BY_HERO_POWERS: "cantBeTargetedByHeroPowers",
+		GameTag.CANT_BE_TARGETED_BY_ABILITIES: "cant_be_targeted_by_abilities",
+		GameTag.CANT_BE_TARGETED_BY_HERO_POWERS: "cant_be_targeted_by_hero_powers",
 		GameTag.CHARGE: "charge",
 		GameTag.CREATOR: "creator",
 		GameTag.DURABILITY: "durability",
-		GameTag.EXTRA_DEATHRATTLES: "extraDeathrattles",
-		GameTag.HEALTH: "maxHealth",
-		GameTag.HEALTH_MINIMUM: "minHealth",
-		GameTag.OneTurnEffect: "oneTurnEffect",
-		GameTag.OUTGOING_HEALING_ADJUSTMENT: "outgoingHealingAdjustment",
+		GameTag.EXTRA_DEATHRATTLES: "extra_deathrattles",
+		GameTag.HEALING_DOUBLE: "healing_double",
+		GameTag.HEALTH: "max_health",
+		GameTag.HEALTH_MINIMUM: "min_health",
+		GameTag.OneTurnEffect: "one_turn_effect",
+		GameTag.OUTGOING_HEALING_ADJUSTMENT: "outgoing_healing_adjustment",
+		GameTag.SPELLPOWER_DOUBLE: "spellpower_double",
 		GameTag.STEALTH: "stealthed",
+		GameTag.TAG_HERO_POWER_DOUBLE: "hero_power_double",
 		GameTag.TAUNT: "taunt",
 		GameTag.MORPH: None,
 		GameTag.SUMMONED: None,

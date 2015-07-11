@@ -72,6 +72,7 @@ class CS1_129:
 
 class CS1_129e:
 	atk = lambda self, i: self._xatk
+
 	def apply(self, target):
 		self._xatk = target.health
 
@@ -83,10 +84,7 @@ class CS1_130:
 
 # Mind Vision
 class CS2_003:
-	def action(self):
-		if self.controller.opponent.hand:
-			choice = random.choice(self.controller.opponent.hand).id
-			return [Give(CONTROLLER, choice)]
+	action = [Give(CONTROLLER, Copy(RANDOM(OPPONENT_HAND)))]
 
 
 # Shadow Word: Pain
@@ -100,7 +98,7 @@ class CS2_236:
 
 class CS2_236e:
 	def apply(self, target):
-		self.maxHealth = target.health
+		self.max_health = target.health
 
 
 # Mind Blast
@@ -119,29 +117,20 @@ class EX1_334:
 
 class EX1_334e:
 	def apply(self, target):
-		self.controller.takeControl(target)
+		self.controller.take_control(target)
 
 	def destroy(self):
-		self.controller.opponent.takeControl(self.owner)
+		self.controller.opponent.take_control(self.owner)
 
 
 # Thoughtsteal
 class EX1_339:
-	def action(self):
-		deck = self.controller.opponent.deck
-		cards = random.sample(deck, min(len(deck), 2))
-		return [Give(CONTROLLER, card.id) for card in cards]
+	action = [Give(CONTROLLER, Copy(RANDOM(OPPONENT_DECK + MINION) * 2))]
 
 
 # Mindgames
 class EX1_345:
-	def action(self):
-		creatures = self.controller.opponent.deck.filter(type=CardType.MINION)
-		if creatures:
-			creature = random.choice(creatures).id
-		else:
-			creature = "EX1_345t"
-		return [Summon(CONTROLLER, creature)]
+	action = [Summon(CONTROLLER, Copy(RANDOM(OPPONENT_DECK + MINION) | "EX1_345t"))]
 
 
 # Circle of Healing

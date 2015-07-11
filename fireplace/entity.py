@@ -1,12 +1,11 @@
 import uuid
-import logging
-from .enums import Zone
 
 class Entity(object):
 	def __init__(self):
 		self.manager = self.Manager(self)
 		self.tags = self.manager
 		self.uuid = uuid.uuid4()
+		self.ignore_events = False
 
 		scripts = getattr(self.data, "scripts", None)
 		self._events = getattr(scripts, "events", [])[:]
@@ -20,14 +19,14 @@ class Entity(object):
 		return getattr(self.data.scripts, attr, lambda s, x: x)(self, i)
 
 
-def slotProperty(attr):
+def slot_property(attr, f=any):
 	@property
 	def func(self):
-		return any(getattr(slot, attr, False) for slot in self.slots)
+		return f(getattr(slot, attr, False) for slot in self.slots)
 	return func
 
 
-def booleanProperty(attr):
+def boolean_property(attr):
 	@property
 	def func(self):
 		return getattr(self, "_" + attr, False) \
@@ -40,7 +39,8 @@ def booleanProperty(attr):
 
 	return func
 
-def intProperty(attr):
+
+def int_property(attr):
 	@property
 	def func(self):
 		ret = self._getattr(attr, 0)
