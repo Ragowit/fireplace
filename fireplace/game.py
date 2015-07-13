@@ -17,7 +17,7 @@ class GameOver(Exception):
 
 class BaseGame(Entity):
 	type = CardType.GAME
-	MAX_MINIONS_ON_FIELD = 8
+	MAX_MINIONS_ON_FIELD = 7
 	Manager = GameManager
 
 	def __init__(self, players):
@@ -33,7 +33,6 @@ class BaseGame(Entity):
 		self.auras = []
 		self.minions_killed = CardList()
 		self.minions_killed_this_turn = CardList()
-		self._action_queue = []
 
 	def __repr__(self):
 		return "<%s %s>" % (self.__class__.__name__, self)
@@ -149,7 +148,7 @@ class BaseGame(Entity):
 	def process_deaths(self):
 		actions = []
 		for card in self.live_entities:
-			if card.to_be_destroyed:
+			if card.to_be_destroyed and not card.ignore_events:
 				actions += self._schedule_death(card)
 
 		self.check_for_end_game()
@@ -163,6 +162,7 @@ class BaseGame(Entity):
 		trigger attached to the Game object.
 		Returns a list of actions to perform during the death sweep.
 		"""
+		logging.debug("Scheduling death for %r", card)
 		card.ignore_events = True
 		if card.type == CardType.MINION:
 			self.minions_killed.append(card)
@@ -183,12 +183,8 @@ class BaseGame(Entity):
 				logging.debug("Registering %r on %r", action, self)
 				source.controller._events.append(action)
 			else:
-				self._action_queue.append(action)
 				ret.append(action.trigger(source, self))
 				self.refresh_auras()
-				self._action_queue.pop()
-		if not self._action_queue:
-			self.process_deaths()
 
 		return ret
 

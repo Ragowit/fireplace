@@ -8,6 +8,10 @@ from ..utils import *
 class DS1h_292:
 	activate = [Hit(ENEMY_HERO, 2)]
 
+# Steady Shot (Alleria Windrunner)
+class DS1h_292_H1:
+	activate = DS1h_292.activate
+
 
 ##
 # Minions
@@ -86,6 +90,34 @@ class EX1_544:
 # Bestial Wrath
 class EX1_549:
 	action = [Buff(TARGET, "EX1_549o")]
+
+
+# Snake Trap
+class EX1_554:
+	events = [
+		Attack(ALL_MINIONS, FRIENDLY_MINIONS).on(
+			lambda self, source, target, *args: [Summon(CONTROLLER, "EX1_554t"),
+			Summon(CONTROLLER, "EX1_554t"), Summon(CONTROLLER, "EX1_554t"), Reveal(SELF)],
+			zone=Zone.SECRET)
+	]
+
+
+# Snipe
+class EX1_609:
+	events = [
+		Play(OPPONENT, MINION).after(
+			lambda self, source, target, *args: [Hit(target, 4), Reveal(SELF)],
+		zone=Zone.SECRET)
+	]
+
+
+# Explosive trap
+class EX1_610:
+	events = [
+		Attack(ENEMY_MINIONS, FRIENDLY_HERO).on(
+			lambda self, source, target, *args: [Hit(ENEMY_CHARACTERS, 2), Reveal(SELF)],
+		zone=Zone.SECRET)
+	]
 
 
 # Freezing Trap

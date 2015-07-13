@@ -1,7 +1,7 @@
 import logging
 from itertools import chain
 from . import cards as CardDB, targeting
-from .actions import Damage, Destroy, Heal, Play
+from .actions import Damage, Deaths, Destroy, Heal, Play
 from .entity import Entity, boolean_property, int_property
 from .enums import AuraType, CardType, PlayReq, Race, Zone
 from .managers import *
@@ -76,6 +76,7 @@ class BaseCard(Entity):
 
 	def _set_zone(self, value):
 		old = self.zone
+		assert old != value
 		logging.debug("%r moves from %r to %r" % (self, old, value))
 		caches = {
 			Zone.HAND: self.controller.hand,
@@ -202,7 +203,7 @@ class PlayableCard(BaseCard):
 			actions = self.data.scripts.action
 		elif self.choose:
 			logging.info("Activating %r Choose One: %r", self, self.chosen)
-			return self.chosen.action()
+			actions = self.chosen.data.scripts.action
 		else:
 			return
 
@@ -222,7 +223,7 @@ class PlayableCard(BaseCard):
 				buff.destroy()
 
 	def destroy(self):
-		return self.game.queue_actions(self, [Destroy(self)])
+		return self.game.queue_actions(self, [Destroy(self), Deaths()])
 
 	def _destroy(self):
 		"""

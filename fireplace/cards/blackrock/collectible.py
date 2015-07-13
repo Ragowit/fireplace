@@ -29,6 +29,15 @@ class BRM_009:
 		return value - len(self.game.minions_killed_this_turn)
 
 
+# Druid of the Flame (Firecat Form)
+class BRM_010a:
+	action = [Morph(SELF, "BRM_010t")]
+
+# Druid of the Flame (Firehawk Form)
+class BRM_010b:
+	action = [Morph(SELF, "BRM_010t2")]
+
+
 # Axe Flinger
 class BRM_016:
 	events = [
@@ -62,6 +71,12 @@ class BRM_027:
 class BRM_027p:
 	activate = [Hit(RANDOM_ENEMY_CHARACTER, 8)]
 
+
+# Emperor Thaurissan
+class BRM_028:
+	events = [
+		OWN_TURN_END.on(Buff(CONTROLLER_HAND, "BRM_028e"))
+	]
 
 ##
 # Spells
