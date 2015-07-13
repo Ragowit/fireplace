@@ -34,7 +34,6 @@ class BaseGame(Entity):
 		self.minions_killed = CardList()
 		self.minions_killed_this_turn = CardList()
 		self._action_queue = []
-		self.game_over = False
 
 	def __repr__(self):
 		return "<%s %s>" % (self.__class__.__name__, self)
@@ -145,8 +144,7 @@ class BaseGame(Entity):
 				player.playstate = PlayState.WON
 
 		if gameover:
-			#raise GameOver("The game has ended.")
-			self.game_over = True
+			raise GameOver("The game has ended.")
 
 	def process_deaths(self):
 		actions = []
@@ -156,7 +154,7 @@ class BaseGame(Entity):
 
 		self.check_for_end_game()
 
-		if not self.game_over and actions:
+		if actions:
 			self.queue_actions(self, actions)
 
 	def _schedule_death(self, card):
