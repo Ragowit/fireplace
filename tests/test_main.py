@@ -3028,6 +3028,18 @@ def test_raid_leader():
 	assert wisp1.atk == wisp2.atk == 1
 
 
+def test_recombobulator():
+	game = prepare_game()
+	wisp = game.player1.give(WISP)
+	wisp.play()
+	recom = game.player1.give("GVG_108")
+	recom.play(target=wisp)
+	recom.destroy()
+
+	assert wisp not in game.player1.field
+	assert game.player1.field[0].cost == 0
+
+
 def test_tree_of_life():
 	game = prepare_game()
 	token1 = game.player1.give(SPELLBENDERT)
@@ -3280,6 +3292,20 @@ def test_ysera():
 	game.end_turn()
 	assert len(game.player1.hand) == 1
 	assert game.player1.hand[0].card_class == CardClass.DREAM
+
+
+def test_ysera_awakens():
+	game = prepare_game()
+	game.player1.give(WISP).play()
+	ysera = game.player1.give("EX1_572")
+	ysera.play()
+	game.end_turn()
+
+	game.player2.give(WISP).play()
+	game.player2.give("DREAM_02").play()
+	assert game.player1.hero.health == game.player2.hero.health == 30 - 5
+	assert len(game.board) == 1
+	assert ysera.health == 12
 
 
 def test_shadow_madness_wild_pyro():
@@ -3725,6 +3751,25 @@ def test_far_sight():
 	assert len(game.current_player.hand) == 1
 	assert game.current_player.hand[0].buffs
 	assert game.current_player.hand[0].cost >= 0
+
+
+def test_fatigue():
+	game = prepare_game()
+	game.player1.fatigue()
+	assert game.player1.hero.health == 30 - 1
+	game.player1.fatigue()
+	assert game.player1.hero.health == 30 - 1 - 2
+	game.player1.fatigue()
+	assert game.player1.hero.health == 30 - 1 - 2 - 3
+	assert game.player2.hero.health == 30
+
+	# Draw the deck
+	game.player1.draw(26)
+	assert game.player1.hero.health == 30 - 1 - 2 - 3
+	game.player1.draw(1)
+	assert game.player1.hero.health == 30 - 1 - 2 - 3 - 4
+	game.end_turn(); game.end_turn()
+	assert game.player1.hero.health == 30 - 1 - 2 - 3 - 4 - 5
 
 
 def test_flare():
