@@ -1616,6 +1616,20 @@ def test_voljin_stealth():
 	assert tiger.health == 5
 
 
+def test_malorne():
+	game = prepare_game()
+	# empty the deck
+	game.player1.draw(26)
+	game.player1.discard_hand()
+	assert len(game.player1.deck) == 0
+	malorne = game.player1.give("GVG_035")
+	malorne.play()
+	malorne.destroy()
+	assert len(game.player1.deck) == 1
+	game.player1.draw()
+	assert game.player1.hand[0].id == "GVG_035"
+
+
 def test_mana_addict():
 	game = prepare_game()
 	manaaddict = game.current_player.give("EX1_055")
@@ -3306,6 +3320,31 @@ def test_ysera_awakens():
 	assert game.player1.hero.health == game.player2.hero.health == 30 - 5
 	assert len(game.board) == 1
 	assert ysera.health == 12
+
+
+def test_sabotage():
+	game = prepare_game()
+	sabotage = game.player1.give("GVG_047")
+	sabotage.play()
+
+	sabotage2 = game.player1.give("GVG_047")
+	sabotage2.play()
+	game.end_turn()
+
+	axe = game.player2.give("CS2_106")
+	axe.play()
+	wisp = game.player2.give(WISP)
+	wisp.play()
+	game.end_turn()
+
+	sabotage3 = game.player1.give("GVG_047")
+	sabotage3.play()
+	assert not axe.dead
+	assert wisp.dead
+
+	sabotage4 = game.player1.give("GVG_047")
+	sabotage4.play()
+	assert axe.dead
 
 
 def test_shadow_madness_wild_pyro():
