@@ -268,26 +268,25 @@ class HearthState:
         
                 ### GOBLINS VS GNOMES ##
                 # Druid
-                #owned_cards.extend([AnodizedRoboCub()])
+                owned_cards.extend(["GVG_030"])
                 # Hunter
-                #owned_cards.extend([Glaivezooka(), KingOfBeasts()])
+                owned_cards.extend(["GVG_043", "GVG_046"])
                 # Mage
-                #owned_cards.extend([Flamecannon(), Snowchugger()])
+                owned_cards.extend(["GVG_001", "GVG_002"])
                 # Paladin
-                #owned_cards.extend([SealOfLight(), ScarletPurifier(), CobaltGuardian()])
+                owned_cards.extend(["GVG_057", "GVG_101", "GVG_062"])
                 # Priest
-                #owned_cards.extend([Shrinkmeister()])
+                owned_cards.extend(["GVG_011"])
                 # Rogue
-                #owned_cards.extend([GoblinAutoBarber(), OneeyedCheat(), TinkersSharpswordOil(), OgreNinja()])
+                owned_cards.extend(["GVG_023", "GVG_025", "GVG_022", "GVG_088"])
                 # Shaman
-                #owned_cards.extend([Crackle(), VitalityTotem(), SiltfinSpiritwalker()])
+                owned_cards.extend(["GVG_038", "GVG_039", "GVG_040"])
                 # Warrior
-                #owned_cards.extend([Warbot(), OgreWarmaul()])
+                owned_cards.extend(["GVG_051", "GVG_054"])
                 # Neutral
-                #owned_cards.extend([ClockworkGnome(), Cogmaster(), AnnoyoTron(), ExplosiveSheep(), GilblinStalker(),
-                #                    Mechwarper(), MicroMachine(), Puddlestomper(), ShipsCannon(), StonesplinterTrogg(),
-                #                    FlyingMachine(), SpiderTank(), TinkertownTechnician(), LostTallstrider(),
-                #                    MechanicalYeti(), PilotedShredder(), AntiqueHealbot(), ForceTankMAX()])
+                owned_cards.extend(["GVG_082", "GVG_013", "GVG_085", "GVG_076", "GVG_081", "GVG_006", "GVG_103",
+                                    "GVG_064", "GVG_075", "GVG_067", "GVG_084", "GVG_044", "GVG_102", "GVG_071",
+                                    "GVG_078", "GVG_096", "GVG_069", "GVG_079"])
                 
                 ### BLACKROCK MOUNTAIN ###
                 # Druid
