@@ -29,7 +29,7 @@ from fireplace.enums import CardType, Rarity, PlayState
 from fireplace.game import Game
 from fireplace.player import Player
 
-logging.getLogger().setLevel(logging.DEBUG)
+#logging.getLogger().setLevel(logging.DEBUG)
 
 
 class MOVE(Enum):
@@ -57,35 +57,33 @@ class HearthState:
         self.player1 = None
         self.hero1 = MAGE
         self.deck1 = []
-        #hero1 = MAGE 
-        #deck1 = ["CS1_042", "CS1_042", "CS2_168", "CS2_168", "CS2_172", "CS2_172", "CS2_121", "CS2_121", "CS2_120",
-        #         "CS2_120", "CS2_125", "CS2_125", "CS2_118", "CS2_118", "CS2_127", "CS2_127", "CS2_182", "CS2_182",
-        #         "CS2_119", "CS2_119", "CS2_179", "CS2_179", "CS2_187", "CS2_187", "CS1_069", "CS1_069", "CS2_200",
-        #         "CS2_200", "CS2_186", "CS2_186"]
-        #deck1 = ["EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277",
-        #         "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277",
-        #         "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277",
-        #         "EX1_277", "EX1_277", "EX1_277"]
-        #player1.prepareDeck(deck1, hero1)
         
         self.player2 = None
         self.hero2 = None
         self.deck2 = []
-        #hero2 = MAGE
-        #deck2 = ["CS1_042", "CS1_042", "CS2_168", "CS2_168", "CS2_172", "CS2_172", "CS2_121", "CS2_121", "CS2_120",
-        #         "CS2_120", "CS2_125", "CS2_125", "CS2_118", "CS2_118", "CS2_127", "CS2_127", "CS2_182", "CS2_182",
-        #         "CS2_119", "CS2_119", "CS2_179", "CS2_179", "CS2_187", "CS2_187", "CS1_069", "CS1_069", "CS2_200",
-        #         "CS2_200", "CS2_186", "CS2_186"]
-        #deck2 = ["EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277",
-        #         "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277",
-        #         "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277",
-        #         "EX1_277", "EX1_277", "EX1_277"]
-        #player2.prepareDeck(deck2, hero2)
-        
-        #game = Game(players=(player1, player2))
-        #game.pre_game()
 
         self.game = None
+
+        # Simple Arcane Missiles lethal test
+        #self.player1 = Player(name="one")
+        #self.player2 = Player(name="two")
+        #self.hero1 = MAGE 
+        #self.deck1 = ["EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277",
+        #              "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277",
+        #              "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277",
+        #              "EX1_277", "EX1_277", "EX1_277"]
+        #self.player1.prepare_deck(self.deck1, self.hero1)
+        #self.hero2 = MAGE
+        #self.deck2 = ["EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277",
+        #              "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277",
+        #              "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277",
+        #              "EX1_277", "EX1_277", "EX1_277"]
+        #self.player2.prepare_deck(self.deck2, self.hero2)
+        #self.game = Game(players=(self.player1, self.player2))
+        #self.game.start()
+        #self.game.players[0].hero.hit(self.game.players[0].hero, 24)
+        #self.game.players[1].hero.hit(self.game.players[1].hero, 24)
+
 
     def Clone(self):
         """ Create a deep clone of this game state.
@@ -97,13 +95,8 @@ class HearthState:
         st.player2 = self.player2
         st.hero2 = self.hero2
         st.deck2 = copy.copy(self.deck2)
-        #st.game = self.game.copy()
         #st.game = copy.copy(self.game)
         st.game = copy.deepcopy(self.game)
-        
-        #if self.game is not None:
-        #    if len(self.game.auras) > 0:
-        #        foo = 123
         
         return st
 
@@ -120,8 +113,6 @@ class HearthState:
             self.player2.prepare_deck(self.deck2, self.hero2)
             self.game = Game(players=(self.player1, self.player2))
             self.game.start()
-            #self.game.players[0].hero.hit(self.game.players[0].hero, 24)
-            #self.game.players[1].hero.hit(self.game.players[1].hero, 24)
         elif move[0] == MOVE.PICK_CLASS:
             self.hero2 = move[1]
         elif move[0] == MOVE.PICK_CARD:
