@@ -181,32 +181,29 @@ class HearthState:
                 owned_cards.extend(["EX1_169", "CS2_008", "CS2_005", "CS2_009", "CS2_013", "CS2_007", "CS2_011",
                                     "CS2_012", "EX1_173", "CS2_232"])
                 # Hunter
-                #owned_cards.extend([HuntersMark(), ArcaneShot(), Tracking(), TimberWolf(), AnimalCompanion(), KillCommand(),
-                #                    MultiShot(), Houndmaster(), StarvingBuzzard(), TundraRhino()])
+                owned_cards.extend(["CS2_084", "DS1_185", "DS1_184", "DS1_175", "NEW1_031", "EX1_539", "DS1_183",
+                                    "DS1_070", "CS2_237", "DS1_178"])
                 # Mage
                 owned_cards.extend(["EX1_277", "CS2_027", "CS2_025", "CS2_024", "CS2_023", "CS2_026", "CS2_029",
                                     "CS2_022", "CS2_033", "CS2_032"])
                 # Paladin
-                #owned_cards.extend([LightsJustice(), BlessingOfMight(), HandOfProtection(), Humility(), HolyLight(),
-                #                    TruesilverChampion(), BlessingOfKings(), Consecration(), HammerOfWrath(),
-                #                    GuardianOfKings()])
+                owned_cards.extend(["CS2_091", "CS2_087", "EX1_371", "EX1_360", "CS2_089", "CS2_097", "CS2_092",
+                                    "CS2_093", "CS2_094", "CS2_088"])
                 # Priest
-                #owned_cards.extend([HolySmite(), MindVision(), PowerWordShield(), NorthshireCleric(), DivineSpirit(),
-                #                    MindBlast(), ShadowWordPain(), ShadowWordDeath(), HolyNova(), MindControl()])
+                owned_cards.extend(["CS1_130", "CS2_003", "CS2_004", "CS2_235", "CS2_236", "DS1_233", "CS2_234",
+                                    "EX1_622", "CS1_112", "CS1_113"])
                 # Rogue
-                #owned_cards.extend([Backstab(), DeadlyPoison(), SinisterStrike(), Sap(), Shiv(), FanOfKnives(),
-                #                    AssassinsBlade(), Assassinate(), Vanish(), Sprint()])
+                owned_cards.extend(["CS2_072", "CS2_074", "CS2_075", "EX1_581", "EX1_278", "EX1_129", "CS2_080",
+                                    "CS2_076", "NEW1_004", "CS2_077"])
                 # Shaman
-                #owned_cards.extend([AncestralHealing(), TotemicMight(), FrostShock(), RockbiterWeapon(),
-                #                    hearthbreaker.cards.spells.shaman.Windfury(), FlametongueTotem(), Hex(), Windspeaker(),
-                #                    Bloodlust(), FireElemental()])
+                owned_cards.extend(["CS2_041", "EX1_244", "CS2_037", "CS2_045", "CS2_039", "EX1_565", "EX1_246",
+                                    "EX1_587", "CS2_046", "CS2_042"])
                 # Warlock
-                #owned_cards.extend([SacrificialPact(), Corruption(), MortalCoil(), Soulfire(), Voidwalker(), Succubus(),
-                #                    DrainLife(), ShadowBolt(), Hellfire(), DreadInfernal()])
+                owned_cards.extend(["NEW1_003", "CS2_063", "EX1_302", "EX1_308", "CS2_065", "EX1_306", "CS2_061",
+                                    "CS2_057", "CS2_062", "CS2_064"])
                 # Warrior
-                #owned_cards.extend([Execute(), Whirlwind(), FieryWarAxe(), Cleave(), HeroicStrike(),
-                #                    hearthbreaker.cards.spells.warrior.Charge(), ShieldBlock(), WarsongCommander(),
-                #                    KorkronElite(), ArcaniteReaper()])
+                owned_cards.extend(["CS2_108", "EX1_400", "CS2_106", "CS2_114", "CS2_105", "CS2_103", "EX1_606",
+                                    "EX1_084", "NEW1_011", "CS2_112"])
                 # Neutral
                 owned_cards.extend(["CS2_189", "CS1_042", "EX1_508", "CS2_168", "CS2_171", "EX1_011", "EX1_066",
                                     "CS2_172", "CS2_173", "CS2_121", "CS2_142", "EX1_506", "EX1_015", "CS2_120",
@@ -218,30 +215,35 @@ class HearthState:
         
                 ### CLASSIC ###
                 # Druid
-                #owned_cards.extend([Wrath(), Starfall(), DruidOfTheClaw()])
+                #owned_cards.extend([PowerOfTheWild(), Wrath(), MarkOfNature(), KeeperOfTheGrove(), Starfall(),
+                #                    DruidOfTheClaw()])
                 # Hunter
-                #owned_cards.extend([DeadlyShot()])
+                #owned_cards.extend([Snipe(), ScavengingHyena(), DeadlyShot()])
                 # Mage
-                #owned_cards.extend([IceLance(), ManaWyrm(), SorcerersApprentice(), IceBarrier(), EtherealArcanist()])
+                #owned_cards.extend([IceLance(), ManaWyrm(), SorcerersApprentice(), IceBarrier(), EtherealArcanist(),
+                #                    Blizzard()])
                 # Paladin
                 #owned_cards.extend([EyeForAnEye(), NobleSacrifice(), Repentance(), ArgentProtector()])
                 # Priest
-                #owned_cards.extend([CircleOfHealing(), Silence(), InnerFire(), MassDispel()])
+                #owned_cards.extend([CircleOfHealing(), Silence(), InnerFire(), Thoughtsteal(), MassDispel(),
+                #                    HolyFire()])
                 # Rogue
-                #owned_cards.extend([ColdBlood(), Conceal(), Eviscerate()])
+                #owned_cards.extend([ColdBlood(), Conceal(), Betrayal(), Eviscerate()])
                 # Shaman
-                #owned_cards.extend([AncestralSpirit()])
+                #owned_cards.extend([ForkedLightning(), AncestralSpirit()])
                 # Warlock
-                #owned_cards.extend([FlameImp(), Demonfire(), SummoningPortal(), Doomguard()])
+                #owned_cards.extend([PowerOverwhelming(), FlameImp(), Demonfire(), SenseDemons(), SummoningPortal(),
+                #                    Doomguard()])
                 # Warrior
-                #owned_cards.extend([Rampage(), Armorsmith(), MortalStrike(), Brawl()])
+                #owned_cards.extend([InnerRage(), Rampage(), Armorsmith(), CruelTaskmaster(), MortalStrike(), Brawl()])
                 # Neutral
-                #owned_cards.extend([Wisp(), ArgentSquire(), SouthseaDeckhand(), AmaniBerserker(), BloodsailRaider(),
-                #                    DireWolfAlpha(), FaerieDragon(), IronbeakOwl(), KnifeJuggler(), LootHoarder(),
-                #                    MadBomber(), MasterSwordsmith(), Demolisher(), HarvestGolem(), ImpMaster(),
-                #                    JunglePanther(), QuestingAdventurer(), TinkmasterOverspark(), CultMaster(),
-                #                    DefenderOfArgus(), SilvermoonGuardian(), AzureDrake(), FenCreeper(), SpitefulSmith(),
-                #                    StranglethornTiger(), FrostElemental()])
+                #owned_cards.extend([Wisp(), ArgentSquire(), SouthseaDeckhand(), YoungPriestess(), AmaniBerserker(),
+                #                    BloodsailRaider(), DireWolfAlpha(), FaerieDragon(), IronbeakOwl(), KnifeJuggler(),
+                #                    LootHoarder(), MadBomber(), MasterSwordsmith(), Demolisher(), HarvestGolem(),
+                #                    ImpMaster(), JunglePanther(), QuestingAdventurer(), ScarletCrusader(),
+                #                    TaurenWarrior(), TinkmasterOverspark(), CultMaster(), DefenderOfArgus(),
+                #                    SilvermoonGuardian(), AzureDrake(), FenCreeper(), SilverHandKnight(),
+                #                    SpitefulSmith(), StranglethornTiger(), FrostElemental()])
         
                 ### PROMO ###
                 #owned_cards.extend([GelbinMekkatorque()])
@@ -272,22 +274,48 @@ class HearthState:
                 #                    Loatheb(), SludgeBelcher(), SpectralKnight(), Stalagg(), Maexxna(), KelThuzad()])
         
                 ### GOBLINS VS GNOMES ##
+                # Druid
+                #owned_cards.extend([AnodizedRoboCub()])
                 # Hunter
-                #owned_cards.extend([Glaivezooka()])
+                #owned_cards.extend([Glaivezooka(), KingOfBeasts()])
                 # Mage
                 #owned_cards.extend([Flamecannon(), Snowchugger()])
                 # Paladin
-                #owned_cards.extend([SealOfLight(), CobaltGuardian()])
+                #owned_cards.extend([SealOfLight(), ScarletPurifier(), CobaltGuardian()])
                 # Priest
                 #owned_cards.extend([Shrinkmeister()])
                 # Rogue
-                #owned_cards.extend([OneeyedCheat(), TinkersSharpswordOil(), OgreNinja()])
+                #owned_cards.extend([GoblinAutoBarber(), OneeyedCheat(), TinkersSharpswordOil(), OgreNinja()])
+                # Shaman
+                #owned_cards.extend([Crackle(), VitalityTotem(), SiltfinSpiritwalker()])
                 # Warrior
-                #owned_cards.extend([Warbot()])
+                #owned_cards.extend([Warbot(), OgreWarmaul()])
                 # Neutral
-                #owned_cards.extend([ClockworkGnome(), Cogmaster(), AnnoyoTron(), GilblinStalker(), Mechwarper(),
-                #                    MicroMachine(), Puddlestomper(), ShipsCannon(), StonesplinterTrogg(),
-                #                    MechanicalYeti(), AntiqueHealbot()])
+                #owned_cards.extend([ClockworkGnome(), Cogmaster(), AnnoyoTron(), ExplosiveSheep(), GilblinStalker(),
+                #                    Mechwarper(), MicroMachine(), Puddlestomper(), ShipsCannon(), StonesplinterTrogg(),
+                #                    FlyingMachine(), SpiderTank(), TinkertownTechnician(), LostTallstrider(),
+                #                    MechanicalYeti(), PilotedShredder(), AntiqueHealbot(), ForceTankMAX()])
+                
+                ### BLACKROCK MOUNTAIN ###
+                # Druid
+                #owned_cards.extend([DruidOfTheFlame()])
+                # Hunter
+                #owned_cards.extend([QuickShot()])
+                # Mage
+                #owned_cards.extend([DragonsBreath()])
+                # Priest
+                #owned_cards.extend([Resurrect()])
+                # Rogue
+                #owned_cards.extend([GangUp()])
+                # Shaman
+                #owned_cards.extend([LavaShock()])
+                # Warlock
+                #owned_cards.extend([ImpGangBoss()])
+                # Warrior
+                #owned_cards.extend([AxeFlinger()])
+                # Neutral
+                # , MajordomoExecutus()
+                #owned_cards.extend([BlackwingTechnician(), GrimPatron(), EmperorThaurissan()])
 
                 hero = getattr(cards, self.hero1)
 
