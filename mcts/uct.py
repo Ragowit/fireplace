@@ -240,7 +240,7 @@ class HearthState:
                                     "EX1_028", "EX1_283"])
         
                 ### PROMO ###
-                #owned_cards.extend([GelbinMekkatorque()])
+                owned_cards.extend(["EX1_112"])
         
                 ### NAXXRAMAS ###
                 # Druid
