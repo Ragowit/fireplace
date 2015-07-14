@@ -931,6 +931,16 @@ def test_secretkeeper():
 	assert secretkeeper.health == 3
 
 
+def test_siltfin_spiritwalker():
+	game = prepare_game()
+	game.player1.discard_hand()
+	siltfin = game.player1.give("GVG_040")
+	murloc = game.player1.give("CS2_168")
+	murloc.play()
+	game.player1.give(MOONFIRE).play(target=murloc)
+	assert len(game.player1.hand) == 1
+
+
 def test_solemn_vigil():
 	game = prepare_game()
 	game.player1.discard_hand()
@@ -1316,6 +1326,20 @@ def test_druid_of_the_fang():
 	assert druid2.atk == 7
 	assert druid2.health == 7
 	assert druid2.race == Race.BEAST
+
+
+def test_imp_gang_boss():
+	game = prepare_game()
+	igb = game.player1.give("BRM_006")
+	igb.play()
+	game.player1.give(MOONFIRE).play(target=igb)
+	assert len(game.player1.field) == 2
+	assert game.player1.field[1].id == "BRM_006t"
+
+	igb2 = game.player1.give("BRM_006")
+	igb2.play()
+	game.player1.give(MOONFIRE).play(target=igb2)
+	assert len(game.player1.field) == 4
 
 
 def test_imp_master():
@@ -3046,6 +3070,24 @@ def test_truesilver_champion():
 	game.player1.hero.attack(target=game.player2.hero)
 	assert game.current_player.hero.health == 29
 	assert lightwarden.atk == 3
+
+
+def test_tinkertown_technician():
+	game = prepare_game()
+	game.player1.discard_hand()
+	game.player1.give(WISP).play()
+	tech = game.player1.give("GVG_102")
+	tech.play()
+	assert tech.atk == tech.health == 3
+	assert len(game.player1.hand) == 0
+
+	dummy = game.player1.give(TARGET_DUMMY)
+	dummy.play()
+	tech2 = game.player1.give("GVG_102")
+	tech2.play()
+	assert tech2.atk == tech2.health == 4
+	assert len(game.player1.hand) == 1
+	assert game.player1.hand[0].type == CardType.SPELL
 
 
 def test_twilight_drake():

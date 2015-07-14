@@ -74,8 +74,7 @@ class EX1_538:
 
 # Kill Command
 class EX1_539:
-	def action(self, target):
-		return [Hit(TARGET, 5 if self.powered_up else 3)]
+	action = [Find(FRIENDLY_MINIONS + BEAST) & Hit(TARGET, 5) | Hit(TARGET, 3)]
 
 
 # Flare
@@ -90,34 +89,6 @@ class EX1_544:
 # Bestial Wrath
 class EX1_549:
 	action = [Buff(TARGET, "EX1_549o")]
-
-
-# Snake Trap
-class EX1_554:
-	events = [
-		Attack(ALL_MINIONS, FRIENDLY_MINIONS).on(
-			lambda self, source, target, *args: [Summon(CONTROLLER, "EX1_554t"),
-			Summon(CONTROLLER, "EX1_554t"), Summon(CONTROLLER, "EX1_554t"), Reveal(SELF)],
-			zone=Zone.SECRET)
-	]
-
-
-# Snipe
-class EX1_609:
-	events = [
-		Play(OPPONENT, MINION).after(
-			lambda self, source, target, *args: [Hit(target, 4), Reveal(SELF)],
-		zone=Zone.SECRET)
-	]
-
-
-# Explosive trap
-class EX1_610:
-	events = [
-		Attack(ENEMY_MINIONS, FRIENDLY_HERO).on(
-			lambda self, source, target, *args: [Hit(ENEMY_CHARACTERS, 2), Reveal(SELF)],
-		zone=Zone.SECRET)
-	]
 
 
 # Freezing Trap
@@ -145,6 +116,37 @@ class NEW1_031:
 	def action(self):
 		huffer = random.choice(self.data.entourage)
 		return [Summon(CONTROLLER, huffer)]
+
+
+##
+# Secrets
+
+
+# Snake Trap
+class EX1_554:
+	events = [
+		Attack(ALL_MINIONS, FRIENDLY_MINIONS).on(lambda self, source, target, *args: [
+			Summon(CONTROLLER, "EX1_554t") * 3, Reveal(SELF)
+		], zone=Zone.SECRET)
+	]
+
+
+# Snipe
+class EX1_609:
+	events = [
+		Play(OPPONENT, MINION).after(
+			lambda self, source, target, *args: [Hit(target, 4), Reveal(SELF)],
+		zone=Zone.SECRET)
+	]
+
+
+# Explosive Trap
+class EX1_610:
+	events = [
+		Attack(ENEMY_MINIONS, FRIENDLY_HERO).on(
+			Hit(ENEMY_CHARACTERS, 2), Reveal(SELF),
+		zone=Zone.SECRET)
+	]
 
 
 ##

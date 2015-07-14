@@ -24,6 +24,68 @@ class RandomCardGenerator(object):
 		return random.choice(self.cards)
 
 
+class Evaluator:
+	"""
+	Lazily evaluate a condition at runtime.
+	"""
+	def __init__(self):
+		self._if = None
+		self._else = None
+
+	def __and__(self, action):
+		self._if = action
+		return self
+
+	def __or__(self, action):
+		self._else = action
+		return self
+
+	def get_actions(self, source, game):
+		ret = self.evaluate(source, game)
+		if ret:
+			if self._if:
+				if isinstance(self._if, Action):
+					return [self._if]
+				return self._if
+		elif self._else:
+			if isinstance(self._else, Action):
+				return [self._else]
+			return [self._else]
+		return []
+
+	def trigger(self, source, game):
+		for action in self.get_actions(source, game):
+			action.trigger(source, game)
+
+
+class Dead(Evaluator):
+	"""
+	Evaluates to True if every target in \a selector is dead
+	"""
+	def __init__(self, selector):
+		super().__init__()
+		self.selector = selector
+
+	def evaluate(self, source, game):
+		for target in self.selector.eval(game, source):
+			if not target.dead:
+				return False
+		return True
+
+
+class Find(Evaluator):
+	"""
+	Evaluates to True if \a selector has a match.
+	"""
+	def __init__(self, selector, count=1):
+		super().__init__()
+		self.selector = selector
+		self.count = count
+
+	def evaluate(self, source, game):
+		return len(self.selector.eval(game, source)) >= self.count
+
+
 class Copy(object):
 	"""
 	Lazily return a list of copies of the target
@@ -133,7 +195,7 @@ class Action:  # Lawsuit
 		for arg, match in zip(args, self._args):
 			# this stuff is stupidslow
 			res = match.eval([arg], source)
-			if res != [arg]:
+			if not res or res[0] is not arg:
 				return False
 		return True
 
@@ -372,16 +434,14 @@ class Draw(TargetedAction):
 	"""
 	Make player targets draw \a count cards.
 	"""
-	args = ("targets", "count")
-
 	def do(self, source, game, target):
 		if not target.deck:
 			target.fatigue()
-			return None
+			return []
 		card = target.deck[-1]
 		card.draw()
 
-		return card
+		return [card]
 
 
 class ForceDraw(TargetedAction):
