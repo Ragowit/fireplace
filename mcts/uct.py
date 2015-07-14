@@ -46,6 +46,7 @@ class HearthState:
     """ A state of the game, i.e. the game board.
     """
     def __init__(self):
+        self.playerJustMoved = 2 # At the root pretend the player just moved is p2 - p1 has the first move
         random.seed(1857)
 
         adjacent_cards = ["Dire Wolf Alpha", "Ancient Mage", "Defender of Argus", "Sunfury Protector",
@@ -89,6 +90,7 @@ class HearthState:
         """ Create a deep clone of this game state.
         """
         st = HearthState()
+        st.playerJustMoved = self.playerJustMoved
         st.player1 = self.player1
         st.hero1 = self.hero1
         st.deck1 = copy.copy(self.deck1)
@@ -104,7 +106,13 @@ class HearthState:
         """ Update a state by carrying out the given move.
         """
         if self.game is not None:
-            assert self.game.current_player.playstate == PlayState.PLAYING 
+            assert self.game.current_player.playstate == PlayState.PLAYING
+            
+            if self.game.current_player is not None:        
+                if self.game.current_player.name == "one":        
+                    self.playerJustMoved = 1        
+                else:        
+                    self.playerJustMoved = 2
 
         if move[0] == MOVE.PRE_GAME:
             self.player1 = Player(name="one")
@@ -359,14 +367,14 @@ class HearthState:
 
         return valid_moves
 
-    def GetResult(self):
-        """ Get the game result from the viewpoint of current player.
+    def GetResult(self, playerjm):
+        """ Get the game result from the viewpoint of playerjm.
         """
-        if self.game.current_player.playstate == PlayState.TIED:
+        if self.game.players[0].hero.health <= 0 and self.game.players[1].hero.health <= 0:
             return 0.5
-        elif self.game.current_player.playstate == PlayState.LOST:
+        elif self.game.players[playerjm - 1].hero.health <= 0:
             return (self.game.turn - 100) / 10
-        elif self.game.current_player.playstate == PlayState.WON:
+        elif self.game.players[2 - playerjm].hero.health <= 0:
             return 100 - self.game.turn
         else:  # Should not be possible to get here unless we terminate the game early.
             return 0.5
@@ -391,7 +399,7 @@ class HearthState:
 
 
 class Node:
-    """ A node in the game tree. Note wins is always from the viewpoint of current player.
+    """ A node in the game tree. Note wins is always from the viewpoint of playerJustMoved.
         Crashes if state not specified.
     """
     def __init__(self, move = None, parent = None, state = None):
@@ -404,6 +412,7 @@ class Node:
             self.untriedMoves = []
         else:
             self.untriedMoves = state.GetMoves() # future child nodes
+        self.playerJustMoved = state.playerJustMoved # the only part of the state that the Node needs later
         
     def UCTSelectChild(self):
         """ Use the UCB1 formula to select a child node. Often a constant UCTK is applied so we have
@@ -423,7 +432,7 @@ class Node:
         return n
     
     def Update(self, result):
-        """ Update this node - one additional visit and result additional wins. result must be from the viewpoint of current player.
+        """ Update this node - one additional visit and result additional wins. result must be from the viewpoint of playerJustMoved.
         """
         self.visits += 1
         self.wins += result
@@ -486,7 +495,7 @@ def UCT(rootstate, seconds, verbose = False):
 
         # Backpropagate
         while node != None: # backpropagate from the expanded node and work back to the root node
-            node.Update(state.GetResult()) # state is terminal. Update node with result from POV of current player
+            node.Update(state.GetResult(node.playerJustMoved)) # state is terminal. Update node with result from POV of node.playerJustMoved
             node = node.parentNode
 
         iterations += 1
@@ -524,10 +533,10 @@ def UCTPlayGame():
         print(state.deck1)
         print(state.deck2)
         print()
-    if state.GetResult() >= 1.0:
-        print("Player " + str(state.game.current_player.name) + " wins!")
-    elif state.GetResult() <= 0.0:
-        print("Player " + str(state.game.current_player.name) + " wins!")
+    if state.GetResult(state.playerJustMoved) >= 1.0:
+        print("Player " + str(state.playerJustMoved) + " wins!")
+    elif state.GetResult(state.playerJustMoved) <= 0.0:
+        print("Player " + str(3 - state.playerJustMoved) + " wins!")
     else: print("Nobody wins!")
 
 
