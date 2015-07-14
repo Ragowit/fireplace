@@ -290,24 +290,26 @@ class HearthState:
                 
                 ### BLACKROCK MOUNTAIN ###
                 # Druid
-                #owned_cards.extend([DruidOfTheFlame()])
+                owned_cards.extend(["BRM_010", "BRM_009"])
                 # Hunter
-                #owned_cards.extend([QuickShot()])
+                owned_cards.extend(["BRM_013", "BRM_014"])
                 # Mage
-                #owned_cards.extend([DragonsBreath()])
+                owned_cards.extend(["BRM_002", "BRM_003"])
+                # Paladin
+                owned_cards.extend(["BRM_001", "BRM_018"])
                 # Priest
-                #owned_cards.extend([Resurrect()])
+                owned_cards.extend(["BRM_004", "BRM_017"])
                 # Rogue
-                #owned_cards.extend([GangUp()])
+                owned_cards.extend(["BRM_007", "BRM_008"])
                 # Shaman
-                #owned_cards.extend([LavaShock()])
+                owned_cards.extend(["BRM_011", "BRM_012"])
                 # Warlock
-                #owned_cards.extend([ImpGangBoss()])
+                owned_cards.extend(["BRM_005", "BRM_006"])
                 # Warrior
-                #owned_cards.extend([AxeFlinger()])
+                owned_cards.extend(["BRM_015", "BRM_016"])
                 # Neutral
-                # , MajordomoExecutus()
-                #owned_cards.extend([BlackwingTechnician(), GrimPatron(), EmperorThaurissan()])
+                owned_cards.extend(["BRM_022", "BRM_033", "BRM_020", "BRM_026", "BRM_034", "BRM_019", "BRM_024",
+                                    "BRM_028", "BRM_025", "BRM_029", "BRM_031", "BRM_027", "BRM_030"])
 
                 hero = getattr(cards, self.hero1)
 
