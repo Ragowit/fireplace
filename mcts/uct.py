@@ -215,35 +215,29 @@ class HearthState:
         
                 ### CLASSIC ###
                 # Druid
-                #owned_cards.extend([PowerOfTheWild(), Wrath(), MarkOfNature(), KeeperOfTheGrove(), Starfall(),
-                #                    DruidOfTheClaw()])
+                owned_cards.extend(["EX1_160", "EX1_154", "EX1_155", "EX1_166", "NEW1_007", "EX1_165"])
                 # Hunter
-                #owned_cards.extend([Snipe(), ScavengingHyena(), DeadlyShot()])
+                owned_cards.extend(["EX1_609", "EX1_531", "EX1_617"])
                 # Mage
-                #owned_cards.extend([IceLance(), ManaWyrm(), SorcerersApprentice(), IceBarrier(), EtherealArcanist(),
-                #                    Blizzard()])
+                owned_cards.extend(["CS2_031", "NEW1_012", "EX1_608", "EX1_289", "EX1_274", "CS2_028"])
                 # Paladin
-                #owned_cards.extend([EyeForAnEye(), NobleSacrifice(), Repentance(), ArgentProtector()])
+                owned_cards.extend(["EX1_132", "EX1_130", "EX1_379", "EX1_362"])
                 # Priest
-                #owned_cards.extend([CircleOfHealing(), Silence(), InnerFire(), Thoughtsteal(), MassDispel(),
-                #                    HolyFire()])
+                owned_cards.extend(["EX1_621", "EX1_332", "CS1_129", "EX1_339", "EX1_626", "EX1_624"])
                 # Rogue
-                #owned_cards.extend([ColdBlood(), Conceal(), Betrayal(), Eviscerate()])
+                owned_cards.extend(["CS2_073", "EX1_128", "EX1_126", "EX1_124"])
                 # Shaman
-                #owned_cards.extend([ForkedLightning(), AncestralSpirit()])
+                owned_cards.extend(["EX1_251", "CS2_038"])
                 # Warlock
-                #owned_cards.extend([PowerOverwhelming(), FlameImp(), Demonfire(), SenseDemons(), SummoningPortal(),
-                #                    Doomguard()])
+                owned_cards.extend(["EX1_316", "EX1_319", "EX1_596", "EX1_317", "EX1_315", "EX1_310"])
                 # Warrior
-                #owned_cards.extend([InnerRage(), Rampage(), Armorsmith(), CruelTaskmaster(), MortalStrike(), Brawl()])
+                owned_cards.extend(["EX1_607", "CS2_104", "EX1_402", "EX1_603", "EX1_408", "EX1_407"])
                 # Neutral
-                #owned_cards.extend([Wisp(), ArgentSquire(), SouthseaDeckhand(), YoungPriestess(), AmaniBerserker(),
-                #                    BloodsailRaider(), DireWolfAlpha(), FaerieDragon(), IronbeakOwl(), KnifeJuggler(),
-                #                    LootHoarder(), MadBomber(), MasterSwordsmith(), Demolisher(), HarvestGolem(),
-                #                    ImpMaster(), JunglePanther(), QuestingAdventurer(), ScarletCrusader(),
-                #                    TaurenWarrior(), TinkmasterOverspark(), CultMaster(), DefenderOfArgus(),
-                #                    SilvermoonGuardian(), AzureDrake(), FenCreeper(), SilverHandKnight(),
-                #                    SpitefulSmith(), StranglethornTiger(), FrostElemental()])
+                owned_cards.extend(["CS2_231", "EX1_008", "CS2_146", "EX1_004", "EX1_393", "NEW1_018", "EX1_162",
+                                    "NEW1_023", "CS2_203", "NEW1_019", "EX1_096", "EX1_082", "NEW1_037", "EX1_102",
+                                    "EX1_556", "EX1_597", "EX1_017", "EX1_044", "EX1_020", "EX1_390", "EX1_083",
+                                    "EX1_595", "EX1_093", "EX1_023", "EX1_284", "CS1_069", "CS2_151", "CS2_221",
+                                    "EX1_028", "EX1_283"])
         
                 ### PROMO ###
                 #owned_cards.extend([GelbinMekkatorque()])
