@@ -244,28 +244,27 @@ class HearthState:
         
                 ### NAXXRAMAS ###
                 # Druid
-                #owned_cards.extend([PoisonSeeds()])
+                owned_cards.extend(["FP1_019"])
                 # Hunter
-                #owned_cards.extend([Webspinner()])
+                owned_cards.extend(["FP1_011"])
                 # Mage
-                #owned_cards.extend([Duplicate()])
+                owned_cards.extend(["FP1_018"])
                 # Paladin
-                #owned_cards.extend([Avenge()])
+                owned_cards.extend(["FP1_020"])
                 # Priest
-                #owned_cards.extend([DarkCultist()])
+                owned_cards.extend(["FP1_023"])
                 # Rogue
-                #owned_cards.extend([AnubarAmbusher()])
+                owned_cards.extend(["FP1_026"])
                 # Shaman
-                #owned_cards.extend([Reincarnate()])
+                owned_cards.extend(["FP1_025"])
                 # Warlock
-                #owned_cards.extend([Voidcaller()])
+                owned_cards.extend(["FP1_022"])
                 # Warrior
-                #owned_cards.extend([DeathsBite()])
+                owned_cards.extend(["FP1_021"])
                 # Neutral
-                #owned_cards.extend([Undertaker(), ZombieChow(), EchoingOoze(), HauntedCreeper(), MadScientist(),
-                #                    NerubarWeblord(), NerubianEgg(), UnstableGhoul(), DancingSwords(), Deathlord(),
-                #                    ShadeOfNaxxramas(), StoneskinGargoyle(), BaronRivendare(), WailingSoul(), Feugen(),
-                #                    Loatheb(), SludgeBelcher(), SpectralKnight(), Stalagg(), Maexxna(), KelThuzad()])
+                owned_cards.extend(["FP1_028", "FP1_001", "FP1_003", "FP1_002", "FP1_004", "FP1_017", "FP1_007",
+                                    "FP1_024", "FP1_029", "FP1_009", "FP1_005", "FP1_027", "FP1_031", "FP1_016",
+                                    "FP1_015", "FP1_030", "FP1_012", "FP1_008", "FP1_014", "FP1_010", "FP1_013"])
         
                 ### GOBLINS VS GNOMES ##
                 # Druid
