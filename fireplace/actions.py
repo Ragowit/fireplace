@@ -25,6 +25,18 @@ class RandomCardGenerator(object):
 		return random.choice(self.cards)
 
 
+class Count:
+	"""
+	Lazily count the matches in a selector
+	"""
+	def __init__(self, selector):
+		super().__init__()
+		self.selector = selector
+
+	def evaluate(self, source, game):
+		return len(self.selector.eval(game, source))
+
+
 class Evaluator:
 	"""
 	Lazily evaluate a condition at runtime.
@@ -160,7 +172,6 @@ class Action:  # Lawsuit
 	type = PowSubType.TRIGGER
 
 	def __init__(self, *args, **kwargs):
-		self.times = 1
 		self._args = args
 		for k, v in zip(self.args, args):
 			setattr(self, k, v)
@@ -168,10 +179,6 @@ class Action:  # Lawsuit
 	def __repr__(self):
 		args = ["%s=%r" % (k, v) for k, v in zip(self.args, self._args)]
 		return "<Action: %s(%s)>" % (self.__class__.__name__, ", ".join(args))
-
-	def __mul__(self, value):
-		self.times *= value
-		return self
 
 	def after(self, *actions, zone=Zone.PLAY):
 		return EventListener(self, actions, EventListener.AFTER, zone=zone)
@@ -334,9 +341,17 @@ class TargetedAction(Action):
 	args = ("targets", )
 	selectors = ("targets", )
 
+	def __init__(self, *args, **kwargs):
+		super().__init__(*args, **kwargs)
+		self.times = 1
+
 	def __repr__(self):
 		args = ["%s=%r" % (k, v) for k, v in zip(self.args[1:], self._args[1:])]
 		return "<TargetedAction: %s(%s)>" % (self.__class__.__name__, ", ".join(args))
+
+	def __mul__(self, value):
+		self.times = value
+		return self
 
 	def eval(self, selector, source, game):
 		if isinstance(selector, Entity):
@@ -364,7 +379,10 @@ class TargetedAction(Action):
 
 	def trigger(self, source, game):
 		ret = []
-		for i in range(self.times):
+		times = self.times
+		if isinstance(times, Count):
+			times = times.evaluate(source, game)
+		for i in range(times):
 			args = self.evaluate_selectors(source, game)
 			targets = args[0]
 			game.manager.action(self.type, source, targets, *self._args)

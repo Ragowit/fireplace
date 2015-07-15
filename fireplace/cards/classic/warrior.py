@@ -70,9 +70,7 @@ class EX1_391:
 
 # Battle Rage
 class EX1_392:
-	def action(self):
-		damaged = self.controller.characters.filter(damaged=True)
-		return [Draw(CONTROLLER) * len(damaged)]
+	action = [Draw(CONTROLLER) * Count(FRIENDLY_MINIONS + DAMAGED)]
 
 
 # Whirlwind
@@ -96,11 +94,11 @@ class EX1_408:
 
 # Upgrade!
 class EX1_409:
-	def action(self):
-		if self.controller.weapon:
-			return [Buff(FRIENDLY_WEAPON, "EX1_409e")]
-		else:
-			return [Summon(CONTROLLER, "EX1_409t")]
+	action = [
+		Find(FRIENDLY_WEAPON) &
+		Buff(FRIENDLY_WEAPON, "EX1_409e") |
+		Summon(CONTROLLER, "EX1_409t")
+	]
 
 
 # Shield Slam
