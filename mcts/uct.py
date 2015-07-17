@@ -219,7 +219,7 @@ class HearthState:
                 # Hunter
                 owned_cards.extend(["EX1_609", "EX1_531", "EX1_617"])
                 # Mage
-                owned_cards.extend(["CS2_031", "NEW1_012", "EX1_608", "EX1_289", "EX1_274", "CS2_028"])
+                owned_cards.extend(["CS2_031", "NEW1_012", "EX1_608", "EX1_289", "EX1_274", "CS2_028", "EX1_559"])
                 # Paladin
                 owned_cards.extend(["EX1_132", "EX1_130", "EX1_379", "EX1_362"])
                 # Priest
@@ -280,13 +280,15 @@ class HearthState:
                 # Rogue
                 owned_cards.extend(["GVG_023", "GVG_025", "GVG_022", "GVG_088"])
                 # Shaman
-                owned_cards.extend(["GVG_038", "GVG_039", "GVG_040"])
+                owned_cards.extend(["GVG_038", "GVG_039", "GVG_037", "GVG_040"])
+                # Warlock
+                owned_cards.extend(["GVG_045"])
                 # Warrior
                 owned_cards.extend(["GVG_051", "GVG_054"])
                 # Neutral
                 owned_cards.extend(["GVG_082", "GVG_013", "GVG_085", "GVG_076", "GVG_081", "GVG_006", "GVG_103",
-                                    "GVG_064", "GVG_075", "GVG_067", "GVG_084", "GVG_044", "GVG_102", "GVG_071",
-                                    "GVG_078", "GVG_096", "GVG_069", "GVG_079"])
+                                    "GVG_064", "GVG_075", "GVG_067", "GVG_084", "GVG_065", "GVG_044", "GVG_102",
+                                    "GVG_071", "GVG_078", "GVG_096", "GVG_069", "GVG_079"])
                 
                 ### BLACKROCK MOUNTAIN ###
                 # Druid
