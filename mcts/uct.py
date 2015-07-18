@@ -284,7 +284,7 @@ class HearthState:
                 # Warlock
                 owned_cards.extend(["GVG_045"])
                 # Warrior
-                owned_cards.extend(["GVG_051", "GVG_054"])
+                owned_cards.extend(["GVG_051", "GVG_054", "GVG_053"])
                 # Neutral
                 owned_cards.extend(["GVG_082", "GVG_013", "GVG_085", "GVG_076", "GVG_081", "GVG_006", "GVG_103",
                                     "GVG_064", "GVG_075", "GVG_067", "GVG_084", "GVG_065", "GVG_044", "GVG_102",
