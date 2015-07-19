@@ -400,7 +400,7 @@ class HearthState:
         if self.game.players[0].hero.health <= 0 and self.game.players[1].hero.health <= 0:
             return 0.5
         elif self.game.players[playerjm - 1].hero.health <= 0:
-            return (self.game.turn - 100) / 10
+            return (self.game.turn - 100) / 2
         elif self.game.players[2 - playerjm].hero.health <= 0:
             return 100 - self.game.turn
         else:  # Should not be possible to get here unless we terminate the game early.
