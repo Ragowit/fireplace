@@ -17,7 +17,7 @@
 
 from math import *
 import copy
-import logging
+#import logging
 import random
 import time
 import sys, traceback
@@ -114,42 +114,45 @@ class HearthState:
                 else:        
                     self.playerJustMoved = 2
 
-        if move[0] == MOVE.PRE_GAME:
-            self.player1 = Player(name="one")
-            self.player2 = Player(name="two")
-            self.player1.prepare_deck(self.deck1, self.hero1)
-            self.player2.prepare_deck(self.deck2, self.hero2)
-            self.game = Game(players=(self.player1, self.player2))
-            self.game.start()
-        elif move[0] == MOVE.PICK_CLASS:
-            self.hero2 = move[1]
-        elif move[0] == MOVE.PICK_CARD:
-            if len(self.deck1) < 30:
-                self.deck1.append(move[1].id)
+        try:
+            if move[0] == MOVE.PRE_GAME:
+                self.player1 = Player(name="one")
+                self.player2 = Player(name="two")
+                self.player1.prepare_deck(self.deck1, self.hero1)
+                self.player2.prepare_deck(self.deck2, self.hero2)
+                self.game = Game(players=(self.player1, self.player2))
+                self.game.start()
+            elif move[0] == MOVE.PICK_CLASS:
+                self.hero2 = move[1]
+            elif move[0] == MOVE.PICK_CARD:
+                if len(self.deck1) < 30:
+                    self.deck1.append(move[1].id)
+                else:
+                    self.deck2.append(move[1].id)
+            elif move[0] == MOVE.END_TURN:
+                self.game.end_turn()
+            elif move[0] == MOVE.HERO_POWER:
+                heropower = self.game.current_player.hero.power
+                if move[3] is None:
+                    heropower.use()
+                else:
+                    heropower.use(target=heropower.targets[move[3]])
+            elif move[0] == MOVE.PLAY_CARD:
+                card = self.game.current_player.hand[move[2]]
+                if move[3] is None:
+                    card.play()
+                else:
+                    card.play(target=card.targets[move[3]])
+            elif move[0] == MOVE.MINION_ATTACK:
+                minion = self.game.current_player.field[move[2]]
+                minion.attack(minion.targets[move[3]])
+            elif move[0] == MOVE.HERO_ATTACK:
+                hero = self.game.current_player.hero
+                hero.attack(hero.targets[move[3]])
             else:
-                self.deck2.append(move[1].id)
-        elif move[0] == MOVE.END_TURN:
-            self.game.end_turn()
-        elif move[0] == MOVE.HERO_POWER:
-            heropower = self.game.current_player.hero.power
-            if move[3] is None:
-                heropower.use()
-            else:
-                heropower.use(target=heropower.targets[move[3]])
-        elif move[0] == MOVE.PLAY_CARD:
-            card = self.game.current_player.hand[move[2]]
-            if move[3] is None:
-                card.play()
-            else:
-                card.play(target=card.targets[move[3]])
-        elif move[0] == MOVE.MINION_ATTACK:
-            minion = self.game.current_player.field[move[2]]
-            minion.attack(minion.targets[move[3]])
-        elif move[0] == MOVE.HERO_ATTACK:
-            hero = self.game.current_player.hero
-            hero.attack(hero.targets[move[3]])
-        else:
-            raise NameError("DoMove ran into unclassified card", move)
+                raise NameError("DoMove ran into unclassified card", move)
+        except:
+            return            
 
     def GetMoves(self):
         """ Get all possible moves from this state.
