@@ -467,7 +467,7 @@ class Node:
     def TreeToString(self, indent):
         s = self.IndentString(indent) + str(self)
         for c in sorted(self.childNodes, key = lambda c: c.visits):
-             s += c.TreeToString(indent+1)
+            s += c.TreeToString(indent+1)
         return s
 
     def IndentString(self,indent):
@@ -479,7 +479,7 @@ class Node:
     def ChildrenToString(self):
         s = ""
         for c in sorted(self.childNodes, key = lambda c: c.visits):
-             s += str(c) + "\n"
+            s += str(c) + "\n"
         return s[:-2]
 
     #def clean(self):
