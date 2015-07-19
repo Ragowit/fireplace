@@ -68,13 +68,13 @@ class EX1_319:
 	action = [Hit(FRIENDLY_HERO, 3)]
 
 
-## Lord Jaraxxus
-#class EX1_323:
-#	# TODO
-#	def action(self):
-#		self.removeFromField()
-#		self.controller.summon("EX1_323h")
-#		self.controller.summon("EX1_323w")
+# Lord Jaraxxus
+class EX1_323:
+	# TODO
+	def action(self):
+		self.removeFromField()
+		self.controller.summon("EX1_323h")
+		self.controller.summon("EX1_323w")
 
 # INFERNO!
 class EX1_tk33:
