@@ -338,6 +338,7 @@ RANDOM = RandomSelector
 
 DAMAGED = Selector(GameTag.DAMAGE)
 DEATHRATTLE = Selector(GameTag.DEATHRATTLE)
+DIVINE_SHIELD = Selector(GameTag.DIVINE_SHIELD)
 OVERLOAD = Selector(GameTag.RECALL)
 
 
@@ -365,6 +366,7 @@ HERO_POWER = Selector(CardType.HERO_POWER)
 
 BEAST = Selector(Race.BEAST)
 DEMON = Selector(Race.DEMON)
+DRAGON = Selector(Race.DRAGON)
 MECH = Selector(Race.MECHANICAL)
 MURLOC = Selector(Race.MURLOC)
 PIRATE = Selector(Race.PIRATE)

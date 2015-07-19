@@ -102,7 +102,7 @@ class BaseGame(Entity):
 		defender.defending = False
 		attacker.num_attacks += 1
 
-	def play(self, card):
+	def _play(self, card):
 		"""
 		Plays \a card from a Player's hand
 		"""
@@ -149,7 +149,7 @@ class BaseGame(Entity):
 	def process_deaths(self):
 		actions = []
 		for card in self.live_entities:
-			if card.to_be_destroyed and not card.ignore_events:
+			if card.to_be_destroyed:
 				actions += self._schedule_death(card)
 
 		self.check_for_end_game()
@@ -165,6 +165,7 @@ class BaseGame(Entity):
 		"""
 		logging.debug("Scheduling death for %r", card)
 		card.ignore_events = True
+		card.zone = Zone.GRAVEYARD
 		if card.type == CardType.MINION:
 			self.minions_killed.append(card)
 			self.minions_killed_this_turn.append(card)
@@ -179,6 +180,9 @@ class BaseGame(Entity):
 		Queue a list of \a actions for processing from \a source.
 		"""
 		ret = []
+		if not hasattr(actions, "__iter__"):
+			actions = (actions, )
+
 		for action in actions:
 			if isinstance(action, EventListener):
 				logging.debug("Registering %r on %r", action, self)

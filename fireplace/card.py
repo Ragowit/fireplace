@@ -1,7 +1,7 @@
 import logging
 from itertools import chain
 from . import cards as CardDB, targeting
-from .actions import Damage, Deaths, Destroy, Heal, Morph, Play
+from .actions import Action, Damage, Deaths, Destroy, Heal, Morph, Play
 from .entity import Entity, boolean_property, int_property
 from .enums import AuraType, CardType, PlayReq, Race, Zone
 from .managers import *
@@ -198,12 +198,12 @@ class PlayableCard(BaseCard):
 		if self.has_combo and self.controller.combo:
 			logging.info("Activating %r combo targeting %r" % (self, self.target))
 			actions = self.data.scripts.combo
-		elif hasattr(self.data.scripts, "action"):
+		elif hasattr(self.data.scripts, "play"):
 			logging.info("Activating %r action targeting %r" % (self, self.target))
-			actions = self.data.scripts.action
+			actions = self.data.scripts.play
 		elif self.choose:
 			logging.info("Activating %r Choose One: %r", self, self.chosen)
-			actions = self.chosen.data.scripts.action
+			actions = self.chosen.data.scripts.play
 		else:
 			return
 
@@ -605,6 +605,14 @@ class Spell(PlayableCard):
 
 
 class Secret(Spell):
+	@property
+	def exhausted(self):
+		return not self.controller.current_player
+
+	@exhausted.setter
+	def exhausted(self, value):
+		pass
+
 	def _set_zone(self, value):
 		if self.zone == Zone.SECRET:
 			self.controller.secrets.remove(self)
