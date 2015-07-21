@@ -220,7 +220,7 @@ class HearthState:
                 # Druid
                 owned_cards.extend(["EX1_160", "EX1_154", "EX1_155", "EX1_166", "NEW1_007", "EX1_165"])
                 # Hunter
-                owned_cards.extend(["EX1_609", "EX1_531", "EX1_617"])
+                owned_cards.extend(["EX1_609", "EX1_531", "EX1_617", "EX1_538"])
                 # Mage
                 owned_cards.extend(["CS2_031", "NEW1_012", "EX1_608", "EX1_289", "EX1_274", "CS2_028", "EX1_559"])
                 # Paladin
@@ -234,7 +234,7 @@ class HearthState:
                 # Warlock
                 owned_cards.extend(["EX1_316", "EX1_319", "EX1_596", "EX1_317", "EX1_315", "EX1_310"])
                 # Warrior
-                owned_cards.extend(["EX1_607", "CS2_104", "EX1_402", "EX1_603", "EX1_408", "EX1_407"])
+                owned_cards.extend(["EX1_607", "CS2_104", "EX1_391", "EX1_402", "EX1_603", "EX1_408", "EX1_407"])
                 # Neutral
                 owned_cards.extend(["CS2_231", "EX1_008", "CS2_146", "EX1_004", "EX1_393", "NEW1_018", "EX1_162",
                                     "NEW1_023", "CS2_203", "NEW1_019", "EX1_096", "EX1_082", "NEW1_037", "EX1_102",
