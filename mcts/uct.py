@@ -240,7 +240,7 @@ class HearthState:
                                     "NEW1_023", "CS2_203", "NEW1_019", "EX1_096", "EX1_082", "NEW1_037", "EX1_102",
                                     "EX1_556", "EX1_597", "EX1_017", "EX1_044", "EX1_020", "EX1_390", "EX1_083",
                                     "EX1_595", "EX1_093", "EX1_023", "EX1_284", "CS1_069", "CS2_151", "CS2_221",
-                                    "EX1_028", "EX1_283"])
+                                    "EX1_028", "EX1_283", "EX1_583"])
         
                 ### PROMO ###
                 owned_cards.extend(["EX1_112"])
@@ -279,13 +279,13 @@ class HearthState:
                 # Paladin
                 owned_cards.extend(["GVG_057", "GVG_101", "GVG_062"])
                 # Priest
-                owned_cards.extend(["GVG_011"])
+                owned_cards.extend(["GVG_011", "GVG_010"])
                 # Rogue
                 owned_cards.extend(["GVG_023", "GVG_025", "GVG_022", "GVG_088"])
                 # Shaman
                 owned_cards.extend(["GVG_038", "GVG_039", "GVG_037", "GVG_040"])
                 # Warlock
-                owned_cards.extend(["GVG_045"])
+                owned_cards.extend(["GVG_045", "GVG_100"])
                 # Warrior
                 owned_cards.extend(["GVG_051", "GVG_054", "GVG_053"])
                 # Neutral
