@@ -273,7 +273,7 @@ class HearthState:
                 # Druid
                 owned_cards.extend(["GVG_030"])
                 # Hunter
-                owned_cards.extend(["GVG_043", "GVG_046"])
+                owned_cards.extend(["GVG_043", "GVG_073", "GVG_046"])
                 # Mage
                 owned_cards.extend(["GVG_001", "GVG_002"])
                 # Paladin
@@ -291,7 +291,7 @@ class HearthState:
                 # Neutral
                 owned_cards.extend(["GVG_082", "GVG_013", "GVG_085", "GVG_076", "GVG_081", "GVG_006", "GVG_103",
                                     "GVG_064", "GVG_075", "GVG_067", "GVG_084", "GVG_065", "GVG_044", "GVG_102",
-                                    "GVG_071", "GVG_078", "GVG_096", "GVG_069", "GVG_079"])
+                                    "GVG_091", "GVG_071", "GVG_078", "GVG_096", "GVG_069", "GVG_119", "GVG_079"])
                 
                 ### BLACKROCK MOUNTAIN ###
                 # Druid
