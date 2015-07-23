@@ -88,6 +88,7 @@ class GameTag(IntEnum):
 	EXTRA_DEATHRATTLES = 371
 	TOPDECK = 377
 	SHOWN_HERO_POWER = 380
+	STEADY_SHOT_CAN_TARGET = 383
 	POWERED_UP = 386
 	SPARE_PART = 388
 	FORGETFUL = 389
@@ -96,6 +97,7 @@ class GameTag(IntEnum):
 	NUM_CARDS_DRAWN_THIS_TURN = 399
 	EVIL_GLOW = 401
 	HIDE_COST = 402
+	INSPIRE = 403
 
 	# flavor
 	ELITE = 114
@@ -128,6 +130,10 @@ class GameTag(IntEnum):
 	# Renamed
 	DEATH_RATTLE = 217
 	OVERKILL = 380
+
+	# Internal
+	ALWAYS_WINS_BRAWLS = -10
+	ATTACK_HEALTH_SWAP = -11
 
 	def test(self, entity, *args):
 		return bool(entity.tags.get(self))
@@ -316,6 +322,9 @@ class Zone(IntEnum):
 	REMOVEDFROMGAME = 5
 	SETASIDE = 6
 	SECRET = 7
+
+	# Fireplace-specific zone
+	DISCARD = -1
 
 	def test(self, entity, *args):
 		return self == getattr(entity, "zone", Zone.INVALID)

@@ -26,7 +26,7 @@ RESTORE_1 = "XXX_003"
 logging.getLogger().setLevel(logging.DEBUG)
 
 
-class TestGame(Game):
+class BaseTestGame(Game):
 	def start(self):
 		super().start()
 		self.player1.max_mana = 10
@@ -43,7 +43,7 @@ def _draft(hero, exclude):
 
 _heroes = fireplace.cards.filter(collectible=True, type=CardType.HERO)
 
-def prepare_game(hero1=None, hero2=None, exclude=(), game_class=TestGame):
+def prepare_game(hero1=None, hero2=None, exclude=(), game_class=BaseTestGame):
 	print("Initializing a new game")
 	if hero1 is None:
 		hero1 = random.choice(_heroes)
@@ -2253,6 +2253,26 @@ def test_mirror_image():
 	assert game.current_player.field[1].id == "CS2_mirror"
 
 
+def test_mortal_strike():
+	game = prepare_game()
+	game.player1.discard_hand()
+	expected_health = 30
+	for i in range(5):
+		ms = game.player1.give("EX1_408")
+		assert not ms.powered_up
+		ms.play(target=game.player1.hero)
+		expected_health -= 4
+		assert game.player1.hero.health == expected_health
+		if i % 2:
+			game.end_turn(); game.end_turn()
+
+	ms = game.player1.give("EX1_408")
+	# assert ms.powered_up  # TODO
+	ms.play(target=game.player1.hero)
+	expected_health -= 6
+	assert game.player1.hero.health == expected_health
+
+
 def test_archmage_antonidas():
 	game = prepare_game()
 	antonidas = game.current_player.give("EX1_559")
@@ -2351,6 +2371,22 @@ def test_brawl():
 	brawl.play()
 	assert len(game.board) == 1
 	assert game.board[0].id in (WISP, GOLDSHIRE_FOOTMAN)
+
+
+def test_dark_iron_bouncer_brawl():
+	game = prepare_game()
+	bouncer = game.player1.give("BRMA01_3")
+	bouncer.play()
+	for i in range(6):
+		game.player1.give(WISP).play()
+	game.end_turn()
+
+	for i in range(7):
+		game.player2.give(WISP).play()
+	brawl = game.player2.give("EX1_407")
+	brawl.play()
+	assert len(game.board) == 1
+	assert not bouncer.dead
 
 
 def test_bane_of_doom():
@@ -2705,6 +2741,32 @@ def test_illidan():
 	game.current_player.give(MOONFIRE).play(target=illidan)
 	assert len(game.board) == 5
 	assert illidan.dead
+
+
+def test_illidan_knife_juggler():
+	game = prepare_game()
+	illidan = game.player1.give("EX1_614")
+	illidan.play()
+	juggler = game.player1.give("NEW1_019")
+	juggler.play()
+	assert len(game.player1.field) == 3
+	assert game.player2.hero.health == 30 - 1
+
+
+def test_illidan_full_board():
+	game = prepare_game()
+	illidan = game.player1.give("EX1_614")
+	illidan.play()
+	game.player1.give(THE_COIN).play()
+	game.player1.give(THE_COIN).play()
+	game.player1.give(THE_COIN).play()
+	game.player1.give(THE_COIN).play()
+	game.player1.give(THE_COIN).play()
+	assert len(game.player1.field) == 6
+	juggler = game.player1.give("NEW1_019")
+	juggler.play()
+	assert len(game.player1.field) == 7
+	assert game.player2.hero.health == 30
 
 
 def test_leeroy():
@@ -3730,6 +3792,23 @@ def test_vaporize():
 	assert game.current_player.opponent.hero.health == 27
 
 
+def test_stampeding_kodo():
+	game = prepare_game()
+	wisp = game.player1.give(WISP)
+	wisp.play()
+	watcher = game.player1.give("EX1_045")
+	watcher.play()
+	game.end_turn()
+
+	kodo = game.player2.give("NEW1_041")
+	kodo.play()
+	assert wisp.dead
+	assert not watcher.dead
+	kodo2 = game.player2.give("NEW1_041")
+	kodo2.play()
+	assert not watcher.dead
+
+
 def test_stoneskin_gargoyle():
 	game = prepare_game()
 	gargoyle = game.current_player.give("FP1_027")
@@ -4229,6 +4308,47 @@ def test_explosive_trap():
 	assert len(game.player2.field) == 0
 	assert game.player2.hero.health == 24
 	assert game.player1.hero.health == 30
+
+
+def test_stalagg_feugen():
+	game = prepare_game()
+	stalagg1 = game.player1.give("FP1_014")
+	stalagg2 = game.player1.give("FP1_014")
+	feugen = game.player1.give("FP1_015")
+	stalagg1.play()
+	stalagg2.play()
+
+	stalagg1.destroy()
+	assert stalagg1.dead
+	stalagg2.destroy()
+	assert stalagg2.dead
+	assert len(game.player1.field) == 0
+	game.end_turn(); game.end_turn()
+
+	feugen.play()
+	feugen.destroy()
+	assert feugen.dead
+	assert len(game.player1.field) == 1
+	assert game.player1.field[0].id == "FP1_014t"
+
+
+def test_stalagg_feugen_both_killed():
+	game = prepare_game()
+	stalagg = game.player1.give("FP1_014")
+	stalagg.play()
+	game.end_turn()
+
+	feugen = game.player2.give("FP1_015")
+	feugen.play()
+	game.end_turn()
+
+	stalagg.attack(feugen)
+	assert stalagg.dead
+	assert feugen.dead
+	assert len(game.player1.field) == 1
+	assert len(game.player2.field) == 1
+	assert game.player1.field[0].id == "FP1_014t"
+	assert game.player2.field[0].id == "FP1_014t"
 
 
 def main():

@@ -76,16 +76,16 @@ class EX1_400:
 
 # Brawl
 class EX1_407:
-	play = Destroy(ALL_MINIONS - RANDOM_MINION)
+	play = (
+		Find(ALL_MINIONS + ALWAYS_WINS_BRAWLS) &
+		Destroy(ALL_MINIONS - RANDOM(ALL_MINIONS + ALWAYS_WINS_BRAWLS)) |
+		Destroy(ALL_MINIONS - RANDOM_MINION)
+	)
 
 
 # Mortal Strike
 class EX1_408:
-	def play(self, target):
-		if self.controller.hero.health <= 12:
-			return Hit(TARGET, 6)
-		else:
-			return Hit(TARGET, 4)
+	play = (Attr(FRIENDLY_HERO, "health") <= 12) & Hit(TARGET, 6) | Hit(TARGET, 4)
 
 
 # Upgrade!
