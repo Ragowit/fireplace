@@ -31,8 +31,9 @@ class BaseGame(Entity):
 		self.turn = 0
 		self.current_player = None
 		self.auras = []
-		self.minions_killed = CardList()
+		self.graveyard = CardList()
 		self.minions_killed_this_turn = CardList()
+		self.no_aura_refresh = False
 
 	def __repr__(self):
 		return "<%s %s>" % (self.__class__.__name__, self)
@@ -42,6 +43,10 @@ class BaseGame(Entity):
 
 	def __iter__(self):
 		return self.all_entities.__iter__()
+
+	@property
+	def game(self):
+		return self
 
 	@property
 	def board(self):
@@ -61,7 +66,7 @@ class BaseGame(Entity):
 
 	@property
 	def all_entities(self):
-		return CardList(chain(self.entities, self.hands, self.decks))
+		return CardList(chain(self.entities, self.hands, self.decks, self.graveyard))
 
 	@property
 	def entities(self):
@@ -118,11 +123,7 @@ class BaseGame(Entity):
 			logging.info("%s overloads for %i mana", player, card.overload)
 			player.overloaded += card.overload
 		player.last_card_played = card
-		player.summon(card)
-		player.combo = True
-		player.cards_played_this_turn += 1
-		if card.type == CardType.MINION:
-			player.minions_played_this_turn += 1
+		card.zone = Zone.PLAY
 
 	def card(self, id):
 		card = Card(id)
@@ -166,8 +167,8 @@ class BaseGame(Entity):
 		logging.debug("Scheduling death for %r", card)
 		card.ignore_events = True
 		card.zone = Zone.GRAVEYARD
+		self.graveyard.append(card)
 		if card.type == CardType.MINION:
-			self.minions_killed.append(card)
 			self.minions_killed_this_turn.append(card)
 			card.controller.minions_killed_this_turn += 1
 		elif card.type == CardType.HERO:
@@ -188,7 +189,7 @@ class BaseGame(Entity):
 				logging.debug("Registering %r on %r", action, self)
 				source.controller._events.append(action)
 			else:
-				ret.append(action.trigger(source, self))
+				ret.append(action.trigger(source))
 				self.refresh_auras()
 
 		return ret
@@ -202,6 +203,8 @@ class BaseGame(Entity):
 		return self.players[0], self.players[1]
 
 	def refresh_auras(self):
+		if self.no_aura_refresh:
+			return
 		for aura in self.auras:
 			aura.update()
 

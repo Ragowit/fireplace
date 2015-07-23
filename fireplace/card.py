@@ -97,10 +97,6 @@ class BaseCard(Entity):
 			for aura in self._auras:
 				aura.destroy()
 
-	def summon(self):
-		logging.info("Summoning %r", self)
-		self.zone = Zone.PLAY
-
 	def buff(self, target, buff, **kwargs):
 		"""
 		Summon \a buff and apply it to \a target
@@ -182,11 +178,6 @@ class PlayableCard(BaseCard):
 		if zone == Zone.HAND:
 			self.clear_buffs()
 
-	def summon(self):
-		super().summon()
-		if self.controller.last_card_played is self:
-			self.action()
-
 	def action(self):
 		kwargs = {}
 		if self.target:
@@ -239,12 +230,12 @@ class PlayableCard(BaseCard):
 
 	def discard(self):
 		logging.info("Discarding %r" % (self))
-		self.zone = Zone.GRAVEYARD
+		self.zone = Zone.DISCARD
 
 	def draw(self):
 		if len(self.controller.hand) >= self.controller.max_hand_size:
 			logging.info("%s overdraws and loses %r!", self.controller, self)
-			self.destroy()
+			self.discard()
 		else:
 			logging.info("%s draws %r", self.controller, self)
 			self.zone = Zone.HAND
@@ -441,6 +432,13 @@ class Hero(Character):
 			ret.append(self.controller.weapon)
 		return chain(ret, self.buffs)
 
+	def _set_zone(self, value):
+		if value == Zone.PLAY:
+			self.controller.hero = self
+			if self.data.hero_power:
+				self.controller.summon(self.data.hero_power)
+		super()._set_zone(value)
+
 	def _hit(self, source, amount):
 		if self.armor:
 			new_amount = max(0, amount - self.armor)
@@ -456,28 +454,24 @@ class Hero(Character):
 
 		return ret
 
-	def summon(self):
-		super().summon()
-		self.controller.hero = self
-		if self.data.hero_power:
-			self.controller.summon(self.data.hero_power)
-
 
 class Minion(Character):
 	Manager = MinionManager
 	charge = boolean_property("charge")
+	has_inspire = boolean_property("has_inspire")
 	stealthed = boolean_property("stealthed")
 	taunt = boolean_property("taunt")
 
 	silenceable_attributes = (
-		"aura", "cant_attack", "cant_be_targeted_by_abilities",
+		"always_wins_brawls", "aura", "cant_attack", "cant_be_targeted_by_abilities",
 		"cant_be_targeted_by_hero_powers", "charge", "divine_shield", "enrage",
-		"frozen", "poisonous", "stealthed", "taunt", "windfury",
+		"frozen", "has_inspire", "poisonous", "stealthed", "taunt", "windfury",
 	)
 
 	def __init__(self, id, data):
 		self._enrage = None
 		self.adjacent_buff = False
+		self.always_wins_brawls = False
 		self.divine_shield = False
 		self.enrage = False
 		self.poisonous = False
@@ -585,11 +579,6 @@ class Minion(Character):
 		self._events = []
 		self.silenced = True
 
-	def summon(self):
-		if len(self.controller.field) >= self.game.MAX_MINIONS_ON_FIELD:
-			return
-		super().summon()
-
 
 class Spell(PlayableCard):
 	Manager = SpellManager
@@ -614,6 +603,9 @@ class Secret(Spell):
 		pass
 
 	def _set_zone(self, value):
+		if value == Zone.PLAY:
+			# Move secrets to the SECRET Zone when played
+			value = Zone.SECRET
 		if self.zone == Zone.SECRET:
 			self.controller.secrets.remove(self)
 		if value == Zone.SECRET:
@@ -626,10 +618,6 @@ class Secret(Spell):
 			return False
 		return super().is_playable()
 
-	def summon(self):
-		super().summon()
-		self.zone = Zone.SECRET
-
 	def reveal(self):
 		return self.game.queue_actions(self, [Reveal(self)])
 
@@ -641,21 +629,33 @@ class Enchantment(BaseCard):
 	def __init__(self, *args):
 		self.aura_source = None
 		self.one_turn_effect = False
+		self.attack_health_swap = False
 		super().__init__(*args)
+
+	def _getattr(self, attr, i):
+		if self.attack_health_swap:
+			if attr == "atk":
+				return self._swapped_atk
+			elif attr == "max_health":
+				return self._swapped_health
+		return super()._getattr(attr, i)
 
 	def _set_zone(self, zone):
 		if zone == Zone.PLAY:
 			self.owner.buffs.append(self)
-		elif zone == Zone.GRAVEYARD:
+		elif zone == Zone.REMOVEDFROMGAME:
 			self.owner.buffs.remove(self)
 		super()._set_zone(zone)
 
 	def apply(self, target):
 		logging.info("Applying %r to %r" % (self, target))
 		self.owner = target
+		if self.attack_health_swap:
+			self._swapped_atk = target.health
+			self._swapped_health = target.atk
 		if hasattr(self.data.scripts, "apply"):
 			self.data.scripts.apply(self, target)
-		if hasattr(self.data.scripts, "max_health"):
+		if hasattr(self.data.scripts, "max_health") or self.attack_health_swap:
 			logging.info("%r removes all damage from %r", self, target)
 			target.damage = 0
 		self.zone = Zone.PLAY
@@ -664,7 +664,7 @@ class Enchantment(BaseCard):
 		logging.info("Destroying buff %r from %r" % (self, self.owner))
 		if hasattr(self.data.scripts, "destroy"):
 			self.data.scripts.destroy(self)
-		self.zone = Zone.GRAVEYARD
+		self.zone = Zone.REMOVEDFROMGAME
 		if self.aura_source:
 			# Clean up the buff from its source auras
 			self.aura_source._buffs.remove(self)
@@ -808,19 +808,25 @@ class Weapon(PlayableCard):
 		self._to_be_destroyed = value
 
 	def _set_zone(self, zone):
-		if self.zone == Zone.PLAY:
+		if zone == Zone.PLAY:
+			if self.controller.weapon:
+				self.controller.weapon.destroy()
+			self.controller.weapon = self
+		elif self.zone == Zone.PLAY:
 			self.controller.weapon = None
 		super()._set_zone(zone)
-
-	def summon(self):
-		super().summon()
-		if self.controller.weapon:
-			self.controller.weapon.destroy()
-		self.controller.weapon = self
 
 
 class HeroPower(PlayableCard):
 	Manager = HeroPowerManager
+
+	def _set_zone(self, value):
+		if value == Zone.PLAY:
+			if self.controller.hero.power:
+				self.controller.hero.power.destroy()
+			self.controller.hero.power = self
+			self.exhausted = False
+		super()._set_zone(value)
 
 	def activate(self):
 		actions = self.data.scripts.activate
@@ -830,8 +836,18 @@ class HeroPower(PlayableCard):
 				kwargs["target"] = self.target
 			actions = actions(self, **kwargs)
 
+		ret = []
 		if actions:
-			return self.game.queue_actions(self, actions)
+			ret += self.game.queue_actions(self, actions)
+
+		for minion in self.controller.field.filter(has_inspire=True):
+			if not hasattr(minion.data.scripts, "inspire"):
+				raise NotImplementedError("Missing inspire script for %r" % (minion))
+			actions = minion.data.scripts.inspire
+			if actions:
+				ret += self.game.queue_actions(self, actions)
+
+		return ret
 
 	def hit(self, target, amount):
 		amount *= (self.controller.hero_power_double + 1)
@@ -864,10 +880,3 @@ class HeroPower(PlayableCard):
 		if self.exhausted:
 			return False
 		return super().is_playable()
-
-	def summon(self):
-		super().summon()
-		if self.controller.hero.power:
-			self.controller.hero.power.destroy()
-		self.controller.hero.power = self
-		self.exhausted = False

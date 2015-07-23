@@ -1,8 +1,8 @@
 import random
 from ..actions import *
+from ..dsl import *
 from ..enums import CardClass, CardType, GameTag, Race, Rarity, Zone
 from ..events import *
-from ..targeting import *
 
 
 def hand(func):
@@ -14,17 +14,18 @@ def hand(func):
 	return func
 
 
-RandomCard = lambda **kw: RandomCardGenerator(**kw)
-RandomCollectible = lambda **kw: RandomCardGenerator(collectible=True, **kw)
+RandomCard = lambda **kw: RandomCardPicker(**kw)
+RandomCollectible = lambda **kw: RandomCardPicker(collectible=True, **kw)
 RandomMinion = lambda **kw: RandomCollectible(type=CardType.MINION, **kw)
 RandomSpell = lambda **kw: RandomCollectible(type=CardType.SPELL, **kw)
+RandomTotem = lambda **kw: RandomCardPicker(race=Race.TOTEM)
 RandomWeapon = lambda **kw: RandomCollectible(type=CardType.WEAPON, **kw)
-RandomSparePart = lambda **kw: RandomCardGenerator(spare_part=True, **kw)
+RandomSparePart = lambda **kw: RandomCardPicker(spare_part=True, **kw)
 
-class RandomEntourage(RandomCardGenerator):
-	def pick(self, source, game):
+class RandomEntourage(RandomCardPicker):
+	def pick(self, source):
 		self._cards = source.entourage
-		return super().pick(source, game)
+		return super().pick(source)
 
 
 HOLDING_DRAGON = Find(CONTROLLER_HAND + DRAGON)

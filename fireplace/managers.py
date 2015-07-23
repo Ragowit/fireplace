@@ -176,11 +176,13 @@ class MinionManager(Manager):
 	map = CharacterManager.map.copy()
 	map.update({
 		GameTag.ADJACENT_BUFF: "adjacent_buff",
+		GameTag.ALWAYS_WINS_BRAWLS: "always_wins_brawls",
 		GameTag.CARDRACE: "race",
 		GameTag.CHARGE: "charge",
 		GameTag.DIVINE_SHIELD: "divine_shield",
 		GameTag.ENRAGED: "enrage",
 		GameTag.FORGETFUL: "forgetful",
+		GameTag.INSPIRE: "has_inspire",
 		GameTag.POISONOUS: "poisonous",
 		GameTag.SILENCED: "silenced",
 		GameTag.STEALTH: "stealthed",
@@ -232,6 +234,7 @@ class EnchantmentManager(Manager):
 		GameTag.STEALTH: "stealthed",
 		GameTag.TAG_HERO_POWER_DOUBLE: "hero_power_double",
 		GameTag.TAUNT: "taunt",
+		GameTag.ATTACK_HEALTH_SWAP: "attack_health_swap",
 		GameTag.MORPH: None,
 		GameTag.SUMMONED: None,
 	})

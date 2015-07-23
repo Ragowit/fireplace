@@ -24,9 +24,7 @@ class EX1_134:
 
 # Edwin VanCleef
 class EX1_613:
-	def combo(self):
-		count = self.controller.cards_played_this_turn
-		return Buff(self, "EX1_613e") * count
+	combo = Buff(SELF, "EX1_613e") * Attr(CONTROLLER, GameTag.NUM_CARDS_PLAYED_THIS_TURN)
 
 
 # Kidnapper
@@ -119,9 +117,7 @@ class EX1_145:
 	play = Buff(FRIENDLY_HERO, "EX1_145o")
 
 class EX1_145o:
-	events = OWN_SPELL_PLAY.after(
-		lambda self, player, card, *args: card is not self.creator and Destroy(self)
-	)
+	events = OWN_SPELL_PLAY.on(Destroy(SELF))
 
 
 # Shiv
