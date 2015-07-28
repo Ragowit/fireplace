@@ -281,7 +281,7 @@ class HearthState:
                 # Priest
                 owned_cards.extend(["GVG_011", "GVG_010"])
                 # Rogue
-                owned_cards.extend(["GVG_023", "GVG_025", "GVG_022", "GVG_088"])
+                owned_cards.extend(["GVG_023", "GVG_025", "GVG_027", "GVG_022", "GVG_088"])
                 # Shaman
                 owned_cards.extend(["GVG_038", "GVG_039", "GVG_037", "GVG_040"])
                 # Warlock
