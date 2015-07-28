@@ -38,6 +38,11 @@ class BRM_010b:
 	play = Morph(SELF, "BRM_010t2")
 
 
+# Fireguard Destroyer
+class BRM_012:
+	play = Buff(SELF, "BRM_012e") * RandomNumber(1, 2, 3, 4)
+
+
 # Core Rager
 class BRM_014:
 	play = Find(CONTROLLER_HAND) | Buff(SELF, "BRM_014e")
@@ -46,6 +51,11 @@ class BRM_014:
 # Axe Flinger
 class BRM_016:
 	events = SELF_DAMAGE.on(Hit(ENEMY_HERO, 2))
+
+
+# Grim Patron
+class BRM_019:
+	events = SELF_DAMAGE.on(Dead(SELF) | Summon(CONTROLLER, "BRM_019"))
 
 
 # Dragonkin Sorcerer
@@ -87,9 +97,24 @@ class BRM_028:
 	events = OWN_TURN_END.on(Buff(CONTROLLER_HAND, "BRM_028e"))
 
 
+# Rend Blackhand
+class BRM_029:
+	play = HOLDING_DRAGON & Destroy(TARGET)
+
+
+# Chromaggus
+class BRM_031:
+	events = Draw(CONTROLLER).on(Give(CONTROLLER, Copy(Draw.Args.CARD)))
+
+
 # Blackwing Technician
 class BRM_033:
 	play = HOLDING_DRAGON & Buff(SELF, "BRM_033e")
+
+
+# Blackwing Corruptor
+class BRM_034:
+	play = HOLDING_DRAGON & Hit(TARGET, 3)
 
 
 ##
@@ -115,6 +140,11 @@ class BRM_005:
 # Gang Up
 class BRM_007:
 	play = Shuffle(CONTROLLER, Copy(TARGET)) * 3
+
+
+# Lava Shock
+class BRM_011:
+	play = Hit(TARGET, 2), UnlockOverload(CONTROLLER)
 
 
 # Quick Shot

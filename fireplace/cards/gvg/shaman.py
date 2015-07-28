@@ -25,15 +25,14 @@ class GVG_042:
 # Ancestor's Call
 class GVG_029:
 	play = (
-		ForcePlay(CONTROLLER, RANDOM(CONTROLLER_HAND + MINION)),
-		ForcePlay(OPPONENT, RANDOM(OPPONENT_HAND + MINION)),
+		Summon(CONTROLLER, RANDOM(CONTROLLER_HAND + MINION)),
+		Summon(OPPONENT, RANDOM(OPPONENT_HAND + MINION)),
 	)
 
 
 # Crackle
 class GVG_038:
-	def play(self, target):
-		return Hit(TARGET, random.randint(3, 6))
+	play = Hit(TARGET, RandomNumber(3, 4, 5, 6))
 
 
 ##
@@ -41,4 +40,4 @@ class GVG_038:
 
 # Powermace
 class GVG_036:
-	play = Buff(RANDOM(FRIENDLY_MINIONS + MECH), "GVG_036e")
+	deathrattle = Buff(RANDOM(FRIENDLY_MINIONS + MECH), "GVG_036e")

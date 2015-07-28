@@ -31,6 +31,7 @@ class Player(Entity):
 		self.buffs = []
 		self.max_hand_size = 10
 		self.max_resources = 10
+		self.cant_draw = False
 		self.current_player = False
 		self.fatigue_counter = 0
 		self.hero = None
@@ -61,7 +62,7 @@ class Player(Entity):
 
 	@property
 	def mana(self):
-		mana = max(0, self.max_mana - self.used_mana) + self.temp_mana
+		mana = max(0, self.max_mana - self.used_mana - self.overload_locked) + self.temp_mana
 		return mana
 
 	@property
@@ -89,6 +90,10 @@ class Player(Entity):
 			ret.append(self.weapon)
 		return ret
 
+	@property
+	def minion_slots(self):
+		return max(0, self.game.MAX_MINIONS_ON_FIELD - len(self.field))
+
 	def get_spell_damage(self, amount: int) -> int:
 		"""
 		Returns the amount of damage \a amount will do, taking
@@ -114,6 +119,10 @@ class Player(Entity):
 			card.discard()
 
 	def draw(self, count=1):
+		if self.cant_draw:
+			logging.info("%s tries to draw %i cards, but can't draw", self, count)
+			return None
+
 		ret = self.game.queue_actions(self, [Draw(self) * count])[0]
 		if count == 1:
 			if not ret[0]:  # fatigue

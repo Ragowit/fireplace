@@ -53,7 +53,7 @@ class XXX_010:
 
 # Summon a random Secret
 class XXX_011:
-	play = ForcePlay(CONTROLLER, RANDOM(CONTROLLER_DECK + SECRET))
+	play = Summon(CONTROLLER, RANDOM(CONTROLLER_DECK + SECRET))
 
 
 # Bounce
@@ -90,6 +90,11 @@ class XXX_017:
 # Destroy All Minions
 class XXX_018:
 	play = Destroy(ALL_MINIONS)
+
+
+# Molasses
+class XXX_019:
+	play = SetTag(CONTROLLER, {GameTag.TIMEOUT: 0})
 
 
 # Damage all but 1

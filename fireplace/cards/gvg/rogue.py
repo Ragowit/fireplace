@@ -22,10 +22,8 @@ class GVG_027:
 # Trade Prince Gallywix
 class GVG_028:
 	events = Play(OPPONENT, SPELL - ID("GVG_028t")).on(
-		lambda self, player, card, *args: (
-			Give(player.opponent, card.id),
-			Give(player, "GVG_028t")
-		)
+		Give(CONTROLLER, Copy(Play.Args.CARD)),
+		Give(OPPONENT, "GVG_028t")
 	)
 
 class GVG_028t:

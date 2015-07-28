@@ -91,10 +91,7 @@ class CS2_029:
 
 # Ice Lance
 class CS2_031:
-	def play(self, target):
-		if target.frozen:
-			return Hit(TARGET, 4)
-		return Freeze(TARGET)
+	play = Find(TARGET + FROZEN) & Hit(TARGET, 4) | Freeze(TARGET)
 
 
 # Flamestrike
@@ -122,6 +119,13 @@ class EX1_279:
 ##
 # Secrets
 
+# Counterspell
+class EX1_287:
+	events = Play(OPPONENT, SPELL).on(
+		Counter(Play.Args.CARD), Reveal(SELF)
+	)
+
+
 # Ice Barrier
 class EX1_289:
 	events = Attack(CHARACTER, FRIENDLY_HERO).on(
@@ -132,5 +136,5 @@ class EX1_289:
 # Vaporize
 class EX1_594:
 	events = Attack(MINION, FRIENDLY_HERO).on(
-		lambda self, source, target: Destroy(source), Reveal(SELF),
+		Destroy(Attack.Args.ATTACKER), Reveal(SELF)
 	)

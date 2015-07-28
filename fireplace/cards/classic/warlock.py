@@ -140,13 +140,11 @@ class EX1_316e:
 
 # Sense Demons
 class EX1_317:
-	def play(self):
-		for i in range(2):
-			demons = self.controller.deck.filter(race=Race.DEMON)
-			if demons:
-				yield Draw(CONTROLLER, random.choice(demons))
-			else:
-				yield Draw(CONTROLLER, "EX1_317t")
+	play = (
+		Find(CONTROLLER_DECK + MINION + DEMON) &
+		Draw(CONTROLLER, RANDOM(CONTROLLER_DECK + MINION + DEMON)) |
+		Give(CONTROLLER, "EX1_317t"),
+	) * 2
 
 
 # Bane of Doom
@@ -156,11 +154,7 @@ class EX1_320:
 
 # Demonfire
 class EX1_596:
-	def play(self, target):
-		if target.race == Race.DEMON and target.controller == self.controller:
-			return Buff(TARGET, "EX1_596e")
-		else:
-			return Hit(TARGET, 2)
+	play = Find(TARGET + FRIENDLY + DEMON) & Buff(TARGET, "EX1_596e") | Hit(TARGET, 2)
 
 
 # Sacrificial Pact

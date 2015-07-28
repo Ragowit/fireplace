@@ -68,6 +68,7 @@ class GameManager(Manager):
 
 class PlayerManager(Manager):
 	map = {
+		GameTag.CANT_DRAW: "cant_draw",
 		GameTag.CARDTYPE: "type",
 		GameTag.COMBO_ACTIVE: "combo",
 		GameTag.FATIGUE: "fatigue_counter",
@@ -83,6 +84,7 @@ class PlayerManager(Manager):
 		GameTag.NUM_MINIONS_PLAYER_KILLED_THIS_TURN: "minions_killed_this_turn",
 		GameTag.NUM_TIMES_HERO_POWER_USED_THIS_GAME: "times_hero_power_used_this_game",
 		GameTag.OUTGOING_HEALING_ADJUSTMENT: "outgoing_healing_adjustment",
+		GameTag.OVERLOAD_LOCKED: "overload_locked",
 		GameTag.PLAYSTATE: "playstate",
 		GameTag.CURRENT_SPELLPOWER: "spellpower",
 		GameTag.RECALL_OWED: "overloaded",
@@ -135,6 +137,7 @@ class PlayableCardManager(Manager):
 	map = CardManager.map.copy()
 	map.update({
 		GameTag.BATTLECRY: "has_battlecry",
+		GameTag.CANT_PLAY: "cant_play",
 		GameTag.CARD_TARGET: "target",
 		GameTag.COMBO: "has_combo",
 		GameTag.DEFENDING: "defending",
@@ -187,7 +190,6 @@ class MinionManager(Manager):
 		GameTag.SILENCED: "silenced",
 		GameTag.STEALTH: "stealthed",
 		GameTag.TAUNT: "taunt",
-		GameTag.DURABILITY: None,
 		GameTag.ELITE: None,
 		GameTag.InvisibleDeathrattle: None,
 	})
@@ -198,7 +200,7 @@ class WeaponManager(Manager):
 	map.update({
 		GameTag.ATK: "atk",
 		GameTag.DAMAGE: "damage",
-		GameTag.DURABILITY: "durability",
+		GameTag.DURABILITY: "max_durability",
 	})
 
 
@@ -223,7 +225,7 @@ class EnchantmentManager(Manager):
 		GameTag.CANT_BE_TARGETED_BY_HERO_POWERS: "cant_be_targeted_by_hero_powers",
 		GameTag.CHARGE: "charge",
 		GameTag.CREATOR: "creator",
-		GameTag.DURABILITY: "durability",
+		GameTag.DURABILITY: "max_durability",
 		GameTag.EXTRA_DEATHRATTLES: "extra_deathrattles",
 		GameTag.HEALING_DOUBLE: "healing_double",
 		GameTag.HEALTH: "max_health",

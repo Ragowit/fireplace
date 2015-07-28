@@ -1,10 +1,11 @@
 import logging
 from itertools import chain
-from . import cards as CardDB, targeting
-from .actions import Action, Damage, Deaths, Destroy, Heal, Morph, Play
+from . import cards as CardDB
+from .actions import Damage, Deaths, Destroy, Heal, Morph, Play
 from .entity import Entity, boolean_property, int_property
 from .enums import AuraType, CardType, PlayReq, Race, Zone
 from .managers import *
+from .targeting import is_valid_target
 from .utils import CardList
 
 
@@ -122,6 +123,7 @@ class PlayableCard(BaseCard):
 
 	def __init__(self, id, data):
 		self.buffs = CardList()
+		self.cant_play = False
 		self.has_battlecry = False
 		self.has_combo = False
 		self.overload = 0
@@ -179,6 +181,10 @@ class PlayableCard(BaseCard):
 			self.clear_buffs()
 
 	def action(self):
+		if self.cant_play:
+			logging.info("%r play action cannot continue", self)
+			return
+
 		kwargs = {}
 		if self.target:
 			kwargs["target"] = self.target
@@ -196,7 +202,7 @@ class PlayableCard(BaseCard):
 			logging.info("Activating %r Choose One: %r", self, self.chosen)
 			actions = self.chosen.data.scripts.play
 		else:
-			return
+			actions = []
 
 		if callable(actions):
 			actions = actions(self, **kwargs)
@@ -206,6 +212,10 @@ class PlayableCard(BaseCard):
 			# Hard-process deaths after a battlecry.
 			# cf. test_knife_juggler()
 			self.game.process_deaths()
+
+		if self.overload:
+			logging.info("%r overloads %s for %i", self, self.controller, self.overload)
+			self.controller.overloaded += self.overload
 
 	def clear_buffs(self):
 		if self.buffs:
@@ -258,6 +268,9 @@ class PlayableCard(BaseCard):
 		if PlayReq.REQ_TARGET_TO_PLAY in self.requirements:
 			if not self.targets:
 				return False
+		if PlayReq.REQ_NUM_MINION_SLOTS in self.requirements:
+			if self.requirements[PlayReq.REQ_NUM_MINION_SLOTS] > self.controller.minion_slots:
+				return False
 		if len(self.controller.opponent.field) < self.requirements.get(PlayReq.REQ_MINIMUM_ENEMY_MINIONS, 0):
 			return False
 		if len(self.controller.game.board) < self.requirements.get(PlayReq.REQ_MINIMUM_TOTAL_MINIONS, 0):
@@ -280,16 +293,19 @@ class PlayableCard(BaseCard):
 		return self
 
 	def has_target(self):
-		if self.has_combo and PlayReq.REQ_TARGET_FOR_COMBO in self.requirements and self.controller.combo:
-			return True
+		if self.has_combo and PlayReq.REQ_TARGET_FOR_COMBO in self.requirements:
+			if self.controller.combo:
+				return True
 		if PlayReq.REQ_TARGET_IF_AVAILABLE in self.requirements:
 			return bool(self.targets)
+		if PlayReq.REQ_TARGET_IF_AVAILABLE_AND_DRAGON_IN_HAND in self.requirements:
+			if self.controller.hand.filter(race=Race.DRAGON):
+				return bool(self.targets)
 		return PlayReq.REQ_TARGET_TO_PLAY in self.requirements
 
 	@property
 	def targets(self):
-		full_board = self.game.board + [self.controller.hero, self.controller.opponent.hero]
-		return [card for card in full_board if targeting.is_valid_target(self, card)]
+		return [card for card in self.game.characters if is_valid_target(self, card)]
 
 
 class Character(PlayableCard):
@@ -446,14 +462,6 @@ class Hero(Character):
 			amount = new_amount
 		return super()._hit(source, amount)
 
-	def attack(self, target):
-		ret = super().attack(target)
-		if self.controller.weapon:
-			logging.info("%r loses 1 durability", self.controller.weapon)
-			self.controller.weapon.damage += 1
-
-		return ret
-
 
 class Minion(Character):
 	Manager = MinionManager
@@ -547,7 +555,7 @@ class Minion(Character):
 	def _hit(self, source, amount):
 		if self.divine_shield:
 			self.divine_shield = False
-			logging.info("%r's divine shield prevents %i damage. Divine shield fades.", self, amount)
+			logging.info("%r's divine shield prevents %i damage.", self, amount)
 			return
 
 		if getattr(source, "poisonous", False):
@@ -699,7 +707,7 @@ class Aura(object):
 		elif self._auraType == AuraType.HAND_AURA:
 			if target.zone != Zone.HAND:
 				return False
-		return targeting.is_valid_target(self.source, target, requirements=self.requirements)
+		return is_valid_target(self.source, target, requirements=self.requirements)
 
 	@property
 	def targets(self):
@@ -781,15 +789,26 @@ class Weapon(PlayableCard):
 		self.damage = 0
 
 	@property
-	def durability(self):
-		ret = getattr(self, "_durability", 0)
-		for slot in self.slots:
-			ret += getattr(slot, "durability", 0)
-		return max(0, ret - self.damage)
+	def events(self):
+		from .actions import Attack, Hit
+		from .dsl.selector import FRIENDLY_HERO
+		ret = self._events[:]
+		ret.append(Attack(FRIENDLY_HERO).on(Hit(self, 1)))
+		return ret
 
-	@durability.setter
-	def durability(self, value):
-		self._durability = value
+	@property
+	def durability(self):
+		return max(0, self.max_durability - self.damage)
+
+	@property
+	def max_durability(self):
+		ret = self._max_durability
+		ret += self._getattr("max_health", 0)
+		return max(0, ret)
+
+	@max_durability.setter
+	def max_durability(self, value):
+		self._max_durability = value
 
 	@property
 	def exhausted(self):
@@ -806,6 +825,10 @@ class Weapon(PlayableCard):
 	@to_be_destroyed.setter
 	def to_be_destroyed(self, value):
 		self._to_be_destroyed = value
+
+	def _hit(self, source, amount):
+		self.damage += amount
+		return amount
 
 	def _set_zone(self, zone):
 		if zone == Zone.PLAY:

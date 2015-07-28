@@ -3,7 +3,7 @@ import random
 import time
 from calendar import timegm
 from itertools import chain
-from .actions import Attack, BeginTurn, Death, Deaths, EndTurn, EventListener
+from .actions import Attack, BeginTurn, Death, EndTurn, EventListener
 from .card import Card, THE_COIN
 from .entity import Entity
 from .enums import CardType, PlayState, Step, Zone
@@ -119,9 +119,6 @@ class BaseGame(Entity):
 			cost -= player.temp_mana
 			player.temp_mana = max(0, player.temp_mana - card.cost)
 		player.used_mana += cost
-		if card.overload:
-			logging.info("%s overloads for %i mana", player, card.overload)
-			player.overloaded += card.overload
 		player.last_card_played = card
 		card.zone = Zone.PLAY
 
@@ -138,13 +135,18 @@ class BaseGame(Entity):
 		gameover = False
 		for player in self.players:
 			if player.playstate == PlayState.LOSING:
-				player.playstate = PlayState.LOST
 				gameover = True
 
 		if gameover:
-			for player in self.players:
-				if player.playstate != PlayState.LOST:
-					player.playstate = PlayState.WON
+			if self.players[0].playstate == self.players[1].playstate:
+				for player in self.players:
+					player.playstate = PlayState.TIED
+			else:
+				for player in self.players:
+					if player.playstate == PlayState.LOSING:
+						player.playstate = PlayState.LOST
+					else:
+						player.playstate = PlayState.WON
 			raise GameOver("The game has ended.")
 
 	def process_deaths(self):
@@ -276,7 +278,8 @@ class BaseGame(Entity):
 		player.minions_killed_this_turn = 0
 		player.combo = False
 		player.max_mana += 1
-		player.used_mana = player.overloaded
+		player.used_mana = 0
+		player.overload_locked = player.overloaded
 		player.overloaded = 0
 		for entity in player.entities:
 			if entity.type != CardType.PLAYER:
