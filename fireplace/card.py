@@ -1,6 +1,6 @@
 import logging
 from itertools import chain
-from . import cards as CardDB
+from . import cards as CardDB, rules
 from .actions import Damage, Deaths, Destroy, Heal, Morph, Play
 from .entity import Entity, boolean_property, int_property
 from .enums import AuraType, CardType, PlayReq, Race, Zone
@@ -287,6 +287,13 @@ class PlayableCard(BaseCard):
 		"""
 		Queue a Play action on the card.
 		"""
+		if choose is not None:
+			assert choose in self.data.choose_cards
+		elif target is not None:
+			assert self.has_target()
+			assert target in self.targets
+		else:
+			assert not self.has_target()
 		assert self.is_playable()
 		assert self.zone == Zone.HAND
 		self.game.queue_actions(self.controller, [Play(self, target, choose)])
@@ -486,6 +493,13 @@ class Minion(Character):
 		super().__init__(id, data)
 
 	@property
+	def events(self):
+		ret = self._events[:]
+		if self.poisonous:
+			ret += rules.Poisonous
+		return ret
+
+	@property
 	def adjacent_minions(self):
 		assert self.zone is Zone.PLAY, self.zone
 		ret = CardList()
@@ -557,10 +571,6 @@ class Minion(Character):
 			self.divine_shield = False
 			logging.info("%r's divine shield prevents %i damage.", self, amount)
 			return
-
-		if getattr(source, "poisonous", False):
-			logging.info("%r is destroyed because of %r is poisonous", self, source)
-			self.destroy()
 
 		return super()._hit(source, amount)
 
@@ -781,20 +791,12 @@ class Enrage(object):
 		return i + getattr(self, attr, 0)
 
 
-class Weapon(PlayableCard):
+class Weapon(rules.WeaponRules, PlayableCard):
 	Manager = WeaponManager
 
 	def __init__(self, *args):
 		super().__init__(*args)
 		self.damage = 0
-
-	@property
-	def events(self):
-		from .actions import Attack, Hit
-		from .dsl.selector import FRIENDLY_HERO
-		ret = self._events[:]
-		ret.append(Attack(FRIENDLY_HERO).on(Hit(self, 1)))
-		return ret
 
 	@property
 	def durability(self):

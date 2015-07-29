@@ -100,6 +100,9 @@ class Action:  # Lawsuit
 
 	def matches(self, source, args):
 		for arg, match in zip(args, self._args):
+			if match is None:
+				# Allow matching Action(None, None, z) to Action(x, y, z)
+				continue
 			# this stuff is stupidslow
 			res = match.eval([arg], source)
 			if not res or res[0] is not arg:
@@ -214,13 +217,10 @@ class Play(GameAction):
 		return (source, ) + super().get_args(source)
 
 	def do(self, source, player, card, target=None, choose=None):
-		if card.has_target():
-			assert target
 		card.target = target
 
 		if choose is not None:
 			# Choose One cards replace the action on the played card
-			assert choose in card.data.choose_cards
 			chosen = player.game.card(choose)
 			chosen.controller = player
 			logging.info("Choose One from %r: %r", card, chosen)
