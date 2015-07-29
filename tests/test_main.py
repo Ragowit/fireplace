@@ -28,6 +28,12 @@ TIME_REWINDER = "PART_002"
 
 # Debug spells
 RESTORE_1 = "XXX_003"
+DESTROY_DECK = "XXX_047"
+
+
+BLACKLIST = (
+	"GVG_007",  # Flame Leviathan
+)
 
 logging.getLogger().setLevel(logging.DEBUG)
 
@@ -43,7 +49,7 @@ _draftcache = {}
 def _draft(hero, exclude):
 	# random_draft() is fairly slow, this caches the drafts
 	if (hero, exclude) not in _draftcache:
-		_draftcache[(hero, exclude)] = random_draft(hero, exclude)
+		_draftcache[(hero, exclude)] = random_draft(hero, exclude + BLACKLIST)
 	return _draftcache[(hero, exclude)]
 
 
@@ -65,6 +71,33 @@ def prepare_game(hero1=None, hero2=None, exclude=(), game_class=BaseTestGame):
 	game.start()
 
 	return game
+
+
+def prepare_empty_game(game_class=BaseTestGame):
+	player1 = Player(name="Player1")
+	player1.prepare_deck([], random.choice(_heroes))
+	player1.cant_fatigue = True
+	player2 = Player(name="Player2")
+	player2.prepare_deck([], random.choice(_heroes))
+	player2.cant_fatigue = True
+	game = game_class(players=(player1, player2))
+	game.start()
+
+	return game
+
+
+def test_cheat_destroy_deck():
+	game = prepare_game()
+	game.player1.discard_hand()
+	game.player2.discard_hand()
+	game.player1.give(DESTROY_DECK).play(target=game.player2.hero)
+	assert not game.player2.deck
+	game.end_turn()
+
+	assert not game.player2.hand
+	assert game.player2.hero.health == 29
+	game.player2.give(DESTROY_DECK).play(target=game.player1.hero)
+	assert not game.player1.deck
 
 
 def test_positioning():
