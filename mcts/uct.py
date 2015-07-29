@@ -176,6 +176,9 @@ class HearthState:
             valid_moves.append([MOVE.PICK_CLASS, WARRIOR])
         elif self.game is None and len(self.deck1) < 30 or len(self.deck2) < 30:
             collection = []
+            # Exclude cards that isn't implemented yet
+            # Ice Block, Lord Jaraxxus
+            exclude = ["EX1_295", "EX1_323"]
 
             if len(self.deck1) < 30:
                 owned_cards = []
@@ -319,6 +322,8 @@ class HearthState:
                 hero = getattr(cards, self.hero1)
 
                 for card in owned_cards:
+                    if card in exclude:
+                        continue
                     cls = getattr(cards, card)
                     if not cls.collectible:
                         continue
@@ -338,6 +343,8 @@ class HearthState:
                 hero = getattr(cards, self.hero2)
 
                 for card in cards.cardlist:
+                    if card in exclude:
+                        continue
                     cls = getattr(cards, card)
                     if not cls.collectible:
                         continue
