@@ -3002,6 +3002,23 @@ def test_gallywix():
 	assert len(game.player2.hand) == 0
 
 
+def test_gang_up():
+	game = prepare_empty_game()
+	wisp = game.player1.summon(WISP)
+	assert len(game.player1.deck) == 0
+	assert len(game.player2.deck) == 0
+	game.player1.give("BRM_007").play(target=wisp)
+	assert len(game.player1.deck) == 3
+	assert len(game.player2.deck) == 0
+	game.end_turn()
+
+	game.player2.give("BRM_007").play(target=wisp)
+	assert len(game.player1.deck) == 3
+	assert len(game.player2.deck) == 3
+	assert len(game.player1.deck.filter(id=WISP)) == 3
+	assert len(game.player2.deck.filter(id=WISP)) == 3
+
+
 def test_goblin_blastmage():
 	game = prepare_game()
 	blastmage1 = game.current_player.give("GVG_004")
@@ -3185,6 +3202,19 @@ def test_illidan_full_board():
 	juggler.play()
 	assert len(game.player1.field) == 7
 	assert game.player2.hero.health == 30
+
+
+def test_iron_juggernaut():
+	game = prepare_empty_game()
+	juggernaut = game.player1.give("GVG_056")
+	assert len(game.player2.deck) == 0
+	juggernaut.play()
+
+	assert game.player2.hero.health == 30
+	assert len(game.player2.deck) == 1    
+	game.end_turn()
+	assert game.player2.hero.health == 20
+	assert len(game.player2.deck) == 0
 
 
 def test_leeroy():
@@ -4572,6 +4602,27 @@ def test_freezing_trap():
 	assert game.player1.used_mana == 2
 	assert not wisp.buffs
 	assert wisp.cost == 0
+
+
+def test_flame_leviathan():
+	game = prepare_empty_game()
+	assert len(game.player1.deck) == 0
+	leviathan = game.player1.give("GVG_007")
+	leviathan.shuffle_into_deck()
+	assert len(game.player1.deck) == 1
+	game.end_turn()
+
+	wisp = game.player2.give(WISP)
+	wisp.play()
+
+	# draw the flame leviathan
+	assert game.player1.hero.health == 30
+	assert game.player2.hero.health == 30
+	assert not wisp.dead
+	game.end_turn()
+	assert game.player1.hero.health == 28
+	assert game.player2.hero.health == 28
+	assert wisp.dead
 
 
 def test_floating_watcher():
