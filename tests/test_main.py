@@ -1090,6 +1090,40 @@ def test_alarmobot():
 	assert len(game.current_player.field) == 2
 
 
+def test_alexstrasza():
+	game = prepare_game()
+	alex1 = game.player1.give("EX1_561")
+	assert game.player1.hero.health == 30
+	assert game.player2.hero.health == 30
+	alex1.play(target=game.player1.hero)
+	assert game.player1.hero.health == 15
+	assert game.player1.hero.max_health == 30
+	assert game.player2.hero.health == 30
+	game.end_turn(); game.end_turn()
+
+	alex2 = game.player1.give("EX1_561")
+	assert game.player2.hero.health == 30
+	alex2.play(target=game.player2.hero)
+	assert game.player2.hero.health == 15
+
+
+def test_alexstrasza_ragnaros():
+	game = prepare_game()
+	majordomo = game.player1.give("BRM_027")
+	majordomo.play()
+	majordomo.destroy()
+	assert game.player1.hero.id == "BRM_027h"
+	assert game.player1.hero.health == 8
+	assert game.player1.hero.max_health == 8
+	game.end_turn(); game.end_turn()
+
+	alex = game.player1.give("EX1_561")
+	alex.play(target=game.player1.hero)
+	assert game.player1.hero.buffs
+	assert game.player1.hero.health == 15
+	assert game.player1.hero.max_health == 15
+
+
 def test_avenging_wrath():
 	game = prepare_game()
 	game.current_player.give("EX1_384").play()
@@ -3211,7 +3245,7 @@ def test_iron_juggernaut():
 	juggernaut.play()
 
 	assert game.player2.hero.health == 30
-	assert len(game.player2.deck) == 1    
+	assert len(game.player2.deck) == 1
 	game.end_turn()
 	assert game.player2.hero.health == 20
 	assert len(game.player2.deck) == 0
@@ -3224,6 +3258,28 @@ def test_leeroy():
 	assert leeroy.can_attack()
 	assert len(game.player2.field) == 2
 	assert game.player2.field[0].id == game.player2.field[1].id == "EX1_116t"
+
+
+def test_jaraxxus():
+	game = prepare_game(WARRIOR, WARRIOR)
+	game.player1.hero.power.use()
+	game.player1.give("CS2_106").play()
+	assert game.player1.weapon.id == "CS2_106"
+	game.end_turn(); game.end_turn()
+
+	assert game.player1.hero.health == 30
+	assert game.player1.hero.armor == 2
+	game.player1.give("EX1_323").play()
+	assert game.player1.weapon.id == "EX1_323w"
+	assert game.player1.hero.health == 15
+	assert game.player1.hero.armor == 0
+	assert game.player1.hero.power.id == "EX1_tk33"
+	assert len(game.player1.field) == 0
+	game.end_turn(); game.end_turn()
+
+	game.player1.hero.power.use()
+	assert len(game.player1.field) == 1
+	assert game.player1.field[0].id == "EX1_tk34"
 
 
 def test_lorewalker_cho():
