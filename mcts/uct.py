@@ -278,7 +278,7 @@ class HearthState:
                 # Hunter
                 owned_cards.extend(["GVG_043", "GVG_073", "GVG_046"])
                 # Mage
-                owned_cards.extend(["GVG_001", "GVG_002"])
+                owned_cards.extend(["GVG_001", "GVG_003", "GVG_002"])
                 # Paladin
                 owned_cards.extend(["GVG_057", "GVG_101", "GVG_062"])
                 # Priest
