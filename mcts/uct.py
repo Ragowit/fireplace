@@ -233,7 +233,7 @@ class HearthState:
                 # Rogue
                 owned_cards.extend(["CS2_073", "EX1_128", "EX1_126", "EX1_124"])
                 # Shaman
-                owned_cards.extend(["EX1_251", "CS2_038"])
+                owned_cards.extend(["EX1_251", "CS2_038", "EX1_248"])
                 # Warlock
                 owned_cards.extend(["EX1_316", "EX1_319", "EX1_596", "EX1_317", "EX1_315", "EX1_310"])
                 # Warrior
