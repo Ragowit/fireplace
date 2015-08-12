@@ -274,7 +274,7 @@ class HearthState:
         
                 ### GOBLINS VS GNOMES ##
                 # Druid
-                owned_cards.extend(["GVG_030"])
+                owned_cards.extend(["GVG_030", "GVG_080"])
                 # Hunter
                 owned_cards.extend(["GVG_043", "GVG_073", "GVG_046"])
                 # Mage
@@ -282,7 +282,7 @@ class HearthState:
                 # Paladin
                 owned_cards.extend(["GVG_057", "GVG_101", "GVG_062"])
                 # Priest
-                owned_cards.extend(["GVG_011", "GVG_010"])
+                owned_cards.extend(["GVG_011", "GVG_010", "GVG_083"])
                 # Rogue
                 owned_cards.extend(["GVG_023", "GVG_025", "GVG_027", "GVG_022", "GVG_088"])
                 # Shaman
