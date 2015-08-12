@@ -16,6 +16,7 @@ TARGET_DUMMY = "GVG_093"
 KOBOLD_GEOMANCER = "CS2_142"
 SPELLBENDERT = "tt_010a"
 WISP = "CS2_231"
+WHELP = "ds1_whelptoken"
 
 # Token spells
 MOONFIRE = "CS2_008"
@@ -84,6 +85,25 @@ def prepare_empty_game(game_class=BaseTestGame):
 	game.start()
 
 	return game
+
+
+def test_joust():
+	from fireplace.cards.utils import Give, JOUST
+	game = prepare_empty_game()
+	wisp = game.player1.give(WISP)
+	wisp.shuffle_into_deck()
+	wisp2 = game.player1.give(WISP)
+	wisp2.shuffle_into_deck()
+	game.end_turn()
+
+	goldshire = game.player2.give(GOLDSHIRE_FOOTMAN)
+	goldshire.shuffle_into_deck()
+	game.queue_actions(game.player2, [JOUST & Give(game.player2, TARGET_DUMMY)])
+	assert game.player2.hand.filter(id=TARGET_DUMMY)
+	game.end_turn()
+
+	game.queue_actions(game.player1, [JOUST & Give(game.player1, TARGET_DUMMY)])
+	assert not game.player1.hand.filter(id=TARGET_DUMMY)
 
 
 def test_cheat_destroy_deck():
@@ -631,6 +651,20 @@ def test_eaglehorn_bow():
 	assert game.player1.hero.armor == 7
 	assert bow.buffs
 	assert bow.durability == 3
+
+
+def test_echoing_ooze():
+	game = prepare_game()
+	ooze = game.player1.give("FP1_003")
+	ooze.play()
+	assert len(game.player1.field) == 1
+	game.end_turn()
+
+	assert len(game.player1.field) == 2
+	assert game.player1.field[0] is ooze
+	assert game.player1.field[1].id == ooze.id
+	assert game.player1.field[1].atk == ooze.atk
+	assert game.player1.field[1].health == ooze.health
 
 
 def test_echo_of_medivh():
@@ -1216,6 +1250,25 @@ def test_secretkeeper():
 	game.current_player.give(WISP).play()
 	assert secretkeeper.atk == 2
 	assert secretkeeper.health == 3
+
+
+def test_siege_engine():
+	game = prepare_game(WARRIOR, WARRIOR)
+	engine = game.player1.give("GVG_086")
+	engine.play()
+	assert engine.atk == 5
+	game.player1.hero.power.use()
+	assert game.player1.hero.armor == 2
+	assert engine.atk == 6
+	game.end_turn()
+	game.player2.hero.power.use()
+	assert engine.atk == 6
+	game.end_turn()
+
+	# Shield Block
+	game.player1.give("EX1_606").play()
+	assert game.player1.hero.armor == 7
+	assert engine.atk == 7
 
 
 def test_siltfin_spiritwalker():
@@ -1994,16 +2047,14 @@ def test_voljin_stealth():
 
 
 def test_malorne():
-	game = prepare_game()
-	# empty the deck
-	game.player1.draw(26)
-	game.player1.discard_hand()
+	game = prepare_empty_game()
 	assert len(game.player1.deck) == 0
 	malorne = game.player1.give("GVG_035")
 	malorne.play()
 	malorne.destroy()
 	assert len(game.player1.deck) == 1
 	game.player1.draw()
+	assert len(game.player1.hand) == 1
 	assert game.player1.hand[0].id == "GVG_035"
 
 
@@ -2079,22 +2130,15 @@ def test_pint_sized_summoner():
 	# summon it directly, minions played still at 0
 	summoner = game.current_player.summon("EX1_076")
 	assert game.current_player.minions_played_this_turn == 0
-	assert goldshire1.buffs
 	assert goldshire1.cost == 1 - 1
-	assert goldshire2.buffs
 	assert goldshire2.cost == 1 - 1
 	assert not moonfire.buffs
 	assert moonfire.cost == 0
-	assert frostwolf.buffs
 	assert frostwolf.cost == 2 - 1
-	assert wisp.buffs
 	assert wisp.cost == 0
 
 	goldshire1.play()
 	assert game.current_player.minions_played_this_turn == 1
-	assert not goldshire2.buffs
-	assert not frostwolf.buffs
-	assert not wisp.buffs
 	assert goldshire2.cost == 1
 	assert frostwolf.cost == 2
 	assert wisp.cost == 0
@@ -2187,14 +2231,15 @@ def test_mechwarper():
 	goldshire = game.player1.give(GOLDSHIRE_FOOTMAN)
 	harvest = game.player1.give("EX1_556")
 	clockwork = game.player1.give("GVG_082")
+	clockwork2 = game.player1.give("GVG_082")
 	assert harvest.cost == 3
 	assert goldshire.cost == 1
-	assert clockwork.cost == 1
+	assert clockwork.cost == clockwork2.cost == 1
 
 	mechwarper.play()
 	assert harvest.cost == 3 - 1
 	assert goldshire.cost == 1
-	assert clockwork.cost == 0
+	assert clockwork.cost == clockwork2.cost == 0
 
 	clockwork.play()
 	assert clockwork.cost == 1
@@ -2202,12 +2247,12 @@ def test_mechwarper():
 	game.current_player.give(SILENCE).play(target=mechwarper)
 	assert harvest.cost == 3
 	assert goldshire.cost == 1
-	assert clockwork.cost == 1
+	assert clockwork.cost == clockwork2.cost == 1
 
 	mechwarper.destroy()
 	assert harvest.cost == 3
 	assert goldshire.cost == 1
-	assert clockwork.cost == 1
+	assert clockwork.cost == clockwork2.cost == 1
 
 
 def test_mekgineer_thermaplugg():
@@ -3053,6 +3098,18 @@ def test_gang_up():
 	assert len(game.player2.deck.filter(id=WISP)) == 3
 
 
+def test_gazlowe():
+	game = prepare_empty_game()
+	game.player1.discard_hand()
+	game.player1.give("GVG_117").play()
+	assert len(game.player1.hand) == 0
+	smite = game.player1.give("CS1_130")
+	assert smite.cost == 1
+	smite.play(target=game.player2.hero)
+	assert len(game.player1.hand) == 1
+	assert game.player1.hand[0].race == Race.MECHANICAL
+
+
 def test_goblin_blastmage():
 	game = prepare_game()
 	blastmage1 = game.current_player.give("GVG_004")
@@ -3798,6 +3855,21 @@ def test_truesilver_champion():
 	assert lightwarden.atk == 3
 
 
+def test_truesilver_champion_explosive_trap():
+	game = prepare_game()
+	explosivetrap = game.player1.give("EX1_610")
+	explosivetrap.play()
+	game.end_turn()
+	game.player2.hero.set_current_health(2)
+	assert game.player2.hero.health == 2
+	truesilver = game.player2.give("CS2_097")
+	truesilver.play()
+	game.player2.hero.attack(game.player1.hero)
+	assert explosivetrap.dead
+	assert game.player2.hero.health == 2
+	assert game.player1.hero.health == 26
+
+
 def test_tinkertown_technician():
 	game = prepare_game()
 	game.player1.discard_hand()
@@ -4383,6 +4455,25 @@ def test_inner_fire():
 	assert gurubashi.atk == 7
 
 
+def test_innervate():
+    game = prepare_game()
+    assert game.player1.mana == 10
+    assert game.player1.temp_mana == 0
+    assert game.player1.max_mana == 10
+    assert game.player1.max_resources == 10
+    game.player1.give("EX1_169").play()
+    assert game.player1.mana == 10
+    assert game.player1.temp_mana == 0
+    game.player1.give(GOLDSHIRE_FOOTMAN).play()
+    assert game.player1.mana == 9
+    game.player1.give("EX1_169").play()
+    assert game.player1.mana == 10
+    assert game.player1.temp_mana == 1
+    game.player1.give(GOLDSHIRE_FOOTMAN).play()
+    assert game.player1.mana == 9
+    assert game.player1.temp_mana == 0
+
+
 def test_ice_barrier():
 	game = prepare_game(MAGE, MAGE)
 	icebarrier = game.current_player.give("EX1_289")
@@ -4447,6 +4538,20 @@ def test_vaporize():
 	assert vaporize.dead
 	assert wisp.dead
 	assert game.current_player.opponent.hero.health == 27
+
+
+def test_slam():
+	game = prepare_game()
+	wisp = game.player1.summon(WISP)
+	mogushan = game.player1.summon("EX1_396")
+	game.player1.discard_hand()
+	assert len(game.player1.hand) == 0
+	game.player1.give("EX1_391").play(target=wisp)
+	assert wisp.dead
+	assert len(game.player1.hand) == 0
+	game.player1.give("EX1_391").play(target=mogushan)
+	assert not mogushan.dead
+	assert len(game.player1.hand) == 1
 
 
 def test_stampeding_kodo():
@@ -4916,6 +5021,22 @@ def test_repentance():
 	assert spellbendert2.max_health == 1
 
 
+def test_revenge():
+	game = prepare_game()
+	dummy1 = game.player1.summon(TARGET_DUMMY)
+	assert dummy1.health == 2
+	assert game.player1.hero.health == 30
+	game.player1.give("BRM_015").play()
+	assert dummy1.health == 1
+	assert game.player1.hero.health == 30
+	dummy2 = game.player1.summon(TARGET_DUMMY)
+	game.player1.hero.set_current_health(12)
+	assert dummy2.health == 2
+	game.player1.give("BRM_015").play()
+	assert dummy1.dead
+	assert dummy2.dead
+
+
 def test_faceless_manipulator():
 	game = prepare_game()
 	wisp = game.player1.give(WISP)
@@ -5115,10 +5236,27 @@ def test_blackwing_corruptor():
 	game.end_turn()
 
 	game.player2.discard_hand()
-	game.player2.give("BRM_004")  # Make sure we have a whelp in hand
+	game.player2.give(WHELP)
 	blackwing2 = game.player2.give("BRM_034")
 	blackwing2.play(target=game.player1.hero)
 	assert game.player1.hero.health == 27
+
+
+def test_blackwing_technician():
+	game = prepare_game()
+	game.player1.discard_hand()
+	blackwing1 = game.player1.give("BRM_033")
+	blackwing1.play()
+	assert not blackwing1.buffs
+	assert blackwing1.atk == 2
+	assert blackwing1.health == 4
+
+	game.player1.give(WHELP)
+	blackwing2 = game.player1.give("BRM_033")
+	blackwing2.play()
+	assert blackwing2.buffs
+	assert blackwing2.atk == 3
+	assert blackwing2.health == 5
 
 
 def test_crackle():

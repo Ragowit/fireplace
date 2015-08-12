@@ -91,6 +91,10 @@ class BRM_027:
 class BRM_027p:
 	activate = Hit(RANDOM_ENEMY_CHARACTER, 8)
 
+# DIE, INSECTS!
+class BRM_027pH:
+	activate = Hit(RANDOM_ENEMY_CHARACTER, 8) * 2
+
 
 # Emperor Thaurissan
 class BRM_028:
@@ -154,7 +158,7 @@ class BRM_013:
 
 # Revenge
 class BRM_015:
-	play = (Attr(FRIENDLY_HERO, "health") <= 12) & Hit(ALL_MINIONS, 3) | Hit(TARGET, 1)
+	play = (Attr(FRIENDLY_HERO, "health") <= 12) & Hit(ALL_MINIONS, 3) | Hit(ALL_MINIONS, 1)
 
 
 # Resurrect

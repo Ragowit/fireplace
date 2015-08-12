@@ -390,6 +390,7 @@ class Discard(TargetedAction):
 	"""
 	def do(self, source, target):
 		target.discard()
+		self.broadcast(source, EventListener.ON, target)
 
 
 class Draw(TargetedAction):
@@ -521,7 +522,7 @@ class ManaThisTurn(TargetedAction):
 		AMOUNT = 1
 
 	def do(self, source, target, amount):
-		target.temp_mana += amount
+		target.temp_mana += min(target.max_resources - target.mana, amount)
 
 
 class Mill(TargetedAction):
@@ -586,7 +587,7 @@ class Reveal(TargetedAction):
 	def do(self, source, target):
 		logging.info("Revealing secret %r", target)
 		self.broadcast(source, EventListener.ON, target)
-		target.destroy()
+		target.zone = Zone.GRAVEYARD
 
 
 class SetCurrentHealth(TargetedAction):

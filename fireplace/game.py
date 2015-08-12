@@ -93,7 +93,6 @@ class BaseGame(Entity):
 		self.proposed_defender = None
 		if attacker.should_exit_combat:
 			logging.info("Attack has been interrupted.")
-			attacker.should_exit_combat = False
 			attacker.attacking = False
 			defender.defending = False
 			return
@@ -188,9 +187,16 @@ class BaseGame(Entity):
 
 		for action in actions:
 			if isinstance(action, EventListener):
+				# Queuing an EventListener registers it as a one-time event
+				# This allows registering events from eg. play actions
 				logging.debug("Registering %r on %r", action, self)
 				action.once = True
-				source.controller._events.append(action)
+				# FIXME: Figure out a cleaner way to get the event listener target
+				if source.type == CardType.SPELL:
+					listener = source.controller
+				else:
+					listener = source
+				listener._events.append(action)
 			else:
 				ret.append(action.trigger(source))
 				self.refresh_auras()

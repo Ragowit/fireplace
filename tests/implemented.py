@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 import re
 import string
-import sys; sys.path.append(".."); sys.path.append("../data/extras")
+import sys
+sys.path.append("..")
+sys.path.append("../fireplace/cards/data")
 from fireplace import cards
 from fireplace.cards import debug, game, tutorial, classic, naxxramas, gvg, blackrock
 from fireplace.enums import CardType, CardSet
@@ -10,12 +12,10 @@ import buffs
 
 
 GREEN = "\033[92m"
-YELLOW = "\033[33m"
 RED = "\033[91m"
 ENDC = "\033[0m"
 PREFIXES = {
 	GREEN: "Implemented",
-	YELLOW: "Potentially implemented",
 	RED: "Not implemented",
 }
 
@@ -42,10 +42,6 @@ def cleanup_description(description):
 	return ret
 
 
-def potentially_implemented(card):
-	return card.auras or "Enrage" in card.description or card.choose_cards
-
-
 def main():
 	for id in sorted(cards.db):
 		card = cards.db[id]
@@ -64,8 +60,8 @@ def main():
 					color = GREEN
 					break
 			else:
-				if potentially_implemented(card):
-					color = YELLOW
+				if "Enrage" in card.description or card.choose_cards:
+					color = GREEN
 				else:
 					color = RED
 

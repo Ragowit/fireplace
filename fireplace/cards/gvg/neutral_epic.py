@@ -36,10 +36,14 @@ class GVG_107:
 
 # Recombobulator
 class GVG_108:
-	def play(self, target):
-		return Morph(TARGET, RandomMinion(cost=target.cost))
+	play = Morph(TARGET, RandomMinion(cost=Attr(TARGET, GameTag.COST)))
 
 
 # Clockwork Giant
 class GVG_121:
 	cost = lambda self, i: i - len(self.controller.opponent.hand)
+
+
+# Wee Spellstopper
+class GVG_122:
+	aura = Buff(SELF_ADJACENT, "GVG_122a")

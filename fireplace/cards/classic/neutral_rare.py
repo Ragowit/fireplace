@@ -46,6 +46,17 @@ class EX1_059:
 	play = Buff(TARGET, "EX1_059e")
 
 
+# Pint-Sized Summoner
+class EX1_076:
+	aura = Buff(FRIENDLY + MINION + IN_HAND, "EX1_076a")
+
+class EX1_076a:
+	def cost(self, i):
+		if not self.controller.minions_played_this_turn:
+			return i - 1
+		return i
+
+
 # Secretkeeper
 class EX1_080:
 	events = OWN_SECRET_PLAY.on(Buff(SELF, "EX1_080o"))
@@ -99,6 +110,11 @@ class EX1_584:
 # Imp Master
 class EX1_597:
 	events = OWN_TURN_END.on(Hit(SELF, 1), Summon(CONTROLLER, "EX1_598"))
+
+
+# Mana Wraith
+class EX1_616:
+	aura = Buff(MINION + IN_HAND, "EX1_616a")
 
 
 # Knife Juggler
