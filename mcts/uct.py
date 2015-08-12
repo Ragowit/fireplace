@@ -177,8 +177,8 @@ class HearthState:
         elif self.game is None and len(self.deck1) < 30 or len(self.deck2) < 30:
             collection = []
             # Exclude cards that isn't implemented yet
-            # Ice Block, Illidan Stormrage, Sludge Belcher
-            exclude = ["EX1_295", "EX1_614", "FP1_012"]
+            # Ice Block
+            exclude = ["EX1_295"]
 
             if len(self.deck1) < 30:
                 owned_cards = []
