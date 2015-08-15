@@ -233,7 +233,7 @@ class HearthState:
                 # Rogue
                 owned_cards.extend(["CS2_073", "EX1_128", "EX1_126", "EX1_124"])
                 # Shaman
-                owned_cards.extend(["EX1_251", "CS2_038", "EX1_248"])
+                owned_cards.extend(["EX1_251", "CS2_038", "CS2_053", "EX1_248"])
                 # Warlock
                 owned_cards.extend(["EX1_316", "EX1_319", "EX1_596", "EX1_317", "EX1_315", "EX1_310"])
                 # Warrior
@@ -242,8 +242,8 @@ class HearthState:
                 owned_cards.extend(["CS2_231", "EX1_008", "CS2_146", "EX1_010", "EX1_004", "EX1_393", "NEW1_018",
                                     "EX1_162", "NEW1_023", "CS2_203", "NEW1_019", "EX1_096", "EX1_082", "NEW1_037",
                                     "EX1_102", "EX1_556", "EX1_597", "EX1_017", "EX1_044", "EX1_020", "EX1_390",
-                                    "EX1_083", "EX1_595", "EX1_093", "NEW1_022", "EX1_023", "EX1_284", "CS1_069",
-                                    "CS2_151", "CS2_221", "EX1_028", "EX1_283", "EX1_583"])
+                                    "EX1_083", "EX1_595", "EX1_093", "NEW1_022", "EX1_023", "NEW1_026", "EX1_284",
+                                    "CS1_069", "CS2_151", "CS2_221", "EX1_028", "EX1_283", "EX1_583"])
         
                 ### PROMO ###
                 owned_cards.extend(["EX1_112"])
