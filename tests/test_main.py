@@ -1,109 +1,5 @@
 #!/usr/bin/env python
-import sys; sys.path.append("..")
-import logging
-import random
-import fireplace.cards
-from fireplace.cards.heroes import *
-from fireplace.enums import *
-from fireplace.game import Game
-from fireplace.player import Player
-from fireplace.utils import random_draft
-
-
-# Token minions
-GOLDSHIRE_FOOTMAN = "CS1_042"
-TARGET_DUMMY = "GVG_093"
-KOBOLD_GEOMANCER = "CS2_142"
-SPELLBENDERT = "tt_010a"
-WISP = "CS2_231"
-WHELP = "ds1_whelptoken"
-
-# Token spells
-MOONFIRE = "CS2_008"
-CIRCLE_OF_HEALING = "EX1_621"
-DREAM = "DREAM_04"
-SILENCE = "EX1_332"
-THE_COIN = "GAME_005"
-HAND_OF_PROTECTION = "EX1_371"
-TIME_REWINDER = "PART_002"
-
-# Debug spells
-RESTORE_1 = "XXX_003"
-DESTROY_DECK = "XXX_047"
-
-
-BLACKLIST = (
-	"GVG_007",  # Flame Leviathan
-)
-
-logging.getLogger().setLevel(logging.DEBUG)
-
-
-class BaseTestGame(Game):
-	def start(self):
-		super().start()
-		self.player1.max_mana = 10
-		self.player2.max_mana = 10
-
-
-_draftcache = {}
-def _draft(hero, exclude):
-	# random_draft() is fairly slow, this caches the drafts
-	if (hero, exclude) not in _draftcache:
-		_draftcache[(hero, exclude)] = random_draft(hero, exclude + BLACKLIST)
-	return _draftcache[(hero, exclude)]
-
-
-_heroes = fireplace.cards.filter(collectible=True, type=CardType.HERO)
-
-def prepare_game(hero1=None, hero2=None, exclude=(), game_class=BaseTestGame):
-	print("Initializing a new game")
-	if hero1 is None:
-		hero1 = random.choice(_heroes)
-	if hero2 is None:
-		hero2 = random.choice(_heroes)
-	deck1 = _draft(hero=hero1, exclude=exclude)
-	deck2 = _draft(hero=hero2, exclude=exclude)
-	player1 = Player(name="Player1")
-	player1.prepare_deck(deck1, hero1)
-	player2 = Player(name="Player2")
-	player2.prepare_deck(deck2, hero2)
-	game = game_class(players=(player1, player2))
-	game.start()
-
-	return game
-
-
-def prepare_empty_game(game_class=BaseTestGame):
-	player1 = Player(name="Player1")
-	player1.prepare_deck([], random.choice(_heroes))
-	player1.cant_fatigue = True
-	player2 = Player(name="Player2")
-	player2.prepare_deck([], random.choice(_heroes))
-	player2.cant_fatigue = True
-	game = game_class(players=(player1, player2))
-	game.start()
-
-	return game
-
-
-def test_joust():
-	from fireplace.cards.utils import Give, JOUST
-	game = prepare_empty_game()
-	wisp = game.player1.give(WISP)
-	wisp.shuffle_into_deck()
-	wisp2 = game.player1.give(WISP)
-	wisp2.shuffle_into_deck()
-	game.end_turn()
-
-	goldshire = game.player2.give(GOLDSHIRE_FOOTMAN)
-	goldshire.shuffle_into_deck()
-	game.queue_actions(game.player2, [JOUST & Give(game.player2, TARGET_DUMMY)])
-	assert game.player2.hand.filter(id=TARGET_DUMMY)
-	game.end_turn()
-
-	game.queue_actions(game.player1, [JOUST & Give(game.player1, TARGET_DUMMY)])
-	assert not game.player1.hand.filter(id=TARGET_DUMMY)
+from utils import *
 
 
 def test_cheat_destroy_deck():
@@ -118,123 +14,6 @@ def test_cheat_destroy_deck():
 	assert game.player2.hero.health == 29
 	game.player2.give(DESTROY_DECK).play(target=game.player1.hero)
 	assert not game.player1.deck
-
-
-def test_positioning():
-	game = prepare_game()
-	wisp1 = game.current_player.give(WISP)
-	wisp1.play()
-	wisp2 = game.current_player.give(WISP)
-	wisp2.play()
-	wisp3 = game.current_player.give(WISP)
-	wisp3.play()
-
-	assert wisp1.adjacent_minions == [wisp2]
-	assert wisp2.adjacent_minions == [wisp1, wisp3]
-	assert wisp3.adjacent_minions == [wisp2]
-	game.end_turn(); game.end_turn()
-	flametongue = game.current_player.give("EX1_565")
-	flametongue.play()
-	wisp4 = game.current_player.give(WISP)
-	wisp4.play()
-	assert flametongue.aura
-	assert wisp3.buffs, wisp3.buffs
-	assert wisp1.atk == 1, wisp1.atk
-	assert wisp2.atk == 1
-	assert wisp3.atk == 3, wisp3.atk
-	assert flametongue.atk == 0, flametongue.atk
-	assert flametongue.adjacent_minions == [wisp3, wisp4]
-	assert wisp4.atk == 3, wisp4.atk
-
-
-def test_armor():
-	game = prepare_game(WARRIOR, WARRIOR)
-	assert game.current_player.hero.armor == 0
-	assert not game.current_player.hero.power.exhausted
-	assert game.current_player.hero.power.is_usable()
-	game.current_player.hero.power.use()
-	assert game.current_player.hero.power.exhausted
-	assert not game.current_player.hero.power.is_usable()
-	assert game.current_player.hero.armor == 2
-	game.end_turn()
-
-	axe = game.current_player.give("CS2_106")
-	axe.play()
-	assert axe is game.current_player.weapon
-	assert axe in game.current_player.hero.slots
-	assert game.current_player.hero.atk == 3
-	game.current_player.hero.attack(game.current_player.opponent.hero)
-	assert game.current_player.opponent.hero.health == 29
-	assert game.current_player.opponent.hero.armor == 0
-
-
-def test_freeze():
-	game = prepare_game()
-	flameimp = game.current_player.give("EX1_319")
-	flameimp.play()
-	game.end_turn()
-
-	frostshock = game.current_player.give("CS2_037")
-	frostshock.play(target=flameimp)
-	assert flameimp.frozen
-	game.end_turn()
-
-	assert flameimp.frozen
-	assert not flameimp.can_attack()
-	game.end_turn()
-	assert not flameimp.frozen
-	game.end_turn()
-
-	wisp = game.current_player.give(WISP)
-	wisp.play()
-	wisp.frozen = True
-	assert wisp.frozen
-	game.end_turn()
-	assert not wisp.frozen
-
-
-def test_spell_power():
-	game = prepare_game(HUNTER, HUNTER)
-
-	expected_health = 30
-	assert game.player2.hero.health == expected_health
-	game.player1.give(MOONFIRE).play(target=game.player2.hero)
-	expected_health -= 1
-	assert game.player2.hero.health == expected_health
-	# Play a kobold
-	assert game.player1.spellpower == 0
-	game.player1.give(KOBOLD_GEOMANCER).play()
-	assert game.player1.spellpower == 1
-	game.player1.give(MOONFIRE).play(target=game.player2.hero)
-	expected_health -= 1 + 1
-	assert game.player2.hero.health == expected_health
-	# Summon Malygos
-	malygos = game.player1.summon("EX1_563")
-	assert game.player1.spellpower == 1 + 5
-	game.player1.give(MOONFIRE).play(target=game.player2.hero)
-	expected_health -= 1 + 1 + 5
-	assert game.player2.hero.health == expected_health
-	# Test heals are not affected
-	game.player1.give(RESTORE_1).play(target=game.player2.hero)
-	expected_health += 1
-	assert game.player2.hero.health == expected_health
-	game.end_turn(); game.end_turn()
-
-	# Check hero power is unaffected
-	game.player1.hero.power.use()
-	expected_health -= 2
-	assert game.player2.hero.health == expected_health
-	# Check battlecries are unaffected
-	game.player1.give("CS2_189").play(target=game.player2.hero)
-	expected_health -= 1
-	assert game.player2.hero.health == expected_health
-	game.end_turn(); game.end_turn()
-
-	malygos.destroy()
-	# Check arcane missiles doesn't wreck everything
-	game.player1.give("EX1_277").play()
-	expected_health -= 3 + 1
-	assert game.player2.hero.health == expected_health
 
 
 def test_mage():
@@ -310,34 +89,6 @@ def test_paladin():
 		game.player1.give(WISP).play()
 	assert len(game.player1.field) == 7
 	assert not game.player1.hero.power.is_usable()
-
-
-def test_deathrattle():
-	game = prepare_game()
-	loothoarder = game.current_player.give("EX1_096")
-	loothoarder.play()
-	cardcount = len(game.current_player.hand)
-	game.end_turn()
-
-	archer = game.current_player.give("CS2_189")
-	archer.play(target=loothoarder)
-	assert loothoarder.dead
-	assert loothoarder.damage == 0
-	assert len(game.current_player.opponent.hand) == cardcount + 1
-	game.end_turn(); game.end_turn()
-	game.end_turn(); game.end_turn()
-
-	# test soul of the forest: deathrattle in slots
-	assert not archer.has_deathrattle
-	sotf = game.current_player.give("EX1_158")
-	sotf.play()
-	assert len(archer.buffs) == 1
-	assert archer.buffs[0].has_deathrattle
-	assert archer.has_deathrattle
-	assert len(game.current_player.field) == 1
-	game.current_player.give(MOONFIRE).play(target=archer)
-	assert archer.dead
-	assert len(game.current_player.field) == 1
 
 
 def test_chromaggus():
@@ -451,115 +202,6 @@ def test_cult_master_board_clear():
 	assert len(game.player1.hand) == 0
 
 
-def test_mana():
-	game = prepare_game(game_class=Game)
-	footman = game.player1.give(GOLDSHIRE_FOOTMAN)
-	assert footman.cost == 1
-	footman.play()
-	assert footman.atk == 1
-	assert footman.health == 2
-	game.end_turn()
-
-	# Play the coin
-	coin = game.player2.hand.filter(id=THE_COIN)[0]
-	coin.play()
-	assert game.player2.mana == 2
-	assert game.player2.temp_mana == 1
-	game.end_turn()
-
-	assert game.player2.temp_mana == 0
-	assert game.player2.mana == 1
-	game.end_turn(); game.end_turn()
-
-	assert game.player1.mana == 3
-	assert game.player1.max_mana == 3
-	felguard = game.player1.give("EX1_301")
-	felguard.play()
-	assert game.player1.mana == 0
-	assert game.player1.max_mana == 2
-
-	for i in range(10):
-		game.end_turn(); game.end_turn()
-
-	assert game.player1.mana == game.player1.max_resources == 10
-	assert game.player2.mana == game.player2.max_resources == 10
-
-
-def test_overload():
-	game = prepare_game(game_class=Game)
-	dustdevil = game.player1.give("EX1_243")
-	dustdevil.play()
-	assert game.player1.overloaded == 2
-	game.end_turn(); game.end_turn()
-	assert game.player1.overloaded == 0
-	assert game.player1.overload_locked == 2
-	assert game.current_player.mana == 0
-
-
-def test_charge():
-	game = prepare_game()
-	wisp = game.current_player.give(WISP)
-	wisp.play()
-	assert not wisp.charge
-	assert not wisp.can_attack()
-	# play Charge on wisp
-	game.current_player.give("CS2_103").play(target=wisp)
-	assert wisp.buffs[0].tags[GameTag.CHARGE]
-	assert wisp.charge
-	assert wisp.can_attack()
-	wisp.attack(game.current_player.opponent.hero)
-	assert not wisp.can_attack()
-	game.end_turn()
-
-	stonetusk = game.current_player.give("CS2_171")
-	stonetusk.play()
-	assert stonetusk.charge
-	assert stonetusk.can_attack()
-	game.end_turn()
-	assert wisp.can_attack()
-	wisp.attack(game.current_player.opponent.hero)
-	assert not wisp.can_attack()
-	game.end_turn()
-
-	watcher = game.current_player.give("EX1_045")
-	watcher.play()
-	assert not watcher.can_attack()
-	game.current_player.give("CS2_103").play(target=watcher)
-	assert not watcher.can_attack()
-	game.end_turn(); game.end_turn()
-
-	assert not watcher.can_attack()
-	watcher.silence()
-	assert watcher.can_attack()
-
-
-def test_divine_shield():
-	game = prepare_game()
-	squire = game.current_player.give("EX1_008")
-	squire.play()
-	assert squire.divine_shield
-	game.current_player.give(MOONFIRE).play(target=squire)
-	assert len(game.current_player.field) == 1
-	assert not squire.divine_shield
-	game.current_player.give(MOONFIRE).play(target=squire)
-	assert len(game.current_player.field) == 0
-	assert not squire.divine_shield
-	game.end_turn(); game.end_turn()
-
-	# test damage events with Divine Shield
-	gurubashi = game.current_player.summon("EX1_399")
-	assert gurubashi.atk == 2
-	assert gurubashi.health == 7
-	assert not gurubashi.divine_shield
-	prot = game.current_player.give(HAND_OF_PROTECTION)
-	prot.play(target=gurubashi)
-	assert gurubashi.divine_shield
-	game.current_player.give(MOONFIRE).play(target=gurubashi)
-	assert not gurubashi.divine_shield
-	assert gurubashi.atk == 2
-	assert gurubashi.health == 7
-
-
 def test_divine_spirit():
 	game = prepare_game()
 	wisp = game.current_player.give(WISP)
@@ -603,18 +245,6 @@ def test_savagery():
 	savagery3 = game.player1.give("EX1_578")
 	savagery3.play(watcher)
 	assert watcher.health == 5 - 1 - 1
-
-
-def test_silence():
-	game = prepare_game()
-	silence = game.current_player.give(SILENCE)
-	thrallmar = game.current_player.give("EX1_021")
-	thrallmar.play()
-	assert not thrallmar.silenced
-	assert thrallmar.windfury
-	silence.play(target=thrallmar)
-	assert thrallmar.silenced
-	assert not thrallmar.windfury
 
 
 def test_earth_shock():
@@ -745,20 +375,6 @@ def test_stealth_windfury():
 	assert len(archer.targets) == 3
 
 
-def test_tags():
-	game = prepare_game()
-	alakir = game.current_player.give("NEW1_010")
-	alakir.play()
-	assert alakir.tags[GameTag.CHARGE]
-	assert alakir.charge
-	assert alakir.tags[GameTag.DIVINE_SHIELD]
-	assert alakir.divine_shield
-	assert alakir.tags[GameTag.TAUNT]
-	assert alakir.taunt
-	assert alakir.tags[GameTag.WINDFURY]
-	assert alakir.windfury
-
-
 def test_taunt():
 	game = prepare_game()
 	goldshire1 = game.player1.give(GOLDSHIRE_FOOTMAN)
@@ -779,45 +395,6 @@ def test_taunt():
 	game.end_turn()
 
 	assert wisp2.targets == [goldshire1]
-
-
-def test_card_draw():
-	game = prepare_game()
-	# pass turn 1
-	game.end_turn(); game.end_turn()
-
-	assert game.current_player.cards_drawn_this_turn == 1
-	assert len(game.current_player.hand) == 5
-	novice = game.current_player.give("EX1_015")
-	assert len(game.current_player.hand) == 6
-	# novice should draw 1 card
-	novice.play()
-	# hand should be 1 card played, 1 card drawn; same size
-	assert len(game.current_player.hand) == 6
-	assert game.current_player.cards_drawn_this_turn == 2
-	game.end_turn()
-
-	# succubus should discard 1 card
-	card = game.current_player.give("EX1_306")
-	handlength = len(game.current_player.hand)
-	card.play()
-	assert len(game.current_player.hand) == handlength - 2
-
-
-def test_cant_draw():
-	game = prepare_game()
-	game.player1.discard_hand()
-	game.player1.cant_draw = True
-	game.end_turn(); game.end_turn()
-
-	assert len(game.player1.hand) == 0
-	game.end_turn(); game.end_turn()
-
-	assert len(game.player1.hand) == 0
-	game.player1.cant_draw = False
-	game.end_turn(); game.end_turn()
-
-	assert len(game.player1.hand) == 1
 
 
 def test_deadly_poison():
@@ -1021,6 +598,22 @@ def test_animal_companion():
 	assert game.player1.field[0].id in ("NEW1_032", "NEW1_033", "NEW1_034")
 
 
+def test_anima_golem():
+	game = prepare_game()
+	anima = game.player1.give("GVG_077")
+	anima.play()
+	wisp1 = game.player1.summon(WISP)
+	wisp2 = game.player2.summon(WISP)
+	game.end_turn(); game.end_turn()
+
+	assert not anima.dead
+	wisp1.destroy()
+	game.end_turn()
+
+	assert anima.dead
+	game.end_turn()
+
+
 def test_ancestors_call():
 	game = prepare_game()
 	game.player1.discard_hand()
@@ -1186,6 +779,25 @@ def test_doomhammer():
 	game.current_player.hero.attack(target=game.current_player.opponent.hero)
 	assert not game.current_player.hero.can_attack()
 	assert game.current_player.weapon.durability == 6
+
+
+def test_dragon_egg():
+	game = prepare_game(PRIEST, PRIEST)
+	egg = game.player1.give("BRM_022")
+	egg.play()
+	assert len(game.player1.field) == 1
+	game.player1.give(MOONFIRE).play(target=egg)
+	assert len(game.player1.field) == 2
+	assert len(game.player1.field.filter(id="BRM_022t")) == 1
+	assert egg.health == 1
+	game.player1.hero.power.use(target = egg)
+	assert egg.health == 2
+	assert len(game.player1.field) == 2
+	for i in range(2):
+		game.player1.give(MOONFIRE).play(target=egg)
+	assert egg.dead
+	assert len(game.player1.field) == 3
+	assert len(game.player1.field.filter(id="BRM_022t")) == 3
 
 
 def test_dr_boom():
@@ -1482,6 +1094,32 @@ def test_healing_totem():
 	assert footman.health == 2
 
 
+def test_captains_parrot():
+	game = prepare_empty_game()
+	pirate1 = game.player1.give("NEW1_022")
+	pirate1.shuffle_into_deck()
+	pirate2 = game.player1.give("CS2_146")
+	pirate2.shuffle_into_deck()
+	wisp = game.player1.give(WISP)
+	wisp.shuffle_into_deck()
+	assert len(game.player1.deck) == 3
+	game.player1.give("NEW1_016").play()
+	assert len(game.player1.deck) == 2
+	assert len(game.player1.hand) == 1
+	assert game.player1.hand[0].race == Race.PIRATE
+	game.player1.discard_hand()
+	game.player1.give("NEW1_016").play()
+	assert len(game.player1.deck) == 1
+	assert len(game.player1.hand) == 1
+	assert game.player1.hand[0].race == Race.PIRATE
+	game.player1.discard_hand()
+	assert len(game.player1.deck) == 1
+	assert len(game.player1.hand) == 0
+	game.player1.give("NEW1_016").play()
+	assert len(game.player1.deck) == 1
+	assert len(game.player1.hand) == 0
+
+
 def test_crazed_alchemist():
 	game = prepare_game()
 	alchemist = game.current_player.give("EX1_059")
@@ -1745,74 +1383,6 @@ def test_imp_master():
 	assert impmaster.controller.field.contains("EX1_598")
 
 
-def test_auras():
-	game = prepare_game()
-	wisp1 = game.current_player.give(WISP)
-	wisp1.play()
-	assert wisp1.atk == 1
-	game.end_turn()
-
-	webspinner = game.current_player.give("FP1_011")
-	webspinner.play()
-	raidleader = game.current_player.give("CS2_122")
-	raidleader.play()
-	assert raidleader.aura
-	assert raidleader.atk == 2
-	assert wisp1.atk == 1
-	assert webspinner.atk == 2
-	wisp2 = game.current_player.give(WISP)
-	wisp2.play()
-	assert webspinner.atk == 2
-
-	# Test the timber wolf (beast-only) too
-	timberwolf = game.current_player.give("DS1_175")
-	timberwolf.play()
-	assert timberwolf.atk == 1 + 1
-	assert raidleader.atk == 2
-	assert len(webspinner.buffs) == 2
-	assert webspinner.atk == 1 + 1 + 1
-	assert wisp2.atk == 1 + 1
-
-	timberwolf2 = game.current_player.give("DS1_175")
-	timberwolf2.play()
-	assert timberwolf.atk == 3
-	assert timberwolf2.atk == 3
-	game.current_player.give(MOONFIRE).play(target=timberwolf)
-	timberwolf2.atk == 2
-	game.current_player.give(MOONFIRE).play(target=timberwolf2)
-
-
-def test_bounce():
-	game = prepare_game()
-	wisp = game.current_player.give(WISP)
-	wisp.play()
-	assert game.current_player.field == [wisp]
-	brewmaster = game.current_player.give("EX1_049")
-	brewmaster.play(target=wisp)
-	assert game.current_player.field == [brewmaster]
-	assert wisp in game.current_player.hand
-	assert wisp.zone == Zone.HAND
-	wisp.play()
-
-	# test for damage reset on bounce
-	brewmaster2 = game.current_player.give("EX1_049")
-	moonfire = game.current_player.give(MOONFIRE)
-	moonfire.play(target=brewmaster)
-	assert brewmaster.health == 1
-	brewmaster2.play(target=brewmaster)
-	assert brewmaster.health == 2
-	assert brewmaster2.health == 2
-
-	game.end_turn()
-	# fill the hand with some bananas
-	game.current_player.give("EX1_014t")
-	game.current_player.give("EX1_014t")
-	game.end_turn()
-	vanish = game.current_player.give("NEW1_004")
-	vanish.play()
-	assert brewmaster not in game.current_player.opponent.hand
-
-
 def test_bouncing_blade():
 	game = prepare_game()
 	acolyte = game.player1.give("EX1_007")
@@ -1921,6 +1491,26 @@ def test_power_overwhelming():
 	assert wisp.health == 5
 	game.end_turn()
 	assert wisp not in game.board
+
+
+def test_power_of_the_wild():
+	game = prepare_game()
+	assert len(game.player1.field) == 0
+	game.player1.give("EX1_160").play(choose="EX1_160a")
+	assert len(game.player1.field) == 1
+	token = game.player1.field[0]
+	assert token.id == "EX1_160t"
+	teacher = game.player1.give("NEW1_026")
+	teacher.play()
+	assert token.atk == 3 and token.health == 2
+	assert teacher.atk == 3 and teacher.health == 5
+	game.player1.give("EX1_160").play(choose="EX1_160b")
+	assert len(game.player1.field) == 3
+	assert token.atk == 4 and token.health == 3
+	assert teacher.atk == 4 and teacher.health == 6
+	apprentice = game.player1.field[2]
+	assert apprentice.id == "NEW1_026t"
+	assert apprentice.atk == 1 + 1 and apprentice.health == 1+ 1
 
 
 def test_questing_adventurer():
@@ -2046,6 +1636,25 @@ def test_voljin_stealth():
 	assert not voljin.dead
 	assert voljin.health == 2
 	assert tiger.health == 5
+
+
+def test_mad_scientist():
+	game = prepare_empty_game()
+	vaporize = game.player1.give("EX1_594")
+	vaporize.shuffle_into_deck()
+	counterspell = game.player1.give("EX1_287")
+	scientist = game.player1.give("FP1_004")
+	scientist.play()
+	assert len(game.player1.deck) == 1
+	assert len(game.player1.hand) == 1
+	assert len(game.player1.secrets) == 0
+	game.player1.give(MOONFIRE).play(target=scientist)
+	game.player1.give(MOONFIRE).play(target=scientist)
+	assert scientist.dead
+	assert len(game.player1.deck) == 0
+	assert len(game.player1.hand) == 1
+	assert vaporize in game.player1.secrets
+	assert counterspell in game.player1.hand
 
 
 def test_malorne():
@@ -2295,6 +1904,85 @@ def test_metaltooth_leaper():
 	assert dummy.atk == 0 + 2
 
 
+def test_mirror_entity():
+	game = prepare_game()
+	mirror = game.player1.give("EX1_294")
+	mirror.play()
+	game.end_turn()
+
+	assert mirror in game.player1.secrets
+	assert len(game.player1.field) == 0
+	game.player2.give(WISP).play()
+	assert not mirror in game.player1.secrets
+	assert len(game.player1.field) == 1
+	assert game.player1.field[0].id == WISP
+
+
+def test_mirror_entity_battlecry():
+	game = prepare_game()
+	mirror = game.player2.summon("EX1_294")
+	blademaster = game.player1.give("CS2_181")
+	blademaster.play()
+	assert len(game.player1.field) == len(game.player2.field) == 1
+	assert game.player1.field[0].health == game.player2.field[0].health
+
+
+def test_mirror_entity_repentance():
+	game = prepare_game()
+	repentance1 = game.player2.summon("EX1_379")
+	mirror1 = game.player2.summon("EX1_294")
+	goldshire1 = game.player1.give(GOLDSHIRE_FOOTMAN)
+	goldshire1.play()
+	assert mirror1 not in game.player2.secrets
+	assert repentance1 not in game.player2.secrets
+	assert goldshire1.health == 1
+	assert len(game.player1.field) == len(game.player2.field) == 1
+	assert game.player1.field[0].health == game.player2.field[0].health
+
+	game.player1.field[0].destroy()
+	game.player2.field[0].destroy()
+
+	mirror2 = game.player2.summon("EX1_294")
+	repentance2 = game.player2.summon("EX1_379")
+	goldshire2 = game.player1.give(GOLDSHIRE_FOOTMAN)
+	goldshire2.play()
+	assert repentance2 not in game.player2.secrets
+	assert mirror2 not in game.player2.secrets
+	assert goldshire2.health == 1
+	assert len(game.player2.field) == 1
+	assert game.player2.field[0].health == 2
+
+
+def test_mirror_entity_bolvar():
+	game = prepare_game()
+	mirror = game.player2.summon("EX1_294")
+	bolvar = game.player1.give("GVG_063")
+	assert bolvar.atk == 1
+	game.player1.give(MOONFIRE).play(target=game.player1.summon(WISP))
+	assert bolvar.atk == 2
+	bolvar.play()
+	assert len(game.player1.field) == len(game.player2.field) == 1
+	assert game.player1.field[0].atk == game.player2.field[0].atk
+
+
+def test_mirror_entity_summon_trigger():
+	game = prepare_empty_game()
+	mirror = game.player2.give("EX1_294")
+	mirror.shuffle_into_deck()
+	scientist = game.player2.summon("FP1_004")
+	kodo = game.player1.give("NEW1_041")
+	assert len(game.player2.deck) == 1
+	assert len(game.player2.field) == 1
+	assert len(game.player1.field) == 0
+	assert not scientist.dead
+	kodo.play()
+	assert len(game.player1.field) == 1
+	assert len(game.player2.deck) == 0
+	assert len(game.player2.field) == 1
+	assert scientist.dead
+	assert game.player2.field[0].id == "NEW1_041"
+
+
 def test_bestial_wrath():
 	game = prepare_game()
 	wolf = game.current_player.give("DS1_175")
@@ -2361,6 +2049,37 @@ def test_betrayal_poisonous():
 	assert watcher1.dead
 	assert not cobra.dead
 	assert watcher2.dead
+
+
+def test_big_game_hunter():
+	game = prepare_game()
+	bgh1 = game.player1.give("EX1_005")
+	assert not bgh1.has_target()
+	bgh1.play()
+	game.end_turn()
+
+	wargolem = game.player2.give("CS2_186")
+	wargolem.play()
+	assert wargolem.atk == 7
+	game.end_turn()
+
+	bgh2 = game.player1.give("EX1_005")
+	assert bgh2.has_target()
+	bgh2.play(target=wargolem)
+	assert wargolem.dead
+
+
+def test_big_game_hunter_questing_adventurer():
+	game = prepare_game()
+	adventurer = game.player1.give("EX1_044")
+	adventurer.play()
+	mightblessing = game.player1.give("CS2_087")
+	mightblessing.play(target=adventurer)
+	assert adventurer.atk == 6
+	bgh = game.player1.give("EX1_005")
+	bgh.play()
+	assert len(game.player1.field) == 2
+	assert adventurer.atk == 7
 
 
 def test_cold_blood():
@@ -2597,6 +2316,27 @@ def test_king_mukla():
 	game.player2.hand[0].play(target=wisp)
 	assert wisp.health == 2
 	assert wisp.atk == 2
+
+
+def tst_kirin_tor_mage():
+	game = prepare_game()
+	counterspell = game.player1.give("EX1_287")
+	assert counterspell.cost == 2
+	vaporize = game.player1.give("EX1_594")
+	assert vaporize.cost == 2
+	missiles = game.player1.give("EX1_277")
+	assert missiles.cost == 1
+	game.player1.give("EX1_612").play()
+	assert counterspell.cost == 0
+	assert vaporize.cost == 0
+	assert missiles.cost == 1
+	counterspell.play()
+	assert vaporize.cost == 2
+	game.player1.give("EX1_612").play()
+	assert vaporize.cost == 0
+	game.end_turn(); game.end_turn()
+
+	assert vaporize.cost == 2
 
 
 def test_knife_juggler():
@@ -3112,6 +2852,18 @@ def test_gazlowe():
 	assert game.player1.hand[0].race == Race.MECHANICAL
 
 
+def test_gazlowe_preparation():
+	game = prepare_empty_game()
+	game.player1.give("GVG_117").play()
+	fireball = game.player1.give("CS2_029")
+	assert fireball.cost == 4
+	game.player1.give("EX1_145").play()
+	assert fireball.cost == 1
+	fireball.play(target=game.player2.hero)
+	assert len(game.player1.hand) == 1
+	assert game.player1.hand[0].race == Race.MECHANICAL
+
+
 def test_goblin_blastmage():
 	game = prepare_game()
 	blastmage1 = game.current_player.give("GVG_004")
@@ -3248,6 +3000,32 @@ def test_houndmaster():
 	assert hound.atk == 3
 	assert hound.health == 3
 	assert hound.taunt
+
+
+def test_holy_wrath():
+	game = prepare_empty_game()
+	goldshire = game.player1.give(GOLDSHIRE_FOOTMAN)
+	goldshire.shuffle_into_deck()
+	assert goldshire in game.player1.deck
+	assert goldshire.cost == 1
+	assert game.player2.hero.health == 30
+	game.player1.give("EX1_365").play(target=game.player2.hero)
+	assert not goldshire in game.player1.deck
+	assert game.player2.hero.health == 30 - 1
+	game.player1.give("EX1_365").play(target=game.player2.hero)
+	assert game.player2.hero.health == 30 - 1
+	game.end_turn(); game.end_turn()
+
+	game.player2.hero.set_current_health(30)
+	for i in range(10):
+		game.player1.give(WISP)
+	goldshire = game.player1.give(GOLDSHIRE_FOOTMAN)
+	goldshire.shuffle_into_deck()
+	assert game.player2.hero.health == 30
+	game.player1.give("EX1_365").play(target=game.player2.hero)
+	assert game.player2.hero.health == 30 - 1
+	assert not goldshire in game.player1.deck
+	assert not goldshire in game.player1.hand
 
 
 def test_illidan():
@@ -3859,17 +3637,17 @@ def test_truesilver_champion():
 
 def test_truesilver_champion_explosive_trap():
 	game = prepare_game()
-	explosivetrap = game.player1.give("EX1_610")
-	explosivetrap.play()
-	game.end_turn()
-	game.player2.hero.set_current_health(2)
-	assert game.player2.hero.health == 2
-	truesilver = game.player2.give("CS2_097")
+	explosivetrap = game.player2.summon("EX1_610")
+	game.player1.hero.set_current_health(2)
+	truesilver = game.player1.give("CS2_097")
 	truesilver.play()
-	game.player2.hero.attack(game.player1.hero)
-	assert explosivetrap.dead
-	assert game.player2.hero.health == 2
-	assert game.player1.hero.health == 26
+	assert explosivetrap in game.player2.secrets
+	assert game.player1.hero.health == 2
+	assert game.player2.hero.health == 30
+	game.player1.hero.attack(game.player2.hero)
+	assert explosivetrap not in game.player2.secrets
+	assert game.player1.hero.health == 2
+	assert game.player2.hero.health == 26
 
 
 def test_tinkertown_technician():
@@ -4021,6 +3799,142 @@ def test_water_elemental():
 
 	assert not game.player2.hero.frozen
 	game.end_turn()
+
+
+def test_warsong_commander():
+	# test 1 - Any minion, then Warsong
+	game = prepare_game()
+	wisp = game.player1.give(WISP)
+	wisp.play()
+	assert not wisp.charge
+	game.player1.give(WARSONG_COMMANDER).play()
+	assert not wisp.charge
+
+	# test 15 - Warsong, Harvest Golem, then kill Harvest Golem to summon Damaged Golem
+	golem = game.player1.give("EX1_556")
+	golem.play()
+	assert golem.charge
+	for i in range(3):
+		game.player1.give(MOONFIRE).play(target=golem)
+	assert golem.dead
+	damaged = game.player1.field.filter(id="skele21")[0]
+	assert damaged.charge
+
+
+def test_warsong_commander_buffed():
+	# test 4 - Warsong, Fiery War Axe, then Bloodsail Raider
+	game = prepare_game()
+	game.player1.give(WARSONG_COMMANDER).play()
+	game.player1.give("CS2_106").play()
+	assert game.player1.hero.atk == 3
+	raider = game.player1.give("NEW1_018")
+	raider.play()
+	assert raider.atk == 2 + 3
+	assert not raider.charge
+	game.end_turn(); game.end_turn()
+
+	# test 5 - Warsong, Argent Squire, then Blood Knight
+	squire = game.player1.give("EX1_008");
+	squire.play()
+	assert squire.charge
+	assert squire.divine_shield
+	bloodknight = game.player1.give("EX1_590")
+	bloodknight.play()
+	assert not squire.divine_shield
+	assert not bloodknight.charge
+
+
+def test_warsong_commander_faceless_manipulator():
+	# test 7 - Warsong, then Faceless Manipulator on 6/7 Boulderfist Ogre
+	game = prepare_game()
+	game.player1.give(WARSONG_COMMANDER).play()
+	game.end_turn()
+
+	boulderfist = game.player2.summon("CS2_200")
+	goldshire = game.player1.summon(GOLDSHIRE_FOOTMAN)
+	game.end_turn()
+
+	assert boulderfist.atk == 6
+	faceless = game.player1.give("EX1_564")
+	faceless.play(target=boulderfist)
+	copy = game.player1.field.filter(id="CS2_200")[0]
+	assert copy == boulderfist
+	assert not copy.charge
+
+	# test 8 - Warsong, then Faceless Manipulator on 1/2 Goldshire Footman
+	assert goldshire.atk == 1
+	faceless = game.player1.give("EX1_564")
+	faceless.play(target=goldshire)
+	copy = game.player1.field.filter(id=goldshire.id)[0]
+	assert copy == goldshire
+	assert copy.charge
+
+
+def test_warsong_commander_faceless_manipulator_buffed():
+	# test 6 - Warsong, then Faceless Manipulator on 5/6 damaged Gurubashi Berseker
+	game = prepare_game()
+	game.player1.give(WARSONG_COMMANDER).play()
+	game.end_turn()
+
+	gurubashi = game.player2.give("EX1_399")
+	gurubashi.play()
+	game.player2.give(MOONFIRE).play(target=gurubashi)
+	assert gurubashi.atk == 5
+	assert gurubashi.health == 6
+	game.end_turn()
+
+	faceless = game.player1.give("EX1_564")
+	faceless.play(target=gurubashi)
+	copy = game.player1.field.filter(id="EX1_399")[0]
+	assert copy == gurubashi
+	assert not copy.charge
+
+
+def test_warsong_commander_lightspawn():
+	# test 11 - Warsong, then Lightspawn
+	game = prepare_game()
+	game.player1.give(WARSONG_COMMANDER).play()
+	lightspawn = game.player1.give("EX1_335")
+	lightspawn.play()
+	assert not lightspawn.charge
+
+
+def test_warsong_commander_bounce():
+	# test 12 - Warsong, then play Youthful Brewmaster targeting the Warsong
+	game = prepare_game()
+	warsong = game.player1.give(WARSONG_COMMANDER)
+	warsong.play()
+	brewmaster = game.player1.give("EX1_049")
+	brewmaster.play(target=warsong)
+	assert game.player1.field[0].id == "EX1_049"
+	assert not game.player1.field[0].charge
+
+
+def test_warsong_commander_spell_summon():
+	# test 13 - Warsong, then play Hex targeting the Warsong
+	game = prepare_game()
+	warsong = game.player1.give(WARSONG_COMMANDER)
+	warsong.play()
+	hex = game.player1.give("EX1_246")
+	hex.play(target=warsong)
+	assert game.player1.field[0].id == "hexfrog"
+	assert not game.player1.field[0].charge
+
+
+def test_warsong_commander_mind_control_tech():
+	# test 14 - Enemy Warsong and 3 other minions, the Mind Control Tech stealing Warsong
+	game = prepare_game()
+	for i in range(4):
+		game.player1.summon(WARSONG_COMMANDER)
+	assert len(game.player1.field) == 4
+	assert len(game.player2.field) == 0
+	game.end_turn()
+
+	mct = game.player2.give("EX1_085")
+	mct.play()
+	assert len(game.player1.field) == 3
+	assert len(game.player2.field) == 2
+	assert mct.charge
 
 
 def test_whirlwind():
@@ -4177,6 +4091,34 @@ def test_savage_roar():
 	assert game.player2.hero.atk == 0
 
 
+def test_sense_demons():
+	game = prepare_empty_game()
+	game.player1.discard_hand()
+	demon1 = game.player1.give("EX1_319")
+	demon1.shuffle_into_deck()
+	demon2 = game.player1.give("CS2_065")
+	demon2.shuffle_into_deck()
+	wisp = game.player1.give(WISP)
+	wisp.shuffle_into_deck()
+	assert len(game.player1.deck) == 3
+	assert len(game.player1.hand) == 0
+	sense1 = game.player1.give("EX1_317")
+	sense1.play()
+	assert len(game.player1.deck) == 1
+	assert len(game.player1.hand) == 2
+	assert game.player1.hand.contains(demon1)
+	assert game.player1.hand.contains(demon2)
+
+	game.player1.discard_hand()
+	assert len(game.player1.deck) == 1
+	assert len(game.player1.hand) == 0
+	sense2 = game.player1.give("EX1_317")
+	sense2.play()
+	assert len(game.player1.deck) == 1
+	assert len(game.player1.hand) == 2
+	assert game.player1.hand[0].id == game.player1.hand[1].id == "EX1_317t"
+
+
 def test_shadowflame():
 	game = prepare_game()
 	dummy1 = game.player1.give(TARGET_DUMMY)
@@ -4233,6 +4175,30 @@ def test_shadow_madness_silence():
 	game.end_turn()
 
 	assert wisp.controller == game.player1
+
+
+def test_shadow_word_pain():
+	game = prepare_game()
+	yeti = game.player1.summon("CS2_182")
+	wisp1 = game.player1.summon(WISP)
+	wisp2 = game.player1.summon(WISP)
+	pain = game.player1.give("CS2_234")
+	assert pain.targets == [wisp1, wisp2]
+	pain.play(target=wisp1)
+	assert wisp1.dead
+	assert not wisp2.dead
+	assert not yeti.dead
+
+
+def test_shadow_word_pain_questing_adventurer():
+	game = prepare_game()
+	adventurer = game.player1.summon("EX1_044")
+	game.player1.give(MOONFIRE).play(target=game.player2.hero)
+	pain = game.player1.give("CS2_234")
+	assert adventurer.atk == 3
+	assert adventurer in pain.targets
+	pain.play(target=adventurer)
+	assert adventurer.dead
 
 
 def test_shadowform():
@@ -4309,39 +4275,6 @@ def test_acolyte_of_pain():
 	assert acolyte.dead
 
 
-def test_poisonous():
-	game = prepare_game()
-	game.end_turn()
-
-	cobra = game.current_player.give("EX1_170")
-	cobra.play()
-	assert cobra.poisonous
-	game.end_turn()
-	zchow = game.current_player.give("FP1_001")
-	zchow.play()
-	zchow2 = game.current_player.give("FP1_001")
-	zchow2.play()
-	game.end_turn()
-	cobra.attack(target=zchow)
-	assert zchow not in game.current_player.opponent.field
-	assert zchow.dead
-	game.end_turn()
-	zchow2.attack(target=cobra)
-	assert zchow2.dead
-
-	# test silencing the cobra
-	zchow3 = game.current_player.give("FP1_001")
-	zchow3.play()
-	game.end_turn()
-	cobra = game.current_player.give("EX1_170")
-	cobra.play()
-	cobra.silence()
-	game.end_turn()
-	zchow3.attack(cobra)
-	assert zchow3 in game.current_player.field
-	assert cobra in game.current_player.opponent.field
-
-
 def test_cleave():
 	game = prepare_game()
 	# play some wisps
@@ -4407,32 +4340,54 @@ def test_unstable_portal():
 	assert minion.buffs
 
 
-CHEAT_MIRROR_ENTITY = True
-def test_mctech():
+def test_mind_control_tech():
 	game = prepare_game()
-	game.end_turn()
-	# play some wisps
-	game.current_player.give(WISP).play()
-	game.current_player.give(WISP).play()
-	game.current_player.give(WISP).play()
-	if CHEAT_MIRROR_ENTITY:
-		# TODO secrets
-		game.current_player.give("EX1_294").play()
+	for i in range(4):
+		game.player1.give(WISP).play()
 	game.end_turn()
 
-	assert len(game.current_player.opponent.field) == 3
-	# play an mctech. nothing should be controlled.
-	game.current_player.give("EX1_085").play()
-	assert len(game.current_player.field) == 1
+	# test normal steal
+	assert len(game.player1.field) == 4
+	assert len(game.player2.field) == 0
+	mct = game.player2.give("EX1_085")
+	mct.play()
+	assert len(game.player1.field) == 3
+	assert len(game.player2.field) == 2
+
+	# ensure no steal with 3 minions or less
+	game.player2.give("EX1_085").play()
+	assert len(game.player1.field) == 3
+	assert len(game.player2.field) == 3
+
+
+def test_mind_control_tech_mirror_entity():
+	game = prepare_game()
+	for i in range(3):
+		game.player1.give(WISP).play()
+
+	# play mirror entity
+	game.player1.give("EX1_294").play()
 	game.end_turn()
-	if CHEAT_MIRROR_ENTITY:
-		# mc tech gets copied, board now at 4
-		game.current_player.give("EX1_085").play()
-	assert len(game.current_player.field) == 4
-	game.end_turn()
-	game.current_player.give("EX1_085").play()
-	assert len(game.current_player.field) == 3
-	assert len(game.current_player.opponent.field) == 3
+
+	# ensure that nothing is stolen (mirror entity triggers after mctech)
+	assert len(game.player1.field) == 3
+	assert len(game.player2.field) == 0
+	game.player2.give("EX1_085").play()
+	assert len(game.player1.field) == 4
+	assert len(game.player2.field) == 1
+
+
+def test_injured_blademaster():
+	game = prepare_game()
+	frothing = game.player1.give("EX1_604")
+	frothing.play()
+	assert not frothing.buffs
+	assert frothing.atk == 2
+	blademaster = game.player1.give("CS2_181")
+	blademaster.play()
+	assert frothing.buffs
+	assert frothing.atk == 2 + 1
+	assert blademaster.health == blademaster.max_health - 4
 
 
 def test_inner_fire():
@@ -4518,26 +4473,25 @@ def test_ice_barrier():
 
 def test_vaporize():
 	game = prepare_game()
-	vaporize = game.current_player.give("EX1_594")
+	vaporize = game.player1.give("EX1_594")
 	game.end_turn()
 
-	wisp = game.current_player.give(WISP)
+	wisp = game.player2.give(WISP)
 	wisp.play()
 	game.end_turn()
 
 	vaporize.play()
-	assert game.current_player.secrets[0] == vaporize
+	assert game.player1.secrets[0] == vaporize
 	game.end_turn()
 
 	assert len(game.current_player.opponent.secrets) == 1
 	# Play an axe and hit the hero ourselves
-	game.current_player.give("CS2_106").play()
-	game.current_player.hero.attack(target=game.current_player.opponent.hero)
-	assert len(game.current_player.opponent.secrets) == 1
-	assert game.current_player.opponent.hero.health == 27
-	wisp.attack(target=game.current_player.opponent.hero)
-	assert not game.current_player.opponent.secrets
-	assert vaporize.dead
+	game.player2.give("CS2_106").play()
+	game.player2.hero.attack(target=game.player1.hero)
+	assert game.player1.hero.health == 27
+	assert vaporize in game.player1.secrets
+	wisp.attack(target=game.player1.hero)
+	assert vaporize not in game.player1.secrets
 	assert wisp.dead
 	assert game.current_player.opponent.hero.health == 27
 
@@ -4752,9 +4706,9 @@ def test_freezing_trap():
 	assert not wisp.buffs
 	assert wisp.zone == Zone.PLAY
 	assert game.player2.hero.health == 30
+	assert trap in game.player2.secrets
 	wisp.attack(target=game.player2.hero)
-	assert not game.player2.secrets
-	assert trap.dead
+	assert trap not in game.player2.secrets
 	assert game.player2.hero.health == 30
 	assert wisp.zone == Zone.HAND
 	assert wisp in game.player1.hand
@@ -4765,6 +4719,23 @@ def test_freezing_trap():
 	assert game.player1.used_mana == 2
 	assert not wisp.buffs
 	assert wisp.cost == 0
+
+
+def test_frothing_berserker():
+	game = prepare_game()
+	frothing = game.player1.give("EX1_604")
+	assert not frothing.buffs
+	wisp1 = game.player1.summon(WISP)
+	game.player1.give(MOONFIRE).play(target=wisp1)
+	assert not frothing.buffs
+	frothing.play()
+	game.player1.give(MOONFIRE).play(target=game.player2.hero)
+	assert not frothing.buffs
+	assert frothing.atk == 2
+	wisp2 = game.player1.summon(WISP)
+	game.player1.give(MOONFIRE).play(target=wisp2)
+	assert frothing.buffs
+	assert frothing.atk == 2 + 1
 
 
 def test_flame_leviathan():
@@ -4826,19 +4797,6 @@ def test_warlock():
 	game.end_turn()
 
 
-def test_discard_enchanted_cards():
-	# Test for bug #58
-	game = prepare_game()
-	deathwing = game.player1.give("NEW1_030")
-	thaurissan = game.player1.give("BRM_028")
-	thaurissan.play()
-	for i in range(10):
-		game.end_turn(); game.end_turn()
-
-	deathwing.play()
-	assert not game.player1.hand
-
-
 def test_resurrect():
 	# Doesn't summon if nothing died
 	game = prepare_game()
@@ -4873,6 +4831,26 @@ def test_resurrect_wild_pyro():
 	assert len(game.player1.field) == 1
 	assert game.player1.field[0].id == pyromancer.id
 	assert game.player1.field[0].health == 1
+
+
+def test_rend_blackhand():
+	game = prepare_empty_game()
+	rend1 = game.player1.give("BRM_029")
+	assert not rend1.has_target()
+	dragon = game.player1.give("NEW1_023")
+	assert not rend1.has_target()
+	pagle = game.player2.summon("EX1_557")
+	assert rend1.has_target()
+	assert rend1.targets == [pagle]
+	rend1.play(target=pagle)
+	assert pagle.dead
+	rend1.destroy()
+	game.end_turn(); game.end_turn()
+
+	rend2 = game.player1.give("BRM_029")
+	assert not rend2.has_target()
+	assert not rend2.targets
+	rend2.play()
 
 
 def test_majordomo_executus():
@@ -5163,8 +5141,9 @@ def test_explosive_trap():
 	game.end_turn(); game.end_turn()
 
 	assert len(game.player2.field) == 4
+	assert explosivetrap in game.player1.secrets
 	wisp.attack(game.player1.hero)
-	assert explosivetrap.dead
+	assert explosivetrap not in game.player1.secrets
 	assert len(game.player2.field) == 0
 	assert game.player2.hero.health == 24
 	assert game.player1.hero.health == 30

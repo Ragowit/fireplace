@@ -100,7 +100,7 @@ class BaseCard(Entity):
 					self._auras.append(aura)
 		else:
 			for aura in self._auras:
-				aura.destroy()
+				aura.to_be_destroyed = True
 
 	def buff(self, target, buff, **kwargs):
 		"""
@@ -190,8 +190,9 @@ class PlayableCard(BaseCard):
 		return self.buffs
 
 	def _set_zone(self, zone):
+		old_zone = self.zone
 		super()._set_zone(zone)
-		if zone == Zone.HAND:
+		if old_zone == Zone.PLAY and zone not in (Zone.GRAVEYARD, Zone.SETASIDE):
 			self.clear_buffs()
 
 	def action(self):
@@ -202,7 +203,7 @@ class PlayableCard(BaseCard):
 		kwargs = {}
 		if self.target:
 			kwargs["target"] = self.target
-		elif PlayReq.REQ_TARGET_IF_AVAILABLE in self.requirements:
+		elif self.has_target():
 			logging.info("%r has no target, action exits early" % (self))
 			return
 
@@ -498,7 +499,8 @@ class Minion(Character):
 	silenceable_attributes = (
 		"always_wins_brawls", "aura", "cant_attack", "cant_be_targeted_by_abilities",
 		"cant_be_targeted_by_hero_powers", "charge", "divine_shield", "enrage",
-		"frozen", "has_inspire", "poisonous", "stealthed", "taunt", "windfury",
+		"frozen", "has_deathrattle", "has_inspire", "poisonous", "stealthed",
+		"taunt", "windfury",
 	)
 
 	def __init__(self, id, data):
@@ -603,7 +605,7 @@ class Minion(Character):
 	def silence(self):
 		logging.info("%r has been silenced" % (self))
 		for aura in self._auras:
-			aura.destroy()
+			aura.to_be_destroyed = True
 		self.clear_buffs()
 
 		for attr in self.silenceable_attributes:
@@ -717,6 +719,7 @@ class Aura(object):
 		self.selector = self.action._args[0]
 		self.id = self.action._args[1]
 		self.source = source
+		self.to_be_destroyed = False
 		self._buffed = CardList()
 		self._buffs = CardList()
 		# THIS IS A HACK
@@ -750,6 +753,9 @@ class Aura(object):
 				return buff
 
 	def update(self):
+		if self.to_be_destroyed:
+			return self.destroy()
+
 		targets = self.targets
 		for target in targets:
 			if not self._entity_buff(target):
