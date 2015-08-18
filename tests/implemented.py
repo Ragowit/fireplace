@@ -1,11 +1,9 @@
 #!/usr/bin/env python
+import importlib
 import re
 import string
-import sys
-sys.path.append("..")
-sys.path.append("../fireplace/cards/data")
+import sys; sys.path.append(".."); sys.path.append("../fireplace/cards/data")
 from fireplace import cards
-from fireplace.cards import debug, game, tutorial, classic, naxxramas, gvg, blackrock
 from fireplace.enums import CardType, CardSet
 
 import buffs
@@ -29,6 +27,21 @@ SOLVED_KEYWORDS = [
 	r"Spell Damage \+\d+",
 	r"Overload: \(\d+\)",
 ]
+
+CARD_SETS = {
+	"debug": None,
+	"game": None,
+	"tutorial": None,
+	"classic": None,
+	"naxxramas": None,
+	"gvg": None,
+	"blackrock": None,
+	"tourney": None,
+}
+
+
+for cardset in CARD_SETS:
+	CARD_SETS[cardset] = importlib.import_module("fireplace.cards.%s" % (cardset))
 
 
 def cleanup_description(description):
@@ -55,7 +68,7 @@ def main():
 		elif card.card_set == CardSet.CREDITS:
 			color = GREEN
 		else:
-			for set in (debug, game, tutorial, classic, naxxramas, gvg, blackrock):
+			for set in CARD_SETS.values():
 				if hasattr(set, id):
 					color = GREEN
 					break

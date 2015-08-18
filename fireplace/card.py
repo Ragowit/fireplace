@@ -3,8 +3,8 @@ from itertools import chain
 from . import cards as CardDB, rules
 from .actions import Damage, Deaths, Destroy, Heal, Morph, Play, Shuffle, SetCurrentHealth
 from .entity import Entity, boolean_property, int_property
-from .enums import AuraType, CardType, PlayReq, Race, Rarity, Zone
-from .managers import *
+from .enums import CardType, PlayReq, Race, Rarity, Zone
+from .managers import CardManager
 from .targeting import is_valid_target
 from .utils import CardList
 
@@ -40,12 +40,11 @@ class BaseCard(Entity):
 		super().__init__()
 		self._auras = []
 		self.requirements = data.requirements.copy()
-		self.entourage = CardList(self.data.entourage)
 		self.id = id
 		self.controller = None
 		self.aura = False
+		self.heropower_damage = 0
 		self.silenced = False
-		self.secret = data.secret
 		self.spellpower = 0
 		self.turns_in_play = 0
 		self.tags.update(data.tags)
@@ -122,12 +121,12 @@ class BaseCard(Entity):
 
 
 class PlayableCard(BaseCard):
-	Manager = PlayableCardManager
 	windfury = boolean_property("windfury")
 
 	def __init__(self, id, data):
 		self.buffs = CardList()
 		self.cant_play = False
+		self.entourage = CardList(data.entourage)
 		self.has_battlecry = False
 		self.has_combo = False
 		self.overload = 0
@@ -337,9 +336,9 @@ class PlayableCard(BaseCard):
 
 
 class Character(PlayableCard):
-	Manager = CharacterManager
-	min_health = boolean_property("min_health")
+	cant_be_targeted_by_opponents = boolean_property("cant_be_targeted_by_opponents")
 	immune = boolean_property("immune")
+	min_health = boolean_property("min_health")
 
 	def __init__(self, *args):
 		self.attacking = False
@@ -490,7 +489,6 @@ class Hero(Character):
 
 
 class Minion(Character):
-	Manager = MinionManager
 	charge = boolean_property("charge")
 	has_inspire = boolean_property("has_inspire")
 	stealthed = boolean_property("stealthed")
@@ -618,15 +616,16 @@ class Minion(Character):
 
 
 class Spell(PlayableCard):
-	Manager = SpellManager
-
 	def __init__(self, *args):
 		self.immune_to_spellpower = False
+		self.receives_double_spelldamage_bonus = False
 		super().__init__(*args)
 
 	def hit(self, target, amount):
 		if not self.immune_to_spellpower:
 			amount = self.controller.get_spell_damage(amount)
+		if self.receives_double_spelldamage_bonus:
+			amount *= 2
 		super().hit(target, amount)
 
 
@@ -660,7 +659,6 @@ class Secret(Spell):
 
 
 class Enchantment(BaseCard):
-	Manager = EnchantmentManager
 	slots = []
 
 	def __init__(self, *args):
@@ -786,15 +784,13 @@ class Enrage(object):
 	"""
 
 	def __init__(self, tags):
-		MinionManager(self).update(tags)
+		CardManager(self).update(tags)
 
 	def _getattr(self, attr, i):
 		return i + getattr(self, attr, 0)
 
 
 class Weapon(rules.WeaponRules, PlayableCard):
-	Manager = WeaponManager
-
 	def __init__(self, *args):
 		super().__init__(*args)
 		self.damage = 0
@@ -844,8 +840,6 @@ class Weapon(rules.WeaponRules, PlayableCard):
 
 
 class HeroPower(PlayableCard):
-	Manager = HeroPowerManager
-
 	def _set_zone(self, value):
 		if value == Zone.PLAY:
 			if self.controller.hero.power:
@@ -876,6 +870,7 @@ class HeroPower(PlayableCard):
 		return ret
 
 	def hit(self, target, amount):
+		amount += self.controller.heropower_damage
 		amount *= (self.controller.hero_power_double + 1)
 		super().hit(target, amount)
 
