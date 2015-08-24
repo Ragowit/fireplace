@@ -106,7 +106,7 @@ class SpidersEverywhereBrawl(Game):
 		from .. import cards
 		super().__init__(players)
 		for player in players:
-			hero = player.original_deck.hero
+			hero = player.starting_hero
 			player_class = getattr(cards, hero).card_class
 			spells = cards.filter(card_class=player_class, type=CardType.SPELL)
 			deck = ["FP1_011"] * 23
@@ -143,7 +143,7 @@ class CrossroadsEncounterBrawl(Game):
 		from .. import cards
 		super().__init__(players)
 		for player in players:
-			hero = player.original_deck.hero
+			hero = player.starting_hero
 			player_class = getattr(cards, hero).card_class
 			pool = cards.filter(card_class=player_class, collectible=True)
 			deck = [random.choice(pool) for i in range(15)]
@@ -181,7 +181,7 @@ class TooManyPortalsBrawl(Game):
 		from .. import cards
 		super().__init__(players)
 		for player in players:
-			hero = player.original_deck.hero
+			hero = player.starting_hero
 			player_class = getattr(cards, hero).card_class
 			spells = cards.filter(card_class=player_class, type=CardType.SPELL)
 			deck = [self.UNSTABLE_PORTAL] * 23
@@ -205,3 +205,65 @@ class MaskedBallBrawl(Game):
 			action = Buff(card, "TB_Pilot1")
 			self.queue_actions(card, [action])
 		return super()._play(card, *args)
+
+
+class GrandTournamentBrawl(Game):
+	"""
+	Grand Tournament Match
+
+	On the road to The Grand Tournament, two knights face off!
+	One relies on jousting skill, while the other inspires troops to
+	great deeds. Who will win?
+	"""
+
+	ALLERIA_DECK = ([
+		"AT_010",
+		"AT_058", "AT_058",
+		"AT_060",
+		"AT_061", "AT_061",
+		"AT_063",
+		"AT_102", "AT_102",
+		"AT_103"
+		"AT_108", "AT_108",
+		"AT_111",
+		"AT_112", "AT_112",
+		"AT_128",
+		"CS2_084", "CS2_084",
+		"DS1_178",
+		"DS1_184", "DS1_184",
+		"DS1_185", "DS1_185",
+		"EX1_538", "EX1_538",
+		"EX1_609",
+		"EX1_611",
+		"GVG_073",
+		"NEW1_031", "NEW1_031",
+	], "HERO_05a")
+
+	MEDIVH_DECK = ([
+		"AT_001", "AT_001",
+		"AT_003", "AT_003",
+		"AT_005", "AT_005",
+		"AT_007", "AT_007",
+		"AT_008", "AT_008",
+		"AT_009",
+		"AT_080", "AT_080",
+		"AT_082", "AT_082",
+		"AT_083",
+		"AT_085", "AT_085",
+		"AT_087",
+		"AT_089", "AT_089",
+		"AT_097",
+		"AT_099",
+		"AT_114", "AT_114",
+		"AT_119",
+		"AT_127",
+		"AT_120", "AT_120",
+		"CS2_028",
+	], "HERO_08a")
+
+	@classmethod
+	def new_game(cls, *players):
+		decks = random.sample((cls.ALLERIA_DECK, cls.MEDIVH_DECK), 2)
+		for player, deck in zip(players, decks):
+			player.prepare_deck(deck[0], hero=deck[1])
+		return cls(players)

@@ -2,6 +2,7 @@ import logging
 import random
 from itertools import chain
 from .actions import Draw, Give, Steal, Summon
+from .card import Card
 from .deck import Deck
 from .entity import Entity
 from .enums import CardType, PlayState, Zone
@@ -27,6 +28,7 @@ class Player(Entity):
 		self.deck = Deck()
 		self.hand = CardList()
 		self.field = CardList()
+		self.graveyard = CardList()
 		self.secrets = CardList()
 		self.buffs = []
 		self.max_hand_size = 10
@@ -99,6 +101,15 @@ class Player(Entity):
 	def minion_slots(self):
 		return max(0, self.game.MAX_MINIONS_ON_FIELD - len(self.field))
 
+	def card(self, id, source=None, zone=Zone.SETASIDE):
+		card = Card(id)
+		card.controller = self
+		card.zone = zone
+		if source is not None:
+			card.creator = source
+		self.game.manager.new_entity(card)
+		return card
+
 	def get_spell_damage(self, amount: int) -> int:
 		"""
 		Returns the amount of damage \a amount will do, taking
@@ -113,8 +124,8 @@ class Player(Entity):
 		return cards[0][0]
 
 	def prepare_deck(self, cards, hero):
-		self.original_deck = Deck.from_list(cards)
-		self.original_deck.hero = hero
+		self.starting_deck = cards
+		self.starting_hero = hero
 
 	def discard_hand(self):
 		logging.info("%r discards his entire hand!" % (self))
@@ -180,7 +191,6 @@ class Player(Entity):
 		Puts \a card in the PLAY zone
 		"""
 		if isinstance(card, str):
-			card = self.game.card(card)
-			card.controller = self
+			card = self.card(card, zone=Zone.PLAY)
 		self.game.queue_actions(self, [Summon(self, card)])
 		return card

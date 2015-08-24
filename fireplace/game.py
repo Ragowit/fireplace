@@ -4,7 +4,7 @@ import time
 from calendar import timegm
 from itertools import chain
 from .actions import Attack, BeginTurn, Death, EndTurn, EventListener
-from .card import Card, THE_COIN
+from .card import THE_COIN
 from .entity import Entity
 from .enums import CardType, PlayState, Step, Zone
 from .managers import GameManager
@@ -31,15 +31,11 @@ class BaseGame(Entity):
 		self.turn = 0
 		self.current_player = None
 		self.auras = []
-		self.graveyard = CardList()
 		self.minions_killed_this_turn = CardList()
 		self.no_aura_refresh = False
 
 	def __repr__(self):
-		return "<%s %s>" % (self.__class__.__name__, self)
-
-	def __str__(self):
-		return "%s vs %s" % (self.players)
+		return "%s(players=%r)" % (self.__class__.__name__, self.players)
 
 	def __iter__(self):
 		return self.all_entities.__iter__()
@@ -67,6 +63,10 @@ class BaseGame(Entity):
 	@property
 	def all_entities(self):
 		return CardList(chain(self.entities, self.hands, self.decks, self.graveyard))
+
+	@property
+	def graveyard(self):
+		return CardList(chain(self.players[0].graveyard, self.players[1].graveyard))
 
 	@property
 	def entities(self):
@@ -121,11 +121,6 @@ class BaseGame(Entity):
 		player.last_card_played = card
 		card.zone = Zone.PLAY
 
-	def card(self, id):
-		card = Card(id)
-		self.manager.new_entity(card)
-		return card
-
 	def check_for_end_game(self):
 		"""
 		Check if one or more player is currently losing.
@@ -168,7 +163,6 @@ class BaseGame(Entity):
 		logging.debug("Scheduling death for %r", card)
 		card.ignore_events = True
 		card.zone = Zone.GRAVEYARD
-		self.graveyard.append(card)
 		if card.type == CardType.MINION:
 			self.minions_killed_this_turn.append(card)
 			card.controller.minions_killed_this_turn += 1
@@ -221,12 +215,13 @@ class BaseGame(Entity):
 		self.players[0].opponent = self.players[1]
 		self.players[1].opponent = self.players[0]
 		for player in self.players:
-			self.manager.new_entity(player)
 			player.zone = Zone.PLAY
-			player.summon(player.original_deck.hero)
-			for card in player.original_deck:
-				card.controller = player
-				card.zone = Zone.DECK
+			self.manager.new_entity(player)
+
+		for player in self.players:
+			player.summon(player.starting_hero)
+			for id in player.starting_deck:
+				player.card(id, zone=Zone.DECK)
 			player.shuffle_deck()
 			player.playstate = PlayState.PLAYING
 			player.cards_drawn_this_turn = 0
@@ -241,7 +236,9 @@ class BaseGame(Entity):
 		self.current_player = self.player1
 
 	def start(self):
-		logging.info("Starting game: %r" % (self))
+		logging.info("Starting game %r", self)
+		self.zone = Zone.PLAY
+		self.manager.start_game()
 		self.prepare()
 		self.begin_turn(self.player1)
 

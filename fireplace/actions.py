@@ -24,7 +24,7 @@ def _eval_card(source, card):
 	ret = []
 	for card in cards:
 		if isinstance(card, str):
-			ret.append(source.game.card(card))
+			ret.append(source.controller.card(card, source))
 		else:
 			ret.append(card)
 
@@ -212,8 +212,7 @@ class Play(GameAction):
 
 		if choose is not None:
 			# Choose One cards replace the action on the played card
-			chosen = player.game.card(choose)
-			chosen.controller = player
+			chosen = player.card(choose)
 			logging.info("Choose One from %r: %r", card, chosen)
 			if chosen.has_target():
 				chosen.target = target
@@ -389,8 +388,8 @@ class Discard(TargetedAction):
 	Discard card targets in a player's hand
 	"""
 	def do(self, source, target):
-		target.discard()
 		self.broadcast(source, EventListener.ON, target)
+		target.discard()
 
 
 class Draw(TargetedAction):
@@ -407,7 +406,7 @@ class Draw(TargetedAction):
 			return []
 		card = target.deck[-1]
 		card.draw()
-		self.broadcast(source, EventListener.ON, target, card)
+		self.broadcast(source, EventListener.ON, target, card, source)
 
 		return [card]
 
@@ -646,8 +645,11 @@ class Summon(TargetedAction):
 			if card.type == CardType.MINION and not target.minion_slots:
 				continue
 			self.broadcast(source, EventListener.ON, target, card)
-			card.zone = Zone.PLAY
+			if card.zone != Zone.PLAY:
+				card.zone = Zone.PLAY
 			self.broadcast(source, EventListener.AFTER, target, card)
+
+		return cards
 
 
 class Shuffle(TargetedAction):

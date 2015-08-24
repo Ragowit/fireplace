@@ -81,6 +81,7 @@ class BaseCard(Entity):
 		caches = {
 			Zone.HAND: self.controller.hand,
 			Zone.DECK: self.controller.deck,
+			Zone.GRAVEYARD: self.controller.graveyard
 		}
 		if caches.get(old) is not None:
 			caches[old].remove(self)
@@ -110,10 +111,7 @@ class BaseCard(Entity):
 		NOTE: Any Card can buff any other Card. The controller of the
 		Card that buffs the target becomes the controller of the buff.
 		"""
-		ret = self.game.card(buff)
-		ret.controller = self.controller
-		ret.zone = Zone.SETASIDE
-		ret.creator = self
+		ret = self.controller.card(buff, self)
 		ret.apply(target)
 		for k, v in kwargs.items():
 			setattr(ret, k, v)
@@ -294,6 +292,9 @@ class PlayableCard(BaseCard):
 				return False
 		if PlayReq.REQ_WEAPON_EQUIPPED in self.requirements:
 			if not self.controller.weapon:
+				return False
+		if PlayReq.REQ_FRIENDLY_MINION_DIED_THIS_GAME in self.requirements:
+			if not self.controller.graveyard.filter(type=CardType.MINION):
 				return False
 		return True
 
