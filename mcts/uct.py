@@ -181,187 +181,30 @@ class HearthState:
             exclude = ["EX1_295"]
 
             if len(self.deck1) < 30:
-                owned_cards = []
-                ### BASIC ###
-                # Druid
-                owned_cards.extend(["EX1_169", "CS2_008", "CS2_005", "CS2_009", "CS2_013", "CS2_007", "CS2_011",
-                                    "CS2_012", "EX1_173", "CS2_232"])
-                # Hunter
-                owned_cards.extend(["CS2_084", "DS1_185", "DS1_184", "DS1_175", "NEW1_031", "EX1_539", "DS1_183",
-                                    "DS1_070", "CS2_237", "DS1_178"])
-                # Mage
-                owned_cards.extend(["EX1_277", "CS2_027", "CS2_025", "CS2_024", "CS2_023", "CS2_026", "CS2_029",
-                                    "CS2_022", "CS2_033", "CS2_032"])
-                # Paladin
-                owned_cards.extend(["CS2_091", "CS2_087", "EX1_371", "EX1_360", "CS2_089", "CS2_097", "CS2_092",
-                                    "CS2_093", "CS2_094", "CS2_088"])
-                # Priest
-                owned_cards.extend(["CS1_130", "CS2_003", "CS2_004", "CS2_235", "CS2_236", "DS1_233", "CS2_234",
-                                    "EX1_622", "CS1_112", "CS1_113"])
-                # Rogue
-                owned_cards.extend(["CS2_072", "CS2_074", "CS2_075", "EX1_581", "EX1_278", "EX1_129", "CS2_080",
-                                    "CS2_076", "NEW1_004", "CS2_077"])
-                # Shaman
-                owned_cards.extend(["CS2_041", "EX1_244", "CS2_037", "CS2_045", "CS2_039", "EX1_565", "EX1_246",
-                                    "EX1_587", "CS2_046", "CS2_042"])
-                # Warlock
-                owned_cards.extend(["NEW1_003", "CS2_063", "EX1_302", "EX1_308", "CS2_065", "EX1_306", "CS2_061",
-                                    "CS2_057", "CS2_062", "CS2_064"])
-                # Warrior
-                owned_cards.extend(["CS2_108", "EX1_400", "CS2_106", "CS2_114", "CS2_105", "CS2_103", "EX1_606",
-                                    "EX1_084", "NEW1_011", "CS2_112"])
-                # Neutral
-                owned_cards.extend(["CS2_189", "CS1_042", "EX1_508", "CS2_168", "CS2_171", "EX1_011", "EX1_066",
-                                    "CS2_172", "CS2_173", "CS2_121", "CS2_142", "EX1_506", "EX1_015", "CS2_120",
-                                    "EX1_582", "CS2_141", "CS2_125", "CS2_118", "CS2_122", "CS2_196", "EX1_019",
-                                    "CS2_127", "CS2_124", "CS2_182", "EX1_025", "CS2_147", "CS2_119", "CS2_197",
-                                    "CS2_179", "CS2_131", "CS2_187", "DS1_055", "CS2_226", "EX1_399", "EX1_593",
-                                    "CS2_150", "CS2_155", "CS2_200", "CS2_162", "CS2_213", "CS2_201", "CS2_222",
-                                    "CS2_186"])
-        
-                ### CLASSIC ###
-                # Druid
-                owned_cards.extend(["EX1_160", "EX1_154", "EX1_155", "EX1_166", "NEW1_007", "EX1_165"])
-                # Hunter
-                owned_cards.extend(["EX1_609", "EX1_531", "EX1_617", "EX1_538"])
-                # Mage
-                owned_cards.extend(["CS2_031", "NEW1_012", "EX1_608", "EX1_289", "EX1_274", "CS2_028", "EX1_559"])
-                # Paladin
-                owned_cards.extend(["EX1_132", "EX1_130", "EX1_379", "EX1_362"])
-                # Priest
-                owned_cards.extend(["EX1_621", "EX1_332", "CS1_129", "EX1_339", "EX1_626", "EX1_624"])
-                # Rogue
-                owned_cards.extend(["CS2_073", "EX1_128", "EX1_126", "EX1_124"])
-                # Shaman
-                owned_cards.extend(["EX1_251", "CS2_038", "CS2_053", "EX1_248"])
-                # Warlock
-                owned_cards.extend(["EX1_316", "EX1_319", "EX1_596", "EX1_317", "EX1_315", "EX1_310"])
-                # Warrior
-                owned_cards.extend(["EX1_607", "CS2_104", "EX1_391", "EX1_402", "EX1_603", "EX1_408", "EX1_407"])
-                # Neutral
-                owned_cards.extend(["CS2_231", "EX1_008", "CS2_146", "EX1_010", "EX1_004", "EX1_393", "NEW1_018",
-                                    "EX1_162", "NEW1_023", "CS2_203", "NEW1_019", "EX1_096", "EX1_100", "EX1_082",
-                                    "NEW1_037", "EX1_102", "EX1_556", "EX1_597", "EX1_017", "EX1_044", "EX1_020",
-                                    "EX1_390", "EX1_083", "EX1_057", "EX1_595", "EX1_093", "NEW1_022", "EX1_396",
-                                    "EX1_023", "NEW1_026", "EX1_284", "CS1_069", "CS2_151", "CS2_221", "EX1_028",
-                                    "EX1_283", "EX1_583"])
-        
-                ### PROMO ###
-                owned_cards.extend(["EX1_112"])
-        
-                ### NAXXRAMAS ###
-                # Druid
-                owned_cards.extend(["FP1_019"])
-                # Hunter
-                owned_cards.extend(["FP1_011"])
-                # Mage
-                owned_cards.extend(["FP1_018"])
-                # Paladin
-                owned_cards.extend(["FP1_020"])
-                # Priest
-                owned_cards.extend(["FP1_023"])
-                # Rogue
-                owned_cards.extend(["FP1_026"])
-                # Shaman
-                owned_cards.extend(["FP1_025"])
-                # Warlock
-                owned_cards.extend(["FP1_022"])
-                # Warrior
-                owned_cards.extend(["FP1_021"])
-                # Neutral
-                owned_cards.extend(["FP1_028", "FP1_001", "FP1_003", "FP1_002", "FP1_004", "FP1_017", "FP1_007",
-                                    "FP1_024", "FP1_029", "FP1_009", "FP1_005", "FP1_027", "FP1_031", "FP1_016",
-                                    "FP1_015", "FP1_030", "FP1_012", "FP1_008", "FP1_014", "FP1_010", "FP1_013"])
-        
-                ### GOBLINS VS GNOMES ##
-                # Druid
-                owned_cards.extend(["GVG_030", "GVG_080"])
-                # Hunter
-                owned_cards.extend(["GVG_043", "GVG_073", "GVG_046"])
-                # Mage
-                owned_cards.extend(["GVG_001", "GVG_003", "GVG_002"])
-                # Paladin
-                owned_cards.extend(["GVG_057", "GVG_101", "GVG_062"])
-                # Priest
-                owned_cards.extend(["GVG_011", "GVG_010", "GVG_083"])
-                # Rogue
-                owned_cards.extend(["GVG_023", "GVG_025", "GVG_027", "GVG_022", "GVG_088"])
-                # Shaman
-                owned_cards.extend(["GVG_038", "GVG_039", "GVG_037", "GVG_040"])
-                # Warlock
-                owned_cards.extend(["GVG_015", "GVG_018", "GVG_045", "GVG_100"])
-                # Warrior
-                owned_cards.extend(["GVG_051", "GVG_054", "GVG_053"])
-                # Neutral
-                owned_cards.extend(["GVG_082", "GVG_013", "GVG_085", "GVG_076", "GVG_081", "GVG_006", "GVG_103",
-                                    "GVG_064", "GVG_075", "GVG_067", "GVG_084", "GVG_098", "GVG_065", "GVG_044",
-                                    "GVG_102", "GVG_091", "GVG_071", "GVG_078", "GVG_096", "GVG_069", "GVG_112",
-                                    "GVG_119", "GVG_079"])
-                
-                ### BLACKROCK MOUNTAIN ###
-                # Druid
-                owned_cards.extend(["BRM_010", "BRM_009"])
-                # Hunter
-                owned_cards.extend(["BRM_013", "BRM_014"])
-                # Mage
-                owned_cards.extend(["BRM_002", "BRM_003"])
-                # Paladin
-                owned_cards.extend(["BRM_001", "BRM_018"])
-                # Priest
-                owned_cards.extend(["BRM_004", "BRM_017"])
-                # Rogue
-                owned_cards.extend(["BRM_007", "BRM_008"])
-                # Shaman
-                owned_cards.extend(["BRM_011", "BRM_012"])
-                # Warlock
-                owned_cards.extend(["BRM_005", "BRM_006"])
-                # Warrior
-                owned_cards.extend(["BRM_015", "BRM_016"])
-                # Neutral
-                owned_cards.extend(["BRM_022", "BRM_033", "BRM_020", "BRM_026", "BRM_034", "BRM_019", "BRM_024",
-                                    "BRM_028", "BRM_025", "BRM_029", "BRM_031", "BRM_027", "BRM_030"])
-
                 hero = getattr(cards, self.hero1)
-
-                for card in owned_cards:
-                    if card in exclude:
-                        continue
-                    cls = getattr(cards, card)
-                    if not cls.collectible:
-                        continue
-                    if cls.type == CardType.HERO:
-                        # Heroes are collectible...
-                        continue
-                    if cls.card_class and cls.card_class != hero.card_class:
-                        continue
-                    collection.append(cls)
-
-                for card in collection:
-                    if card.rarity == Rarity.LEGENDARY and card.id in self.deck1:
-                        continue
-                    elif self.deck1.count(card.id) < Deck.MAX_UNIQUE_CARDS:
-                        valid_moves.append([MOVE.PICK_CARD, card])
+                deck = self.deck1
             else:
                 hero = getattr(cards, self.hero2)
+                deck = self.deck2
 
-                for card in cards.cardlist:
-                    if card in exclude:
-                        continue
-                    cls = getattr(cards, card)
-                    if not cls.collectible:
-                        continue
-                    if cls.type == CardType.HERO:
-                        # Heroes are collectible...
-                        continue
-                    if cls.card_class and cls.card_class != hero.card_class:
-                        continue
-                    collection.append(cls)
+            for card in cards.cardlist:
+                if card in exclude:
+                    continue
+                cls = getattr(cards, card)
+                if not cls.collectible:
+                    continue
+                if cls.type == CardType.HERO:
+                    # Heroes are collectible...
+                    continue
+                if cls.card_class and cls.card_class != hero.card_class:
+                    continue
+                collection.append(cls)
 
-                for card in collection:
-                    if card.rarity == Rarity.LEGENDARY and card.id in self.deck2:
-                        continue
-                    elif self.deck2.count(card.id) < Deck.MAX_UNIQUE_CARDS:
-                        valid_moves.append([MOVE.PICK_CARD, card])
+            for card in collection:
+                if card.rarity == Rarity.LEGENDARY and card.id in deck:
+                    continue
+                elif deck.count(card.id) < Deck.MAX_UNIQUE_CARDS:
+                    valid_moves.append([MOVE.PICK_CARD, card])
         else:
             # Play card
             for card in self.game.current_player.hand:
@@ -535,6 +378,9 @@ def UCT(rootstate, seconds, verbose = False):
             node = node.parentNode
 
         iterations += 1
+        
+        if iterations % 1000 == 0:
+            print("Iteration #" + str(iterations) + "...")
 
     # Output some information about the tree - can be omitted
     if (verbose): print(rootnode.TreeToString(0))
