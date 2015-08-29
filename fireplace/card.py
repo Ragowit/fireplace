@@ -2,6 +2,7 @@ import logging
 from itertools import chain
 from . import cards as CardDB, rules
 from .actions import Damage, Deaths, Destroy, Heal, Morph, Play, Shuffle, SetCurrentHealth
+from .aura import Aura
 from .entity import Entity, boolean_property, int_property
 from .enums import CardType, PlayReq, Race, Rarity, Zone
 from .managers import CardManager
@@ -142,10 +143,6 @@ class PlayableCard(BaseCard):
 		return self.base_events + self._events
 
 	@property
-	def dead(self):
-		return self.zone == Zone.GRAVEYARD or self.to_be_destroyed
-
-	@property
 	def deathrattles(self):
 		ret = []
 		if not self.has_deathrattle:
@@ -169,14 +166,6 @@ class PlayableCard(BaseCard):
 				if minion.race == req:
 					return True
 		return False
-
-	@property
-	def to_be_destroyed(self):
-		return self.health == 0 or getattr(self, "_to_be_destroyed", False)
-
-	@to_be_destroyed.setter
-	def to_be_destroyed(self, value):
-		self._to_be_destroyed = value
 
 	@property
 	def entities(self):
@@ -273,6 +262,8 @@ class PlayableCard(BaseCard):
 		return self.game.queue_actions(self, [Damage(target, amount)])
 
 	def is_playable(self):
+		if self.controller.choice:
+			return False
 		if not self.controller.current_player:
 			return False
 		if self.controller.mana < self.cost:
@@ -336,7 +327,26 @@ class PlayableCard(BaseCard):
 		return [card for card in self.game.characters if is_valid_target(self, card)]
 
 
-class Character(PlayableCard):
+class LiveEntity(PlayableCard):
+	def __init__(self, *args):
+		super().__init__(*args)
+		self._to_be_destroyed = False
+
+	@property
+	def dead(self):
+		return self.zone == Zone.GRAVEYARD or self.to_be_destroyed
+
+	@property
+	def to_be_destroyed(self):
+		return getattr(self, self.health_attribute) == 0 or self._to_be_destroyed
+
+	@to_be_destroyed.setter
+	def to_be_destroyed(self, value):
+		self._to_be_destroyed = value
+
+
+class Character(LiveEntity):
+	health_attribute = "health"
 	cant_be_targeted_by_opponents = boolean_property("cant_be_targeted_by_opponents")
 	immune = boolean_property("immune")
 	min_health = boolean_property("min_health")
@@ -400,8 +410,9 @@ class Character(PlayableCard):
 
 	@property
 	def should_exit_combat(self):
-		if self.dead or self.zone != Zone.PLAY:
-			return True
+		if self.attacking:
+			if self.dead or self.zone != Zone.PLAY:
+				return True
 		return False
 
 	def attack(self, target):
@@ -538,7 +549,7 @@ class Minion(Character):
 
 	@property
 	def asleep(self):
-		return not self.turns_in_play and not self.charge
+		return self.zone == Zone.PLAY and not self.turns_in_play and not self.charge
 
 	@property
 	def exhausted(self):
@@ -707,77 +718,6 @@ class Enchantment(BaseCard):
 	_destroy = destroy
 
 
-class Aura(object):
-	"""
-	A virtual Card class which is only for the source of the Enchantment buff on
-	targets affected by an aura. It is only internal.
-	"""
-
-	def __init__(self, action, source):
-		self.action = action
-		self.selector = self.action._args[0]
-		self.id = self.action._args[1]
-		self.source = source
-		self.to_be_destroyed = False
-		self._buffed = CardList()
-		self._buffs = CardList()
-		# THIS IS A HACK
-		# DON'T SHOOT, IT'S TEMPORARY
-		self.on_enrage = self.id == "CS2_221e"
-
-	def __repr__(self):
-		return "<Aura (%r)>" % (self.id)
-
-	@property
-	def targets(self):
-		if self.on_enrage and not self.source.enraged:
-			return []
-		return CardList(self.selector.eval(self.source.game, self.source))
-
-	def summon(self):
-		logging.info("Summoning Aura %r", self)
-		self.source.game.auras.append(self)
-		self.source.game.refresh_auras()
-
-	def _buff(self, target):
-		buff = self.source.buff(target, self.id)
-		buff.aura_source = self
-		self._buffs.append(buff)
-		self._buffed.append(target)
-
-	def _entity_buff(self, target):
-		"Returns the buff created by this aura on \a target"
-		for buff in target.buffs:
-			if buff.aura_source is self:
-				return buff
-
-	def update(self):
-		if self.to_be_destroyed:
-			return self.destroy()
-
-		targets = self.targets
-		for target in targets:
-			if not self._entity_buff(target):
-				self._buff(target)
-		# Make sure to copy the list as it can change during iteration
-		for target in self._buffed[:]:
-			# Remove auras no longer valid
-			if target not in targets:
-				buff = self._entity_buff(target)
-				if buff:
-					buff.destroy()
-				self._buffed.remove(target)
-
-	def destroy(self):
-		logging.info("Removing %r affecting %r" % (self, self._buffed))
-		self.source.game.auras.remove(self)
-		for buff in self._buffs[:]:
-			buff.destroy()
-		del self._buffs
-		del self._buffed
-		self.source._auras.remove(self)
-
-
 class Enrage(object):
 	"""
 	Enrage class for Minion.enrage_tags
@@ -791,7 +731,9 @@ class Enrage(object):
 		return i + getattr(self, attr, 0)
 
 
-class Weapon(rules.WeaponRules, PlayableCard):
+class Weapon(rules.WeaponRules, LiveEntity):
+	health_attribute = "durability"
+
 	def __init__(self, *args):
 		super().__init__(*args)
 		self.damage = 0
@@ -812,19 +754,11 @@ class Weapon(rules.WeaponRules, PlayableCard):
 
 	@property
 	def exhausted(self):
-		return not self.controller.current_player
+		return self.zone == Zone.PLAY and not self.controller.current_player
 
 	@exhausted.setter
 	def exhausted(self, value):
 		pass
-
-	@property
-	def to_be_destroyed(self):
-		return self.durability == 0 or getattr(self, "_to_be_destroyed", False)
-
-	@to_be_destroyed.setter
-	def to_be_destroyed(self, value):
-		self._to_be_destroyed = value
 
 	def _hit(self, source, amount):
 		self.damage += amount

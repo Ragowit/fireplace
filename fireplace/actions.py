@@ -1,7 +1,7 @@
 import logging
 from enum import IntEnum
 from .dsl import LazyNum, Picker, Selector
-from .enums import CardType, PowSubType, Zone
+from .enums import CardType, Mulligan, PowSubType, Zone
 from .entity import Entity
 
 
@@ -181,8 +181,33 @@ class EndTurn(GameAction):
 	type = None
 
 	def do(self, source, player):
+		assert not player.choice, "Attempted to end a turn with a choice open"
 		self.broadcast(source, EventListener.ON, player)
 		source.game._end_turn()
+
+
+class MulliganChoice(GameAction):
+	class Args(Action.Args):
+		PLAYER = 0
+
+	type = None
+
+	def do(self, source, player):
+		player.mulligan_state = Mulligan.INPUT
+		player.choice = self
+		# NOTE: Ideally, we give The Coin when the Mulligan is over.
+		# Unfortunately, that's not compatible with Blizzard's way.
+		self.cards = player.hand.exclude(id="GAME_005")
+		self.player = player
+
+	def choose(self, *cards):
+		self.player.draw(len(cards))
+		for card in cards:
+			assert card in self.cards
+			card.zone = Zone.DECK
+		self.player.choice = None
+		self.player.shuffle_deck()
+		self.player.mulligan_state = Mulligan.DONE
 
 
 class Play(GameAction):
@@ -452,6 +477,19 @@ class GainMana(TargetedAction):
 		target.max_mana += amount
 
 
+class GainEmptyMana(TargetedAction):
+	"""
+	Give player targets \a amount empty Mana crystals.
+	"""
+	class Args(Action.Args):
+		TARGETS = 0
+		AMOUNT = 1
+
+	def do(self, source, target, amount):
+		target.max_mana += amount
+		target.used_mana += amount
+
+
 class Give(TargetedAction):
 	"""
 	Give player targets card \a id.
@@ -462,10 +500,15 @@ class Give(TargetedAction):
 
 	def do(self, source, target, cards):
 		logging.debug("Giving %r to %s", cards, target)
+		ret = []
 		for card in cards:
+			if len(target.hand) >= target.max_hand_size:
+				logging.info("Give(%r) fails because %r's hand is full", card, target)
+				continue
 			card.controller = target
 			card.zone = Zone.HAND
-		return cards
+			ret.append(card)
+		return ret
 
 
 class Hit(TargetedAction):

@@ -31,6 +31,7 @@ class GameTag(IntEnum):
 	ZONE = 49
 	CONTROLLER = 50
 	OWNER = 51
+	ENTITY_ID = 53
 	MAXRESOURCES = 176
 	CARD_ID = 186
 	DURABILITY = 187
@@ -45,6 +46,7 @@ class GameTag(IntEnum):
 	CARDRACE = 200
 	FACTION = 201
 	CARDTYPE = 202
+	STATE = 204
 	FREEZE = 208
 	ENRAGED = 212
 	RECALL = 215
@@ -58,6 +60,7 @@ class GameTag(IntEnum):
 	CANT_BE_DAMAGED = 240
 	CANT_BE_ATTACKED = 245
 	FROZEN = 260
+	ZONE_POSITION = 263
 	COMBO_ACTIVE = 266
 	CARD_TARGET = 267
 	NUM_CARDS_PLAYED_THIS_TURN = 269
@@ -70,6 +73,7 @@ class GameTag(IntEnum):
 	RECALL_OWED = 296
 	NUM_ATTACKS_THIS_TURN = 297
 	CURRENT_SPELLPOWER = 298
+	MULLIGAN_STATE = 305
 	CANT_BE_TARGETED_BY_ABILITIES = 311
 	SHOULDEXITCOMBAT = 312
 	CREATOR = 313
@@ -181,7 +185,7 @@ class CardSet(IntEnum):
 	FP1 = 12
 	PE1 = 13
 	BRM = 14
-	TEMP1 = 15
+	TGT = 15
 	CREDITS = 16
 	HERO_SKINS = 17
 	TB = 18
@@ -337,6 +341,20 @@ class Zone(IntEnum):
 ##
 # Game enums
 
+class ChoiceType(IntEnum):
+	INVALID = 0
+	MULLIGAN = 1
+	GENERAL = 2
+
+
+class Mulligan(IntEnum):
+	INVALID = 0
+	INPUT = 1
+	DEALING = 2
+	WAITING = 3
+	DONE = 4
+
+
 class OptionType(IntEnum):
 	PASS = 1
 	END_TURN = 2
@@ -376,6 +394,13 @@ class PowSubType(IntEnum):
 	PLAY = 7
 	FATIGUE = 8
 	ACTION = 99
+
+
+class State(IntEnum):
+	INVALID = 0
+	LOADING = 1
+	RUNNING = 2
+	COMPLETE = 3
 
 
 class Step(IntEnum):

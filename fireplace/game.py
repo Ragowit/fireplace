@@ -6,7 +6,7 @@ from itertools import chain
 from .actions import Attack, BeginTurn, Death, EndTurn, EventListener
 from .card import THE_COIN
 from .entity import Entity
-from .enums import CardType, PlayState, Step, Zone
+from .enums import CardType, PlayState, State, Step, Zone
 from .managers import GameManager
 from .utils import CardList
 
@@ -26,6 +26,7 @@ class BaseGame(Entity):
 		self.players = players
 		for player in players:
 			player.game = self
+		self.state = State.INVALID
 		self.step = None
 		self.next_step = None
 		self.turn = 0
@@ -141,6 +142,7 @@ class BaseGame(Entity):
 						player.playstate = PlayState.LOST
 					else:
 						player.playstate = PlayState.WON
+			self.state = State.COMPLETE
 			raise GameOver("The game has ended.")
 
 	def process_deaths(self):
@@ -231,15 +233,16 @@ class BaseGame(Entity):
 		self.player1.first_player = True
 		self.player2 = second
 		self.player2.first_player = False
-		self.player1.draw(3)
-		self.player2.draw(4)
-		self.current_player = self.player1
+		self.player1.draw(self.player1.start_hand_size - 1)
+		self.player2.draw(self.player1.start_hand_size)
 
 	def start(self):
 		logging.info("Starting game %r", self)
+		self.state = State.RUNNING
+		self.step = Step.MAIN_BEGIN
 		self.zone = Zone.PLAY
-		self.manager.start_game()
 		self.prepare()
+		self.manager.start_game()
 		self.begin_turn(self.player1)
 
 	def end_turn(self):
@@ -247,7 +250,7 @@ class BaseGame(Entity):
 
 	def _end_turn(self):
 		logging.info("%s ends turn %i", self.current_player, self.turn)
-		self.step, self.next_step = self.next_step, Step.MAIN_CLEANUP
+		self.manager.step(self.next_step, Step.MAIN_CLEANUP)
 
 		self.current_player.temp_mana = 0
 		for character in self.current_player.characters.filter(frozen=True):
@@ -257,24 +260,22 @@ class BaseGame(Entity):
 			logging.info("Ending One-Turn effect: %r", buff)
 			buff.destroy()
 
-		self.step, self.next_step = self.next_step, Step.MAIN_NEXT
+		self.manager.step(self.next_step, Step.MAIN_NEXT)
 		self.begin_turn(self.current_player.opponent)
 
 	def begin_turn(self, player):
 		return self.queue_actions(self, [BeginTurn(player)])
 
 	def _begin_turn(self, player):
-		self.step, self.next_step = self.next_step, Step.MAIN_START_TRIGGERS
-		self.step, self.next_step = self.next_step, Step.MAIN_START
+		self.manager.step(self.next_step, Step.MAIN_START)
 		self.turn += 1
 		logging.info("%s begins turn %i", player, self.turn)
-		self.step, self.next_step = self.next_step, Step.MAIN_ACTION
+		self.manager.step(self.next_step, Step.MAIN_ACTION)
 		self.current_player = player
 		self.minions_killed_this_turn = CardList()
 
 		for p in self.players:
 			p.cards_drawn_this_turn = 0
-			p.current_player = p is player
 
 		player.turn_start = timegm(time.gmtime())
 		player.cards_played_this_turn = 0
@@ -294,6 +295,7 @@ class BaseGame(Entity):
 					entity.num_attacks = 0
 
 		player.draw()
+		self.manager.step(self.next_step, Step.MAIN_END)
 
 
 class CoinRules:
@@ -317,14 +319,18 @@ class MulliganRules:
 	Performs a Mulligan phase when the Game starts.
 	Currently just a dummy phase.
 	"""
+
 	def start(self):
+		from .actions import MulliganChoice
+
 		self.next_step = Step.BEGIN_MULLIGAN
 		super().start()
-		self.begin_mulligan()
 
-	def begin_mulligan(self):
 		logging.info("Entering mulligan phase")
 		self.step, self.next_step = self.next_step, Step.MAIN_READY
+
+		for player in self.players:
+			self.queue_actions(self, MulliganChoice(player))
 
 
 class Game(MulliganRules, CoinRules, BaseGame):

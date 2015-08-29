@@ -43,15 +43,16 @@ class GameManager(Manager):
 		GameTag.NUM_MINIONS_KILLED_THIS_TURN: "minions_killed_this_turn",
 		GameTag.PROPOSED_ATTACKER: "proposed_attacker",
 		GameTag.PROPOSED_DEFENDER: "proposed_defender",
+		GameTag.STATE: "state",
 		GameTag.STEP: "step",
 		GameTag.TURN: "turn",
 		GameTag.ZONE: "zone",
 	}
 
-	def __init__(self, *args):
-		super().__init__(*args)
-		self.id = 1
-		self.counter = self.id + 1
+	def __init__(self, obj):
+		super().__init__(obj)
+		self.counter = 1
+		obj.entity_id = self.counter
 
 	def action(self, type, *args):
 		for observer in self.observers:
@@ -62,14 +63,20 @@ class GameManager(Manager):
 			observer.action_end(type, args)
 
 	def new_entity(self, entity):
-		entity.manager.id = self.counter
+		self.counter += 1
+		entity.entity_id = self.counter
 		for observer in self.observers:
 			observer.new_entity(entity)
-		self.counter += 1
 
 	def start_game(self):
 		for observer in self.observers:
 			observer.start_game()
+
+	def step(self, step, next_step):
+		for observer in self.observers:
+			observer.game_step(step, next_step)
+		self.obj.step = step
+		self.obj.next_step = next_step
 
 
 class PlayerManager(Manager):
@@ -77,6 +84,8 @@ class PlayerManager(Manager):
 		GameTag.CANT_DRAW: "cant_draw",
 		GameTag.CARDTYPE: "type",
 		GameTag.COMBO_ACTIVE: "combo",
+		GameTag.CURRENT_PLAYER: "current_player",
+		GameTag.CURRENT_SPELLPOWER: "spellpower",
 		GameTag.FATIGUE: "fatigue_counter",
 		GameTag.FIRST_PLAYER: "first_player",
 		GameTag.HEALING_DOUBLE: "healing_double",
@@ -92,11 +101,11 @@ class PlayerManager(Manager):
 		GameTag.OUTGOING_HEALING_ADJUSTMENT: "outgoing_healing_adjustment",
 		GameTag.OVERLOAD_LOCKED: "overload_locked",
 		GameTag.PLAYSTATE: "playstate",
-		GameTag.CURRENT_SPELLPOWER: "spellpower",
 		GameTag.RECALL_OWED: "overloaded",
 		GameTag.RESOURCES: "max_mana",
 		GameTag.RESOURCES_USED: "used_mana",
 		GameTag.SPELLPOWER_DOUBLE: "spellpower_double",
+		GameTag.STARTHANDSIZE: "start_hand_size",
 		GameTag.TAG_HERO_POWER_DOUBLE: "hero_power_double",
 		GameTag.TEMP_RESOURCES: "temp_mana",
 		GameTag.TIMEOUT: "timeout",

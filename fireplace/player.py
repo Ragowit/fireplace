@@ -31,11 +31,12 @@ class Player(Entity):
 		self.graveyard = CardList()
 		self.secrets = CardList()
 		self.buffs = []
+		self.choice = None
+		self.start_hand_size = 4
 		self.max_hand_size = 10
 		self.max_resources = 10
 		self.cant_draw = False
 		self.cant_fatigue = False
-		self.current_player = False
 		self.fatigue_counter = 0
 		self.hero = None
 		self.last_card_played = None
@@ -54,6 +55,10 @@ class Player(Entity):
 
 	def __repr__(self):
 		return "%s(name=%r, hero=%r)" % (self.__class__.__name__, self.name, self.hero)
+
+	@property
+	def current_player(self):
+		return self.game.current_player is self
 
 	@property
 	def controller(self):
