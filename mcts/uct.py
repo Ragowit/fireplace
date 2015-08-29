@@ -21,11 +21,12 @@ import copy
 import random
 import time
 import sys, traceback
+import itertools
 from enum import Enum
 from fireplace import cards
 from fireplace.cards.heroes import *
 from fireplace.deck import Deck
-from fireplace.enums import CardType, Rarity, PlayState
+from fireplace.enums import CardType, Rarity, PlayState, Mulligan
 from fireplace.game import Game
 from fireplace.player import Player
 
@@ -41,6 +42,7 @@ class MOVE(Enum):
     MINION_ATTACK = 6
     HERO_ATTACK = 7
     PLAY_CARD = 8
+    MULLIGAN = 9
 
 class HearthState:
     """ A state of the game, i.e. the game board.
@@ -129,6 +131,8 @@ class HearthState:
                     self.deck1.append(move[1].id)
                 else:
                     self.deck2.append(move[1].id)
+            elif move[0] == MOVE.MULLIGAN:
+                self.game.current_player.choice.choose(*move[1])
             elif move[0] == MOVE.END_TURN:
                 self.game.end_turn()
             elif move[0] == MOVE.HERO_POWER:
@@ -205,6 +209,10 @@ class HearthState:
                     continue
                 elif deck.count(card.id) < Deck.MAX_UNIQUE_CARDS:
                     valid_moves.append([MOVE.PICK_CARD, card])
+        elif self.game.current_player.mulligan_state == Mulligan.INPUT:
+            for i in range(len(self.game.current_player.choice.cards) + 1):
+                for combo in itertools.combinations(self.game.current_player.choice.cards, i):
+                    valid_moves.append([MOVE.MULLIGAN, combo])
         else:
             # Play card
             for card in self.game.current_player.hand:
