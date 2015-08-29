@@ -51,11 +51,13 @@ class HearthState:
         self.playerJustMoved = 2 # At the root pretend the player just moved is p2 - p1 has the first move
         random.seed(1857)
 
-        adjacent_cards = ["Dire Wolf Alpha", "Ancient Mage", "Defender of Argus", "Sunfury Protector",
-                          "Flametongue Totem", "Explosive Shot", "Cone of Cold", "Betrayal", "Void Terror",
-                          "Unstable Portal", "Wee Spellstopper", "Piloted Shredder", "Piloted Sky Golem",
-                          "Recombobulator", "Foe Reaper 4000", "Nefarian"]
-        self.adjacent_cards = adjacent_cards
+        # The idea of adjacent cards it to ignore minion placement if none of these cards can be found, since it doesn't
+        # matter.
+        #adjacent_cards = ["Dire Wolf Alpha", "Ancient Mage", "Defender of Argus", "Sunfury Protector",
+        #                  "Flametongue Totem", "Explosive Shot", "Cone of Cold", "Betrayal", "Void Terror",
+        #                  "Unstable Portal", "Wee Spellstopper", "Piloted Shredder", "Piloted Sky Golem",
+        #                  "Recombobulator", "Foe Reaper 4000", "Nefarian"]
+        #self.adjacent_cards = adjacent_cards
 
         self.player1 = None
         self.hero1 = MAGE
