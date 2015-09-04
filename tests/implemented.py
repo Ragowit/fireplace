@@ -22,8 +22,9 @@ SOLVED_KEYWORDS = [
 	"Can't be targeted by spells or Hero Powers",
 	"Destroy any minion damaged by this minion.",
 	"50% chance to attack the wrong enemy",
-	"Can't Attack",
+	"Can't attack",
 	"Always wins Brawls.",
+	r"Your Hero Power deals \d+ extra damage.",
 	r"Spell Damage \+\d+",
 	r"Overload: \(\d+\)",
 ]
@@ -36,8 +37,17 @@ CARD_SETS = {
 	"naxxramas": None,
 	"gvg": None,
 	"blackrock": None,
-	"tourney": None,
+	"tgt": None,
 }
+
+DUMMY_CARDS = (
+	"CS1_113e",  # Mind Control
+	"CS2_022e",  # Polymorph
+	"EX1_246e",  # Hexxed
+	"Mekka4e",  # Transformed
+	"NEW1_025e",  # Bolstered (Unused)
+	"XXX_058e",  # Weapon Nerf Enchant
+)
 
 
 for cardset in CARD_SETS:
@@ -56,30 +66,48 @@ def cleanup_description(description):
 
 
 def main():
+	impl = 0
+	unimpl = 0
+
 	for id in sorted(cards.db):
 		card = cards.db[id]
 		description = cleanup_description(card.description)
+		implemented = False
+
 		if not description:
 			# Minions without card text or with basic abilities are implemented
-			color = GREEN
+			implemented = True
 		elif card.type == CardType.ENCHANTMENT:
 			if id in buffs.__dict__:
-				color = GREEN
-		elif card.card_set == CardSet.CREDITS:
-			color = GREEN
-		else:
-			for set in CARD_SETS.values():
-				if hasattr(set, id):
-					color = GREEN
-					break
+				implemented = True
 			else:
-				if "Enrage" in card.description or card.choose_cards:
-					color = GREEN
-				else:
-					color = RED
+				implemented = False
+		elif card.card_set == CardSet.CREDITS:
+			implemented = True
 
+		if id in DUMMY_CARDS:
+			implemented = True
+
+		for set in CARD_SETS.values():
+			if hasattr(set, id):
+				implemented = True
+				break
+		else:
+			if "Enrage" in card.description or card.choose_cards:
+				implemented = True
+
+		color = GREEN if implemented else RED
 		name = color + "%s: %s" % (PREFIXES[color], card.name) + ENDC
 		print("%s (%s)" % (name, id))
+
+		if implemented:
+			impl += 1
+		else:
+			unimpl += 1
+
+	total = impl + unimpl
+
+	print("%i / %i cards implemented (%i%%)" % (impl, total, (impl / total) * 100))
 
 
 if __name__ == "__main__":

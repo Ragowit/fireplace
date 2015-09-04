@@ -1,5 +1,5 @@
 import copy
-import logging
+from ..utils import fireplace_logger as logger
 
 
 class Evaluator:
@@ -21,22 +21,37 @@ class Evaluator:
 		return ret
 
 	def get_actions(self, source):
-		from ..actions import Action
 		ret = self.evaluate(source)
 		if ret:
 			if self._if:
-				if isinstance(self._if, Action):
+				if not hasattr(self._if, "__iter__"):
 					return [self._if]
 				return self._if
 		elif self._else:
-			if isinstance(self._else, Action):
+			if not hasattr(self._else, "__iter__"):
 				return [self._else]
-			return [self._else]
+			return self._else
 		return []
 
 	def trigger(self, source):
 		for action in self.get_actions(source):
 			action.trigger(source)
+
+
+class CurrentPlayer(Evaluator):
+	"""
+	Evaluates to True if the selector is the current player.
+	Selector must evaluate to only one player.
+	"""
+	def __init__(self, selector):
+		super().__init__()
+		self.selector = selector
+
+	def evaluate(self, source):
+		for target in self.selector.eval(source.game, source):
+			if not target.controller.current_player:
+				return False
+		return True
 
 
 class Dead(Evaluator):
@@ -81,5 +96,5 @@ class Joust(Evaluator):
 		t1 = self.selector1.eval(source.game, source)
 		t2 = self.selector2.eval(source.game, source)
 		diff = sum(t.cost for t in t1) - sum(t.cost for t in t2)
-		logging.info("Jousting %r vs %r -> %i difference", t1, t2, diff)
+		logger.info("Jousting %r vs %r -> %i difference", t1, t2, diff)
 		return diff > 0

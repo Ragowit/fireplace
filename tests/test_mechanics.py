@@ -16,7 +16,6 @@ def test_armor():
 	axe = game.current_player.give("CS2_106")
 	axe.play()
 	assert axe is game.current_player.weapon
-	assert axe in game.current_player.hero.slots
 	assert game.current_player.hero.atk == 3
 	game.current_player.hero.attack(game.current_player.opponent.hero)
 	assert game.current_player.opponent.hero.health == 29
@@ -309,8 +308,10 @@ def test_graveyard_weapons():
 	assert axe1 in game.player1.graveyard
 	assert axe1 not in game.player2.graveyard
 	assert axe1 in game.graveyard
-	for i in range(2):
-		game.player1.hero.attack(game.player2.hero)
+	game.player1.hero.attack(game.player2.hero)
+	game.end_turn(); game.end_turn()
+
+	game.player1.hero.attack(game.player2.hero)
 	assert axe2.dead
 	assert axe2 in game.player1.graveyard
 	assert axe2 not in game.player2.graveyard

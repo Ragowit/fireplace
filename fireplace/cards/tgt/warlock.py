@@ -14,13 +14,34 @@ class AT_021:
 	events = Discard(FRIENDLY).on(Buff(SELF, "AT_021e"))
 
 
+# Void Crusher
+class AT_023:
+	inspire = Destroy(RANDOM_ENEMY_MINION | RANDOM_FRIENDLY_MINION)
+
+
 # Wrathguard
 class AT_026:
 	events = Damage(SELF).on(Hit(FRIENDLY_HERO, Damage.Args.AMOUNT))
 
 
+# Wilfred Fizzlebang
+class AT_027:
+	events = Draw(CONTROLLER).on(
+		lambda self, target, card, source: source is self.controller.hero.power and Buff(card, "AT_027e")
+	)
+
+class AT_027e:
+	cost = lambda self, i: 0
+
+
 ##
 # Spells
+
+# Fist of Jaraxxus
+class AT_022:
+	play = Hit(RANDOM_ENEMY_CHARACTER, 4)
+	in_hand = Discard(SELF).on(play)
+
 
 # Demonfuse
 class AT_024:

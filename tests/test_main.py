@@ -16,83 +16,6 @@ def test_cheat_destroy_deck():
 	assert not game.player1.deck
 
 
-def test_mage():
-	game = prepare_game(MAGE, MAGE)
-	assert game.player1.hero.id is MAGE
-	assert game.player1.hero.health == 30
-	assert game.player1.opponent.hero.health == 30
-	assert game.player1.times_hero_power_used_this_game == 0
-	assert game.player1.hero.power.controller is game.player1
-	assert game.player2.hero.power.controller is game.player2
-
-	# Fireblast the opponent hero
-	game.player1.hero.power.use(target=game.player2.hero)
-	assert game.player1.hero.health == 30
-	assert game.player1.opponent.hero.health == 29
-	assert game.player1.times_hero_power_used_this_game == 1
-	assert not game.player1.hero.power.is_usable()
-
-
-def test_priest():
-	game = prepare_game(PRIEST, PRIEST)
-	assert game.player1.hero.id is PRIEST
-	# Heal self
-	assert game.player1.hero.health == 30
-	game.player1.hero.power.use(target=game.player1.hero)
-	assert game.player1.hero.health == 30
-
-	game.end_turn(); game.end_turn()
-	game.player1.give(MOONFIRE).play(target=game.player1.hero)
-	assert game.player1.hero.health == 29
-	game.player1.hero.power.use(target=game.player1.hero)
-	assert game.player1.hero.health == 30
-	assert not game.player1.hero.power.is_usable()
-
-
-def test_shaman():
-	game = prepare_game(SHAMAN, SHAMAN)
-	assert game.player1.hero.id is SHAMAN
-	assert len(game.player1.hero.power.data.entourage) == 4
-
-	# use hero power four times
-	for i in range(4):
-		assert len(game.player1.field) == i
-		assert game.player1.hero.power.is_usable()
-		game.player1.hero.power.use()
-		assert len(game.player1.field) == i + 1
-		assert game.player1.field[-1].id in game.player1.hero.power.data.entourage
-		game.end_turn(); game.end_turn()
-
-	# ensure hero power can only be used again after a totem was destroyed
-	assert not game.player1.hero.power.is_usable()
-	game.player1.field[0].destroy()
-	assert game.player1.hero.power.is_usable()
-
-	# ensure that hero power cannot be used on full board
-	for i in range(4):
-		game.player1.give(WISP).play()
-	assert len(game.player1.field) == 7
-	assert not game.player1.hero.power.is_usable()
-
-
-def test_paladin():
-	game = prepare_game(PALADIN, PALADIN)
-	assert game.current_player.hero.id is PALADIN
-
-	game.current_player.hero.power.use()
-	assert len(game.board) == 1
-	assert len(game.current_player.field) == 1
-	assert game.current_player.field[0].id == "CS2_101t"
-
-	# ensure that hero power cannot be used on full board
-	game.end_turn(); game.end_turn()
-	assert game.player1.hero.power.is_usable()
-	for i in range(6):
-		game.player1.give(WISP).play()
-	assert len(game.player1.field) == 7
-	assert not game.player1.hero.power.is_usable()
-
-
 def test_chromaggus():
 	game = prepare_game()
 	chromaggus = game.player1.give("BRM_031")
@@ -531,6 +454,24 @@ def test_animal_companion():
 	assert game.player1.field[0].id in ("NEW1_032", "NEW1_033", "NEW1_034")
 
 
+def test_angry_chicken():
+	game = prepare_game()
+	chicken = game.player1.give("EX1_009")
+	chicken.play()
+	stormwind = game.player1.give("CS2_222")
+	stormwind.play()
+	assert chicken.enrage
+	assert not chicken.enraged
+	assert chicken.atk == chicken.health == 2
+	game.player1.give(MOONFIRE).play(target=chicken)
+	assert chicken.enraged
+	assert chicken.atk == 1 + 1 + 5
+	assert chicken.health == 1
+	stormwind.destroy()
+	assert chicken.atk == chicken.health == 1
+	assert not chicken.enraged
+
+
 def test_anima_golem():
 	game = prepare_game()
 	anima = game.player1.give("GVG_077")
@@ -701,8 +642,8 @@ def test_avenging_wrath():
 	game = prepare_game()
 	game.current_player.give("EX1_384").play()
 	assert game.current_player.opponent.hero.health == 30 - 8
-
 	game.end_turn()
+
 	# Summon Malygos and test that spellpower only increases dmg by 5
 	game.current_player.summon("EX1_563")
 	game.current_player.give("EX1_384").play()
@@ -711,18 +652,20 @@ def test_avenging_wrath():
 
 def test_doomhammer():
 	game = prepare_game()
-	doomhammer = game.current_player.give("EX1_567")
-	assert not game.current_player.hero.atk
-	assert not game.current_player.hero.windfury
+	doomhammer = game.player1.give("EX1_567")
+	assert doomhammer.windfury
+	assert not game.player1.hero.atk
+	assert not game.player1.hero.windfury
 	doomhammer.play()
-	assert game.current_player.hero.atk == 2
-	assert game.current_player.hero.windfury
-	assert game.current_player.weapon.durability == 8
-	game.current_player.hero.attack(target=game.current_player.opponent.hero)
-	assert game.current_player.hero.can_attack()
-	game.current_player.hero.attack(target=game.current_player.opponent.hero)
-	assert not game.current_player.hero.can_attack()
-	assert game.current_player.weapon.durability == 6
+	assert doomhammer.windfury
+	assert game.player1.hero.atk == 2
+	assert game.player1.hero.windfury
+	assert game.player1.weapon.durability == 8
+	game.player1.hero.attack(target=game.player2.hero)
+	assert game.player1.hero.can_attack()
+	game.player1.hero.attack(target=game.player2.hero)
+	assert not game.player1.hero.can_attack()
+	assert game.player1.weapon.durability == 6
 
 
 def test_dragon_egg():
@@ -1179,6 +1122,8 @@ def test_commanding_shout():
 	bender = game.current_player.give(SPELLBENDERT)
 	bender.play()
 	giant = game.current_player.opponent.summon("EX1_620")
+	game.end_turn(); game.end_turn()
+
 	assert wisp1.health == 1
 	assert bender.health == 3
 	assert not wisp1.min_health
@@ -1744,7 +1689,10 @@ def test_mana_wyrm():
 def test_old_murkeye():
 	game = prepare_game()
 	murkeye = game.player1.give("EX1_062")
-	murloc = game.player1.summon("CS2_168")
+	assert murkeye.atk == 2
+	murloc = game.player1.give("CS2_168")
+	murloc.play()
+	assert murkeye.atk == 2
 	murkeye.play()
 	assert murkeye.charge
 	assert murkeye.can_attack()
@@ -2580,6 +2528,8 @@ def test_blessing_of_wisdom():
 	wisp.play()
 	blessing = game.player1.give("EX1_363")
 	blessing.play(target=wisp)
+	game.end_turn(); game.end_turn()
+
 	game.player1.discard_hand()
 	wisp.attack(target=game.current_player.opponent.hero)
 	assert len(game.current_player.hand) == 1
@@ -3448,7 +3398,6 @@ def test_millhouse_manastorm():
 	millhouse.play()
 	# costs change as soon as millhouse is played
 	assert game.player2.hero.buffs
-	assert fireball1.buffs
 	assert fireball1.cost == 0
 	assert fireball2.cost == 0
 	assert moonfire.cost == 0
@@ -3677,8 +3626,8 @@ def test_reincarnate():
 	game.player1.give("FP1_025").play(target=leeroy1)
 	leeroy2 = game.player1.field[0]
 	assert leeroy2.can_attack()
-	leeroy1.attack(target=game.player2.hero)
-	assert not leeroy1.can_attack()
+	leeroy2.attack(target=game.player2.hero)
+	assert not leeroy2.can_attack()
 
 
 def test_reincarnate_kel_thuzad():
@@ -4165,6 +4114,26 @@ def test_wild_growth():
 	assert len(game.player1.hand) == 1
 
 
+def test_wilfred_fizzlebang():
+	game = prepare_empty_game(WARLOCK, WARLOCK)
+	game.player1.discard_hand()
+	fizzlebang = game.player1.give("AT_027")
+	fizzlebang.play()
+	game.player1.give("CS2_029").shuffle_into_deck()
+	game.player1.give("CS2_029").shuffle_into_deck()
+	assert len(game.player1.deck) == 2
+	assert len(game.player1.hand) == 0
+	game.player1.hero.power.use()
+	assert len(game.player1.hand) == 1
+	fireball1 = game.player1.hand[0]
+	assert fireball1.cost == 0
+	fireball1.discard()
+	game.end_turn(); game.end_turn()
+
+	fireball2 = game.player1.hand[0]
+	assert fireball2.cost == 4
+
+
 def test_wrathguard():
 	game = prepare_game()
 	wrathguard = game.player1.give("AT_026")
@@ -4369,6 +4338,55 @@ def test_shadow_madness_silence():
 	game.end_turn()
 
 	assert wisp.controller == game.player1
+
+
+def test_shadow_madness_just_played():
+	"""
+	test that shadow madnessing a minion that attacked on the opponent's previous
+	turn lets it attack
+	"""
+	game = prepare_game()
+
+	wisp = game.player1.give(WISP).play()
+	game.end_turn(); game.end_turn()
+	assert wisp.controller is game.player1
+	assert wisp.can_attack()
+	wisp.attack(game.player2.hero)
+	game.end_turn()
+
+	shadowmadness = game.player2.give("EX1_334")
+	shadowmadness.play(target=wisp)
+	assert wisp.controller is game.player2
+	assert wisp.can_attack()
+	wisp.attack(game.player1.hero)
+	game.end_turn()
+
+	# make sure it can attack when the player regains control
+	assert wisp.controller is game.player1
+	assert wisp.can_attack()
+
+
+def test_shadow_madness_attacked_last_turn():
+	"""
+	Test that shadow madnessing a minion that was just played by the opponent
+	lets it attack
+	"""
+	game = prepare_game()
+
+	wisp = game.player1.give(WISP).play()
+	game.end_turn()
+	assert wisp.controller is game.player1
+
+	shadowmadness = game.player2.give("EX1_334")
+	shadowmadness.play(target=wisp)
+	assert wisp.controller is game.player2
+	assert wisp.can_attack()
+	wisp.attack(game.player1.hero)
+	game.end_turn()
+
+	# make sure it can attack when control returns
+	assert wisp.controller is game.player1
+	assert wisp.can_attack()
 
 
 def test_shadow_word_pain():
@@ -4875,6 +4893,18 @@ def test_fireguard_destroyer():
 	assert fireguard.atk in (4, 5, 6, 7)
 
 
+def test_fist_of_jaraxxus():
+	game = prepare_empty_game()
+	fist1 = game.player1.give("AT_022")
+	assert game.player2.hero.health == 30
+	game.player1.give(SOULFIRE).play(target=game.player1.hero)
+	assert game.player2.hero.health == 30 - 4
+	assert fist1.zone == Zone.DISCARD
+	fist2 = game.player1.give("AT_022")
+	fist2.play()
+	assert game.player2.hero.health == 30 - 4 - 4
+
+
 def test_far_sight():
 	game = prepare_game()
 	game.player1.discard_hand()
@@ -5011,25 +5041,6 @@ def test_force_of_nature():
 	assert game.player2.hero.health == 30 - 2
 	game.end_turn()
 	assert len(game.player1.field) == 0
-
-
-def test_warlock():
-	game = prepare_game(WARLOCK, WARLOCK)
-	game.player1.discard_hand()
-	assert not game.player1.hero.power.targets
-	assert game.player1.hero.power.is_usable()
-	game.player1.hero.power.use()
-	assert len(game.player1.hand) == 1
-	assert game.player1.hero.health == 28
-
-	sacpact = game.current_player.give("NEW1_003")
-	assert not sacpact.is_playable()
-	flameimp = game.current_player.give("EX1_319")
-	flameimp.play()
-	assert game.current_player.hero.health == 25
-	assert sacpact.is_playable()
-	sacpact.play(target=flameimp)
-	assert game.current_player.hero.health == 30
 
 
 def test_resurrect():
@@ -5531,6 +5542,17 @@ def test_powermace():
 	powermace2.destroy()
 	assert dummy.atk == 0 + 2
 	assert dummy.health == 2 + 2
+
+
+def test_starfall_5_to_one():
+	game = prepare_game()
+
+	snapjaw = game.player1.give("CS2_119")
+	snapjaw.play()
+	assert snapjaw.health == 7
+	starfall = game.player1.give("NEW1_007")
+	starfall.play(choose="NEW1_007b", target=snapjaw)
+	assert snapjaw.health == 2
 
 
 def main():

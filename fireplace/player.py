@@ -1,7 +1,7 @@
-import logging
 import random
 from itertools import chain
 from .actions import Draw, Give, Steal, Summon
+from .aura import TargetableByAuras
 from .card import Card
 from .deck import Deck
 from .entity import Entity
@@ -12,7 +12,7 @@ from .targeting import *
 from .utils import CardList
 
 
-class Player(Entity):
+class Player(Entity, TargetableByAuras):
 	Manager = PlayerManager
 	extra_deathrattles = slot_property("extra_deathrattles")
 	healing_double = slot_property("healing_double", sum)
@@ -31,6 +31,7 @@ class Player(Entity):
 		self.graveyard = CardList()
 		self.secrets = CardList()
 		self.buffs = []
+		self.slots = []
 		self.choice = None
 		self.start_hand_size = 4
 		self.max_hand_size = 10
@@ -41,7 +42,7 @@ class Player(Entity):
 		self.hero = None
 		self.last_card_played = None
 		self.overloaded = 0
-		self.max_mana = 0
+		self._max_mana = 0
 		self.playstate = PlayState.INVALID
 		self.temp_mana = 0
 		self.timeout = 75
@@ -63,10 +64,6 @@ class Player(Entity):
 	@property
 	def controller(self):
 		return self
-
-	@property
-	def slots(self):
-		return self.buffs
 
 	@property
 	def mana(self):
@@ -103,6 +100,14 @@ class Player(Entity):
 		return ret
 
 	@property
+	def actionable_entities(self):
+		ret = CardList(chain(self.characters, self.hand))
+		if self.hero.power:
+			ret.append(self.hero.power)
+
+		return ret
+
+	@property
 	def minion_slots(self):
 		return max(0, self.game.MAX_MINIONS_ON_FIELD - len(self.field))
 
@@ -133,7 +138,7 @@ class Player(Entity):
 		self.starting_hero = hero
 
 	def discard_hand(self):
-		logging.info("%r discards his entire hand!" % (self))
+		self.log("%r discards their entire hand!", self)
 		# iterate the list in reverse so we don't skip over cards in the process
 		# yes it's stupid.
 		for card in self.hand[::-1]:
@@ -141,7 +146,7 @@ class Player(Entity):
 
 	def draw(self, count=1):
 		if self.cant_draw:
-			logging.info("%s tries to draw %i cards, but can't draw", self, count)
+			self.log("%s tries to draw %i cards, but can't draw", self, count)
 			return None
 
 		ret = self.game.queue_actions(self, [Draw(self) * count])[0]
@@ -157,7 +162,7 @@ class Player(Entity):
 				return
 			else:
 				card = self.deck[-1]
-			logging.info("%s mills %r" % (self, card))
+			self.log("%s mills %r", self, card)
 			card.discard()
 			return card
 		else:
@@ -169,10 +174,10 @@ class Player(Entity):
 
 	def fatigue(self):
 		if self.cant_fatigue:
-			logging.info("%s can't fatigue and does not take damage", self)
+			self.log("%s can't fatigue and does not take damage", self)
 			return
 		self.fatigue_counter += 1
-		logging.info("%s takes %i fatigue damage", self, self.fatigue_counter)
+		self.log("%s takes %i fatigue damage", self, self.fatigue_counter)
 		self.hero.hit(self.hero, self.fatigue_counter)
 
 	@property
@@ -182,13 +187,13 @@ class Player(Entity):
 	@max_mana.setter
 	def max_mana(self, amount):
 		self._max_mana = min(self.max_resources, max(0, amount))
-		logging.info("%s is now at %i mana crystals", self, self._max_mana)
+		self.log("%s is now at %i mana crystals", self, self._max_mana)
 
 	def steal(self, card):
 		return self.game.queue_actions(self, [Steal(card)])
 
 	def shuffle_deck(self):
-		logging.info("%r shuffles their deck", self)
+		self.log("%r shuffles their deck", self)
 		random.shuffle(self.deck)
 
 	def summon(self, card):

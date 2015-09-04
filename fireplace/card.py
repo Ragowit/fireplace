@@ -1,13 +1,13 @@
-import logging
 from itertools import chain
 from . import cards as CardDB, rules
 from .actions import Damage, Deaths, Destroy, Heal, Morph, Play, Shuffle, SetCurrentHealth
-from .aura import Aura
+from .aura import TargetableByAuras
 from .entity import Entity, boolean_property, int_property
 from .enums import CardType, PlayReq, Race, Rarity, Zone
 from .managers import CardManager
 from .targeting import is_valid_target
 from .utils import CardList
+from .exceptions import InvalidAction
 
 
 THE_COIN = "GAME_005"
@@ -39,7 +39,7 @@ class BaseCard(Entity):
 	def __init__(self, id, data):
 		self.data = data
 		super().__init__()
-		self._auras = []
+		self.slots = []
 		self.requirements = data.requirements.copy()
 		self.id = id
 		self.controller = None
@@ -48,6 +48,7 @@ class BaseCard(Entity):
 		self.silenced = False
 		self.spellpower = 0
 		self.turns_in_play = 0
+		self._zone = Zone.INVALID
 		self.tags.update(data.tags)
 
 	def __str__(self):
@@ -69,7 +70,7 @@ class BaseCard(Entity):
 
 	@property
 	def zone(self):
-		return getattr(self, "_zone", Zone.INVALID)
+		return self._zone
 
 	@zone.setter
 	def zone(self, value):
@@ -77,8 +78,9 @@ class BaseCard(Entity):
 
 	def _set_zone(self, value):
 		old = self.zone
+		if old:
+			self.logger.debug("%r moves from %r to %r", self, old, value)
 		assert old != value
-		logging.debug("%r moves from %r to %r" % (self, old, value))
 		caches = {
 			Zone.HAND: self.controller.hand,
 			Zone.DECK: self.controller.deck,
@@ -90,19 +92,6 @@ class BaseCard(Entity):
 			caches[value].append(self)
 		self._zone = value
 
-		if value == Zone.PLAY:
-			if hasattr(self.data.scripts, "aura"):
-				auras = self.data.scripts.aura
-				if not hasattr(auras, "__iter__"):
-					auras = (auras, )
-				for aura in auras:
-					aura = Aura(aura, source=self)
-					aura.summon()
-					self._auras.append(aura)
-		else:
-			for aura in self._auras:
-				aura.to_be_destroyed = True
-
 	def buff(self, target, buff, **kwargs):
 		"""
 		Summon \a buff and apply it to \a target
@@ -113,17 +102,17 @@ class BaseCard(Entity):
 		Card that buffs the target becomes the controller of the buff.
 		"""
 		ret = self.controller.card(buff, self)
+		ret.source = self
 		ret.apply(target)
 		for k, v in kwargs.items():
 			setattr(ret, k, v)
 		return ret
 
 
-class PlayableCard(BaseCard):
+class PlayableCard(BaseCard, TargetableByAuras):
 	windfury = boolean_property("windfury")
 
 	def __init__(self, id, data):
-		self.buffs = CardList()
 		self.cant_play = False
 		self.entourage = CardList(data.entourage)
 		self.has_battlecry = False
@@ -168,12 +157,12 @@ class PlayableCard(BaseCard):
 		return False
 
 	@property
-	def entities(self):
-		return chain([self], self.buffs)
+	def buffs(self):
+		return [slot for slot in self.slots if isinstance(slot, Enchantment)]
 
 	@property
-	def slots(self):
-		return self.buffs
+	def entities(self):
+		return chain([self], self.buffs)
 
 	def _set_zone(self, zone):
 		old_zone = self.zone
@@ -183,24 +172,24 @@ class PlayableCard(BaseCard):
 
 	def action(self):
 		if self.cant_play:
-			logging.info("%r play action cannot continue", self)
+			self.log("%r play action cannot continue", self)
 			return
 
 		kwargs = {}
 		if self.target:
 			kwargs["target"] = self.target
 		elif self.has_target():
-			logging.info("%r has no target, action exits early" % (self))
+			self.log("%r has no target, action exits early", self)
 			return
 
 		if self.has_combo and self.controller.combo:
-			logging.info("Activating %r combo targeting %r" % (self, self.target))
+			self.log("Activating %r combo targeting %r", self, self.target)
 			actions = self.data.scripts.combo
 		elif hasattr(self.data.scripts, "play"):
-			logging.info("Activating %r action targeting %r" % (self, self.target))
+			self.log("Activating %r action targeting %r", self, self.target)
 			actions = self.data.scripts.play
 		elif self.choose:
-			logging.info("Activating %r Choose One: %r", self, self.chosen)
+			self.log("Activating %r Choose One: %r", self, self.chosen)
 			actions = self.chosen.data.scripts.play
 		else:
 			actions = []
@@ -215,13 +204,13 @@ class PlayableCard(BaseCard):
 			self.game.process_deaths()
 
 		if self.overload:
-			logging.info("%r overloads %s for %i", self, self.controller, self.overload)
+			self.log("%r overloads %s for %i", self, self.controller, self.overload)
 			self.controller.overloaded += self.overload
 
 	def clear_buffs(self):
 		if self.buffs:
-			logging.info("Clearing buffs from %r" % (self))
-			for buff in self.buffs[:]:
+			self.log("Clearing buffs from %r", self)
+			for buff in self.buffs:
 				buff.destroy()
 
 	def destroy(self):
@@ -234,21 +223,21 @@ class PlayableCard(BaseCard):
 		be moved to the GRAVEYARD on the next Death event.
 		"""
 		if self.zone == Zone.PLAY:
-			logging.info("Marking %r for imminent death", self)
+			self.log("Marking %r for imminent death", self)
 			self.to_be_destroyed = True
 		else:
 			self.zone = Zone.GRAVEYARD
 
 	def discard(self):
-		logging.info("Discarding %r" % (self))
+		self.log("Discarding %r" % (self))
 		self.zone = Zone.DISCARD
 
 	def draw(self):
 		if len(self.controller.hand) >= self.controller.max_hand_size:
-			logging.info("%s overdraws and loses %r!", self.controller, self)
+			self.log("%s overdraws and loses %r!", self.controller, self)
 			self.discard()
 		else:
-			logging.info("%s draws %r", self.controller, self)
+			self.log("%s draws %r", self.controller, self)
 			self.zone = Zone.HAND
 			self.controller.cards_drawn_this_turn += 1
 
@@ -256,9 +245,6 @@ class PlayableCard(BaseCard):
 		return self.game.queue_actions(self, [Heal(target, amount)])
 
 	def hit(self, target, amount):
-		if getattr(target, "immune", False):
-			logging.info("%r is immune to %i damage from %r" % (target, amount, self))
-			return
 		return self.game.queue_actions(self, [Damage(target, amount)])
 
 	def is_playable(self):
@@ -293,15 +279,20 @@ class PlayableCard(BaseCard):
 		"""
 		Queue a Play action on the card.
 		"""
-		if choose is not None:
-			assert choose in self.data.choose_cards
-		elif target is not None:
-			assert self.has_target()
-			assert target in self.targets
-		else:
-			assert not self.has_target()
-		assert self.is_playable()
-		assert self.zone == Zone.HAND
+		if self.has_target():
+			if not target:
+				raise InvalidAction("%r requires a target to play." % (self))
+			elif target not in self.targets:
+				raise InvalidAction("%r is not a valid target for %r." % (target, self))
+		if self.data.choose_cards:
+			if not choose:
+				raise InvalidAction("%r requires a choice to play." % (self))
+			if choose not in self.data.choose_cards:
+				raise InvalidAction("%r is not a valid choice for %r." % (choose, self))
+		if not self.zone == Zone.HAND:
+			raise InvalidAction("Attempted to play %r in %r." % (self, self.zone))
+		if not self.is_playable():
+			raise InvalidAction("%r isn't playable." % (self))
 		self.game.queue_actions(self.controller, [Play(self, target, choose)])
 		return self
 
@@ -331,6 +322,7 @@ class LiveEntity(PlayableCard):
 	def __init__(self, *args):
 		super().__init__(*args)
 		self._to_be_destroyed = False
+		self._damage = 0
 
 	@property
 	def dead(self):
@@ -359,6 +351,7 @@ class Character(LiveEntity):
 		self.cant_be_targeted_by_hero_powers = False
 		self.num_attacks = 0
 		self.race = Race.INVALID
+		self._enrage = None
 		super().__init__(*args)
 
 	@property
@@ -379,7 +372,7 @@ class Character(LiveEntity):
 			ret.append(self.controller.opponent.hero)
 		return ret
 
-	def can_attack(self):
+	def can_attack(self, target=None):
 		if not self.zone == Zone.PLAY:
 			return False
 		if self.cant_attack:
@@ -394,6 +387,9 @@ class Character(LiveEntity):
 			return False
 		if not self.targets:
 			return False
+		if target is not None and target not in self.targets:
+			return False
+
 		return True
 
 	@property
@@ -416,8 +412,8 @@ class Character(LiveEntity):
 		return False
 
 	def attack(self, target):
-		assert target.zone == Zone.PLAY
-		assert self.controller.current_player
+		if not self.can_attack(target):
+			raise InvalidAction("%r can't attack %r." % (self, target))
 		self.game.attack(self, target)
 
 	@property
@@ -426,30 +422,41 @@ class Character(LiveEntity):
 
 	@property
 	def damage(self):
-		return getattr(self, "_damage", 0)
+		return self._damage
 
 	@damage.setter
 	def damage(self, amount):
 		amount = max(0, amount)
-		dmg = self.damage
-		if amount < dmg:
-			logging.info("%r healed for %i health" % (self, dmg - amount))
-		elif amount == dmg:
-			logging.info("%r receives a no-op health change" % (self))
-		else:
-			logging.info("%r damaged for %i health" % (self, amount - dmg))
 
 		if self.min_health:
-			logging.info("%r has HEALTH_MINIMUM of %i", self, self.min_health)
+			self.log("%r has HEALTH_MINIMUM of %i", self, self.min_health)
 			amount = min(amount, self.max_health - self.min_health)
 
 		self._damage = amount
+
+		if self.enraged:
+			if not self._enrage:
+				self.log("Enraging %r", self)
+				self._enrage = Enrage(self.data.enrage_tags)
+				self._enrage.source = self
+				self.slots.append(self._enrage)
+		elif self._enrage:
+			self.log("Enrage fades from %r", self)
+			self.slots.remove(self._enrage)
+			self._enrage = None
+
+	@property
+	def enraged(self):
+		return False
 
 	@property
 	def health(self):
 		return max(0, self.max_health - self.damage)
 
 	def _hit(self, source, amount):
+		if self.immune:
+			self.log("%r is immune to %i damage from %r", self, amount, source)
+			return 0
 		self.damage += amount
 		return amount
 
@@ -470,13 +477,6 @@ class Hero(Character):
 		super().__init__(id, data)
 
 	@property
-	def slots(self):
-		ret = super().slots[:]
-		if self.controller.weapon and not self.controller.weapon.exhausted:
-			ret.append(self.controller.weapon)
-		return ret
-
-	@property
 	def entities(self):
 		ret = [self]
 		if self.power:
@@ -484,6 +484,21 @@ class Hero(Character):
 		if self.controller.weapon:
 			ret.append(self.controller.weapon)
 		return chain(ret, self.buffs)
+
+	@property
+	def windfury(self):
+		ret = super().windfury
+		if self.controller.weapon:
+			# NOTE: As of 9786, Windfury is retained even when the weapon is exhausted.
+			return self.controller.weapon.windfury or ret
+		return ret
+
+	def _getattr(self, attr, i):
+		ret = super()._getattr(attr, i)
+		if attr == "atk":
+			if self.controller.weapon and not self.controller.weapon.exhausted:
+				ret += self.controller.weapon.atk
+		return ret
 
 	def _set_zone(self, value):
 		if value == Zone.PLAY:
@@ -514,7 +529,6 @@ class Minion(Character):
 	)
 
 	def __init__(self, id, data):
-		self._enrage = None
 		self.always_wins_brawls = False
 		self.divine_shield = False
 		self.enrage = False
@@ -558,15 +572,6 @@ class Minion(Character):
 		return super().exhausted
 
 	@property
-	def slots(self):
-		slots = super().slots[:]
-		if self.enraged:
-			if not self._enrage:
-				self._enrage = Enrage(self.data.enrage_tags)
-			slots.append(self._enrage)
-		return slots
-
-	@property
 	def enraged(self):
 		return self.enrage and self.damage
 
@@ -575,7 +580,7 @@ class Minion(Character):
 			self.controller.field.append(self)
 
 		if self.zone == Zone.PLAY:
-			logging.info("%r is removed from the field" % (self))
+			self.log("%r is removed from the field", self)
 			self.controller.field.remove(self)
 			if self.damage:
 				self.damage = 0
@@ -583,9 +588,9 @@ class Minion(Character):
 		super()._set_zone(value)
 
 	def bounce(self):
-		logging.info("%r is bounced back to %s's hand" % (self, self.controller))
+		self.log("%r is bounced back to %s's hand", self, self.controller)
 		if len(self.controller.hand) == self.controller.max_hand_size:
-			logging.info("%s's hand is full and bounce fails" % (self.controller))
+			self.log("%s's hand is full and bounce fails", self.controller)
 			self.destroy()
 		else:
 			self.zone = Zone.HAND
@@ -598,7 +603,7 @@ class Minion(Character):
 	def _hit(self, source, amount):
 		if self.divine_shield:
 			self.divine_shield = False
-			logging.info("%r's divine shield prevents %i damage.", self, amount)
+			self.log("%r's divine shield prevents %i damage.", self, amount)
 			return
 
 		return super()._hit(source, amount)
@@ -613,9 +618,7 @@ class Minion(Character):
 		return playable
 
 	def silence(self):
-		logging.info("%r has been silenced" % (self))
-		for aura in self._auras:
-			aura.to_be_destroyed = True
+		self.log("Silencing %r", self)
 		self.clear_buffs()
 
 		for attr in self.silenceable_attributes:
@@ -646,10 +649,6 @@ class Secret(Spell):
 	def exhausted(self):
 		return not self.controller.current_player
 
-	@exhausted.setter
-	def exhausted(self, value):
-		pass
-
 	def _set_zone(self, value):
 		if value == Zone.PLAY:
 			# Move secrets to the SECRET Zone when played
@@ -666,15 +665,9 @@ class Secret(Spell):
 			return False
 		return super().is_playable()
 
-	def reveal(self):
-		return self.game.queue_actions(self, [Reveal(self)])
-
 
 class Enchantment(BaseCard):
-	slots = []
-
 	def __init__(self, *args):
-		self.aura_source = None
 		self.one_turn_effect = False
 		self.attack_health_swap = False
 		super().__init__(*args)
@@ -689,13 +682,15 @@ class Enchantment(BaseCard):
 
 	def _set_zone(self, zone):
 		if zone == Zone.PLAY:
-			self.owner.buffs.append(self)
+			self.owner.slots.append(self)
 		elif zone == Zone.REMOVEDFROMGAME:
-			self.owner.buffs.remove(self)
+			self.owner.slots.remove(self)
+			if self in self.game.active_aura_buffs:
+				self.game.active_aura_buffs.remove(self)
 		super()._set_zone(zone)
 
 	def apply(self, target):
-		logging.info("Applying %r to %r" % (self, target))
+		self.log("Applying %r to %r", self, target)
 		self.owner = target
 		if self.attack_health_swap:
 			self._swapped_atk = target.health
@@ -703,18 +698,15 @@ class Enchantment(BaseCard):
 		if hasattr(self.data.scripts, "apply"):
 			self.data.scripts.apply(self, target)
 		if hasattr(self.data.scripts, "max_health") or self.attack_health_swap:
-			logging.info("%r removes all damage from %r", self, target)
+			self.log("%r removes all damage from %r", self, target)
 			target.damage = 0
 		self.zone = Zone.PLAY
 
 	def destroy(self):
-		logging.info("Destroying buff %r from %r" % (self, self.owner))
+		self.log("Destroying buff %r from %r", self, self.owner)
 		if hasattr(self.data.scripts, "destroy"):
 			self.data.scripts.destroy(self)
 		self.zone = Zone.REMOVEDFROMGAME
-		if self.aura_source:
-			# Clean up the buff from its source auras
-			self.aura_source._buffs.remove(self)
 	_destroy = destroy
 
 
@@ -755,10 +747,6 @@ class Weapon(rules.WeaponRules, LiveEntity):
 	@property
 	def exhausted(self):
 		return self.zone == Zone.PLAY and not self.controller.current_player
-
-	@exhausted.setter
-	def exhausted(self, value):
-		pass
 
 	def _hit(self, source, amount):
 		self.damage += amount
@@ -816,11 +804,14 @@ class HeroPower(PlayableCard):
 		raise NotImplementedError
 
 	def use(self, target=None):
-		assert self.is_usable()
-		logging.info("%s uses hero power %r on %r", self.controller, self, target)
+		if not self.is_usable():
+			raise InvalidAction("%r can't be used." % (self))
+
+		self.log("%s uses hero power %r on %r", self.controller, self, target)
 
 		if self.has_target():
-			assert target
+			if not target:
+				raise InvalidAction("%r requires a target." % (self))
 			self.target = target
 
 		ret = self.activate()

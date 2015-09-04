@@ -1,8 +1,10 @@
 import uuid
+from .utils import fireplace_logger
 
 
 class Entity(object):
 	base_events = []
+	logger = fireplace_logger
 
 	def __init__(self):
 		self.manager = self.Manager(self)
@@ -30,6 +32,9 @@ class Entity(object):
 		if self.silenced:
 			return i
 		return getattr(self.data.scripts, attr, lambda s, x: x)(self, i)
+
+	def log(self, message, *args):
+		self.logger.info(message, *args)
 
 	def trigger_event(self, source, event, args):
 		"""

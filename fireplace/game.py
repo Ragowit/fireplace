@@ -1,4 +1,3 @@
-import logging
 import random
 import time
 from calendar import timegm
@@ -9,10 +8,7 @@ from .entity import Entity
 from .enums import CardType, PlayState, State, Step, Zone
 from .managers import GameManager
 from .utils import CardList
-
-
-class GameOver(Exception):
-	pass
+from .exceptions import GameOver
 
 
 class BaseGame(Entity):
@@ -31,9 +27,10 @@ class BaseGame(Entity):
 		self.next_step = None
 		self.turn = 0
 		self.current_player = None
-		self.auras = []
 		self.minions_killed_this_turn = CardList()
 		self.no_aura_refresh = False
+		self.tick = 0
+		self.active_aura_buffs = CardList()
 
 	def __repr__(self):
 		return "%s(players=%r)" % (self.__class__.__name__, self.players)
@@ -93,7 +90,7 @@ class BaseGame(Entity):
 		self.proposed_attacker = None
 		self.proposed_defender = None
 		if attacker.should_exit_combat:
-			logging.info("Attack has been interrupted.")
+			self.log("Attack has been interrupted.")
 			attacker.attacking = False
 			defender.defending = False
 			return
@@ -112,7 +109,7 @@ class BaseGame(Entity):
 		Plays \a card from a Player's hand
 		"""
 		player = card.controller
-		logging.info("%s plays %r", player, card)
+		self.log("%s plays %r", player, card)
 		cost = card.cost
 		if player.temp_mana:
 			# The coin, Innervate etc
@@ -162,7 +159,7 @@ class BaseGame(Entity):
 		trigger attached to the Game object.
 		Returns a list of actions to perform during the death sweep.
 		"""
-		logging.debug("Scheduling death for %r", card)
+		self.logger.debug("Scheduling death for %r", card)
 		card.ignore_events = True
 		card.zone = Zone.GRAVEYARD
 		if card.type == CardType.MINION:
@@ -185,7 +182,7 @@ class BaseGame(Entity):
 			if isinstance(action, EventListener):
 				# Queuing an EventListener registers it as a one-time event
 				# This allows registering events from eg. play actions
-				logging.debug("Registering %r on %r", action, self)
+				self.log("Registering event listener %r on %r", action, self)
 				action.once = True
 				# FIXME: Figure out a cleaner way to get the event listener target
 				if source.type == CardType.SPELL:
@@ -210,8 +207,23 @@ class BaseGame(Entity):
 	def refresh_auras(self):
 		if self.no_aura_refresh:
 			return
-		for aura in self.auras:
-			aura.update()
+
+		refresh_queue = []
+		for entity in self.entities:
+			if entity.data and hasattr(entity.data.scripts, "update"):
+				if not entity.silenced:
+					refresh_queue.append(entity)
+
+		# Sort the refresh queue by refresh priority (used by eg. Lightspawn)
+		refresh_queue.sort(key=lambda e: getattr(e.data.scripts.update, "priority", 50))
+		for entity in refresh_queue:
+			entity.data.scripts.update.trigger(entity)
+
+		for buff in self.active_aura_buffs[:]:
+			if buff.tick < self.tick:
+				buff.destroy()
+
+		self.tick += 1
 
 	def prepare(self):
 		self.players[0].opponent = self.players[1]
@@ -237,7 +249,7 @@ class BaseGame(Entity):
 		self.player2.draw(self.player1.start_hand_size)
 
 	def start(self):
-		logging.info("Starting game %r", self)
+		self.log("Starting game %r", self)
 		self.state = State.RUNNING
 		self.step = Step.MAIN_BEGIN
 		self.zone = Zone.PLAY
@@ -249,15 +261,16 @@ class BaseGame(Entity):
 		return self.queue_actions(self, [EndTurn(self.current_player)])
 
 	def _end_turn(self):
-		logging.info("%s ends turn %i", self.current_player, self.turn)
+		self.log("%s ends turn %i", self.current_player, self.turn)
 		self.manager.step(self.next_step, Step.MAIN_CLEANUP)
 
 		self.current_player.temp_mana = 0
 		for character in self.current_player.characters.filter(frozen=True):
 			if not character.num_attacks:
+				self.log("Freeze fades from %r", character)
 				character.frozen = False
 		for buff in self.current_player.entities.filter(one_turn_effect=True):
-			logging.info("Ending One-Turn effect: %r", buff)
+			self.log("Ending One-Turn effect: %r", buff)
 			buff.destroy()
 
 		self.manager.step(self.next_step, Step.MAIN_NEXT)
@@ -269,7 +282,7 @@ class BaseGame(Entity):
 	def _begin_turn(self, player):
 		self.manager.step(self.next_step, Step.MAIN_START)
 		self.turn += 1
-		logging.info("%s begins turn %i", player, self.turn)
+		self.log("%s begins turn %i", player, self.turn)
 		self.manager.step(self.next_step, Step.MAIN_ACTION)
 		self.current_player = player
 		self.minions_killed_this_turn = CardList()
@@ -291,8 +304,9 @@ class BaseGame(Entity):
 				entity.turns_in_play += 1
 				if entity.type == CardType.HERO_POWER:
 					entity.exhausted = False
-				elif entity.type in (CardType.HERO, CardType.MINION):
-					entity.num_attacks = 0
+
+		for character in self.characters:
+			character.num_attacks = 0
 
 		player.draw()
 		self.manager.step(self.next_step, Step.MAIN_END)
@@ -305,12 +319,12 @@ class CoinRules:
 	"""
 	def pick_first_player(self):
 		winner = random.choice(self.players)
-		logging.info("Tossing the coin... %s wins!", winner)
+		self.log("Tossing the coin... %s wins!", winner)
 		return winner, winner.opponent
 
 	def start(self):
 		super().start()
-		logging.info("%s gets The Coin (%s)", self.player2, THE_COIN)
+		self.log("%s gets The Coin (%s)", self.player2, THE_COIN)
 		self.player2.give(THE_COIN)
 
 
@@ -326,7 +340,7 @@ class MulliganRules:
 		self.next_step = Step.BEGIN_MULLIGAN
 		super().start()
 
-		logging.info("Entering mulligan phase")
+		self.log("Entering mulligan phase")
 		self.step, self.next_step = self.next_step, Step.MAIN_READY
 
 		for player in self.players:
