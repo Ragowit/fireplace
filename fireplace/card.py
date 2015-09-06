@@ -136,11 +136,16 @@ class PlayableCard(BaseCard, TargetableByAuras):
 		ret = []
 		if not self.has_deathrattle:
 			return ret
-		if hasattr(self.data.scripts, "deathrattle"):
-			ret.append(self.data.scripts.deathrattle)
+		deathrattle = self.get_actions("deathrattle")
+		if deathrattle:
+			ret.append(deathrattle)
 		for buff in self.buffs:
-			if buff.has_deathrattle and hasattr(buff.data.scripts, "deathrattle"):
-				ret.append(buff.data.scripts.deathrattle)
+			if buff.has_deathrattle:
+				deathrattle = buff.get_actions("deathrattle")
+				if deathrattle:
+					ret.append(deathrattle)
+				else:
+					raise NotImplementedError("Missing deathrattle script for %r" % (buff))
 		return ret
 
 	@property
@@ -175,27 +180,19 @@ class PlayableCard(BaseCard, TargetableByAuras):
 			self.log("%r play action cannot continue", self)
 			return
 
-		kwargs = {}
-		if self.target:
-			kwargs["target"] = self.target
-		elif self.has_target():
+		if self.has_target() and not self.target:
 			self.log("%r has no target, action exits early", self)
 			return
 
 		if self.has_combo and self.controller.combo:
 			self.log("Activating %r combo targeting %r", self, self.target)
-			actions = self.data.scripts.combo
-		elif hasattr(self.data.scripts, "play"):
-			self.log("Activating %r action targeting %r", self, self.target)
-			actions = self.data.scripts.play
+			actions = self.get_actions("combo")
 		elif self.choose:
 			self.log("Activating %r Choose One: %r", self, self.chosen)
-			actions = self.chosen.data.scripts.play
+			actions = self.chosen.get_actions("play")
 		else:
-			actions = []
-
-		if callable(actions):
-			actions = actions(self, **kwargs)
+			self.log("Activating %r action targeting %r", self, self.target)
+			actions = self.get_actions("play")
 
 		if actions:
 			self.game.queue_actions(self, actions)
@@ -311,6 +308,10 @@ class PlayableCard(BaseCard, TargetableByAuras):
 		if PlayReq.REQ_TARGET_IF_AVAILABLE_AND_DRAGON_IN_HAND in self.requirements:
 			if self.controller.hand.filter(race=Race.DRAGON):
 				return bool(self.targets)
+		req = self.requirements.get(PlayReq.REQ_TARGET_IF_AVAILABLE_AND_MINIMUM_FRIENDLY_MINIONS)
+		if req is not None:
+			if len(self.controller.field) >= req:
+				return bool(self.targets)
 		return PlayReq.REQ_TARGET_TO_PLAY in self.requirements
 
 	@property
@@ -336,6 +337,10 @@ class LiveEntity(PlayableCard):
 	def to_be_destroyed(self, value):
 		self._to_be_destroyed = value
 
+	@property
+	def killed_this_turn(self):
+		return self in self.game.minions_killed_this_turn
+
 
 class Character(LiveEntity):
 	health_attribute = "health"
@@ -360,17 +365,14 @@ class Character(LiveEntity):
 
 	@property
 	def attack_targets(self):
-		taunts = []
-		for target in self.controller.opponent.field:
-			if target.taunt:
-				taunts.append(target)
-		ret = []
-		for target in (taunts if taunts else self.controller.opponent.field):
-			if target.attackable:
-				ret.append(target)
-		if not taunts and self.controller.opponent.hero.attackable:
-			ret.append(self.controller.opponent.hero)
-		return ret
+		script = getattr(self.data.scripts, "attack_targets", None)
+		if script:
+			targets = CardList(script.eval(self.game.characters, self))
+		else:
+			targets = self.controller.opponent.characters
+
+		taunts = targets.filter(taunt=True).filter(attackable=True)
+		return (taunts or targets).filter(attackable=True)
 
 	def can_attack(self, target=None):
 		if not self.zone == Zone.PLAY:
@@ -772,23 +774,18 @@ class HeroPower(PlayableCard):
 		super()._set_zone(value)
 
 	def activate(self):
-		actions = self.data.scripts.activate
-		if callable(actions):
-			kwargs = {}
-			if self.target:
-				kwargs["target"] = self.target
-			actions = actions(self, **kwargs)
+		actions = self.get_actions("activate")
 
 		ret = []
 		if actions:
 			ret += self.game.queue_actions(self, actions)
 
 		for minion in self.controller.field.filter(has_inspire=True):
-			if not hasattr(minion.data.scripts, "inspire"):
+			actions = self.get_actions("inspire")
+			if actions is None:
 				raise NotImplementedError("Missing inspire script for %r" % (minion))
-			actions = minion.data.scripts.inspire
 			if actions:
-				ret += self.game.queue_actions(self, actions)
+				ret += self.game.queue_actions(minion, actions)
 
 		return ret
 

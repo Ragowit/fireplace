@@ -9,7 +9,7 @@ class TBA01_5:
 	activate = Buff(Give(CONTROLLER, RandomMinion()), "TBA01_5e")
 
 class TBA01_5e:
-	cost = lambda self, i: 0
+	cost = SET(0)
 
 
 # Molten Rage
@@ -42,7 +42,7 @@ class BRMC_87:
 
 # Drakonid Slayer
 class BRMC_88:
-	events = Attack(SELF).on(Hit(TARGET_ADJACENT, Attr(SELF, GameTag.ATK)))
+	events = Attack(SELF).on(CLEAVE)
 
 
 # Son of the Flame
@@ -81,3 +81,11 @@ class BRMC_99:
 # Open the Gates
 class BRMC_83:
 	play = Summon(CONTROLLER, "BRMA09_2Ht") * 7
+
+
+# Core Hound Puppies
+class BRMC_95h:
+	play = Summon(CONTROLLER, "BRMC_95he") * 2
+
+class BRMC_95he:
+	events = TURN_END.on(Summon(CONTROLLER, Copy(ID("BRMC_95he") + KILLED_THIS_TURN)))

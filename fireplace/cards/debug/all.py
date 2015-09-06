@@ -99,8 +99,7 @@ class XXX_019:
 
 # Damage all but 1
 class XXX_020:
-	def play(self, target):
-		return Hit(TARGET, target.health - 1)
+	play = SetCurrentHealth(TARGET, 1)
 
 
 # Restore All Health
@@ -113,7 +112,7 @@ class XXX_022:
 	play = Buff(FRIENDLY_HERO, "XXX_022e")
 
 class XXX_022e:
-	update = Refresh(FRIENDLY + IN_HAND, {GameTag.COST: lambda self, i: 0})
+	update = Refresh(FRIENDLY + IN_HAND, {GameTag.COST: SET(0)})
 
 
 # Destroy All Heroes
@@ -179,8 +178,8 @@ class XXX_048:
 
 # Destroy All Mana
 class XXX_049:
-	def play(self, target):
-		return GainMana(-target.controller.max_mana)
+	def play(self):
+		return GainMana(-self.target.controller.max_mana)
 
 
 # Destroy a Mana Crystal
@@ -233,8 +232,7 @@ class XXX_059:
 
 # Damage All
 class XXX_060:
-	def play(self, target):
-		return Hit(TARGET, target.health)
+	play = Hit(TARGET, Attr(TARGET, "health"))
 
 
 # Armor 1
