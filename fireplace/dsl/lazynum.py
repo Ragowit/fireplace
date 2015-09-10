@@ -1,3 +1,4 @@
+import copy
 import operator
 import random
 from .evaluator import Evaluator
@@ -5,12 +6,15 @@ from .selector import Selector
 
 
 class LazyNum:
+	def __init__(self):
+		self._neg = False
+
 	def evaluate(self, source) -> int:
 		raise NotImplementedError
 
 	def _cmp(op):
 		def func(self, other):
-			if isinstance(other, int):
+			if isinstance(other, (int, LazyNum)):
 				# When comparing a LazyNum with an int, turn it into an
 				# Evaluator that compares the int to the result of the LazyNum
 				return LazyNumEvaluator(self, other, getattr(operator, op))
@@ -22,6 +26,14 @@ class LazyNum:
 	__gt__ = _cmp("gt")
 	__le__ = _cmp("le")
 	__lt__ = _cmp("lt")
+
+	def __neg__(self):
+		ret = copy.copy(self)
+		ret._neg = not self._neg
+		return ret
+
+	def num(self, n):
+		return -n if self._neg else n
 
 	def get_entities(self, source):
 		if isinstance(self.selector, Selector):
@@ -41,7 +53,10 @@ class LazyNumEvaluator(Evaluator):
 
 	def evaluate(self, source):
 		num = self.num.evaluate(source)
-		return self.cmp(num, self.other)
+		other = self.other
+		if isinstance(other, LazyNum):
+			other = other.evaluate(source)
+		return self.cmp(num, other)
 
 
 class Count(LazyNum):
@@ -56,7 +71,7 @@ class Count(LazyNum):
 		return "%s(%r)" % (self.__class__.__name__, self.selector)
 
 	def evaluate(self, source):
-		return len(self.get_entities(source))
+		return self.num(len(self.get_entities(source)))
 
 
 class Attr(LazyNum):
@@ -74,9 +89,11 @@ class Attr(LazyNum):
 	def evaluate(self, source):
 		entities = self.get_entities(source)
 		if isinstance(self.tag, str):
-			return sum(getattr(e, self.tag) for e in entities)
+			ret = sum(getattr(e, self.tag) for e in entities)
 		else:
-			return sum(e.tags[self.tag] for e in entities)
+			# XXX: int() because of CardList counter tags
+			ret = sum(int(e.tags[self.tag]) for e in entities)
+		return self.num(ret)
 
 
 class RandomNumber(LazyNum):
@@ -88,4 +105,4 @@ class RandomNumber(LazyNum):
 		return "%s(%r)" % (self.__class__.__name__, self.choices)
 
 	def evaluate(self, source):
-		return random.choice(self.choices)
+		return self.num(random.choice(self.choices))

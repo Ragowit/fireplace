@@ -4,6 +4,11 @@ from ..utils import *
 ##
 # Minions
 
+# Warbot
+class GVG_051:
+	enrage = Refresh(SELF, {GameTag.ATK: +1})
+
+
 # Shieldmaiden
 class GVG_053:
 	play = GainArmor(FRIENDLY_HERO, 5)
@@ -11,6 +16,7 @@ class GVG_053:
 
 # Screwjank Clunker
 class GVG_055:
+	powered_up = Find(FRIENDLY_MINIONS + MECH)
 	play = Buff(TARGET, "GVG_055e")
 
 
@@ -20,7 +26,7 @@ class GVG_056:
 
 # Burrowing Mine
 class GVG_056t:
-	in_hand = Draw(CONTROLLER, SELF).on(Hit(FRIENDLY_HERO, 10), Draw(CONTROLLER))
+	draw = Hit(FRIENDLY_HERO, 10), Draw(CONTROLLER), Destroy(SELF)
 
 
 # Siege Engine

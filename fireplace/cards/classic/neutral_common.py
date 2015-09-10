@@ -124,7 +124,7 @@ class CS2_203:
 
 # Spiteful Smith
 class CS2_221:
-	update = (Attr(SELF, GameTag.DAMAGE) > 0) & Refresh(FRIENDLY_WEAPON, buff="CS2_221e")
+	enrage = Refresh(FRIENDLY_WEAPON, buff="CS2_221e")
 
 
 # Venture Co. Mercenary
@@ -192,6 +192,21 @@ class EX1_283:
 	play = Freeze(TARGET)
 
 
+# Tauren Warrior
+class EX1_390:
+	enrage = Refresh(SELF, {GameTag.ATK: +3})
+
+
+# Amani Berserker
+class EX1_393:
+	enrage = Refresh(SELF, {GameTag.ATK: +3})
+
+
+# Raging Worgen
+class EX1_412:
+	enrage = Refresh(SELF, {GameTag.ATK: +1, GameTag.WINDFURY: True})
+
+
 # Murloc Tidehunter
 class EX1_506:
 	play = Summon(CONTROLLER, "EX1_506a")
@@ -209,10 +224,7 @@ class EX1_583:
 
 # Bloodsail Raider
 class NEW1_018:
-	# TODO
-	def play(self):
-		if self.controller.weapon:
-			self.buff(self, "NEW1_018e", atk=self.controller.weapon.atk)
+	play = Find(FRIENDLY_WEAPON) & Buff(SELF, "NEW1_018e", atk=Attr(FRIENDLY_WEAPON, GameTag.ATK))
 
 
 # Dread Corsair

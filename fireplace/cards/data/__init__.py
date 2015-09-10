@@ -8,9 +8,7 @@ from xml.etree import ElementTree
 from fireplace.enums import GameTag
 import buffs
 import chooseone
-import enrage
 import missing_cards
-import powerups
 
 
 italicize = [
@@ -30,27 +28,11 @@ def add_chooseone_tags(card, ids):
 	print("%s: Adding Choose One cards: %r" % (card.name, ids))
 
 
-def add_enrage_definition(card, tags):
-	definition = ElementTree.Element("EnrageDefinition")
-	for tag, value in tags.items():
-		e = _create_tag(tag, value)
-		definition.append(e)
-	card.xml.append(definition)
-
-
 def add_hero_power(card, id):
 	e = ElementTree.Element("HeroPower")
 	e.attrib["cardID"] = id
 	card.xml.append(e)
 	print("%s: Adding hero power %r" % (card, id))
-
-
-def add_powerup_requirements(card, race):
-	req = ElementTree.Element("PowerUpRequirement")
-	req.attrib["reqID"] = "1"
-	req.attrib["param"] = str(int(race))
-	card.xml.append(req)
-	print("%s: Adding POWERED_UP definition of %r" % (card.name, race))
 
 
 def fix_entourage(card, guids):
@@ -174,14 +156,8 @@ def main():
 		if hasattr(chooseone, id):
 			add_chooseone_tags(card, getattr(chooseone, id))
 
-		if hasattr(enrage, id):
-			add_enrage_definition(card, getattr(enrage, id))
-
 		if id in hero_powers:
 			add_hero_power(card, hero_powers[id])
-
-		if hasattr(powerups, id):
-			add_powerup_requirements(card, getattr(powerups, id))
 
 		if re.match(r"^PART_\d+$", id):
 			# Hearthstone uses entourage data to identify Spare Parts

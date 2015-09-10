@@ -16,6 +16,11 @@ class EX1_006:
 	events = OWN_TURN_BEGIN.on(Swap(SELF, RANDOM(CONTROLLER_HAND + MINION)))
 
 
+# Angry Chicken
+class EX1_009:
+	enrage = Refresh(SELF, {GameTag.ATK: +5})
+
+
 # Twilight Drake
 class EX1_043:
 	play = Buff(SELF, "EX1_043e") * Count(CONTROLLER_HAND)
@@ -43,7 +48,7 @@ class EX1_058:
 
 # Crazed Alchemist
 class EX1_059:
-	play = Buff(TARGET, "EX1_059e")
+	play = SwapAttackAndHealth(TARGET, "EX1_059e")
 
 
 # Pint-Sized Summoner

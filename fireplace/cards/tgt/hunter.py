@@ -16,7 +16,17 @@ class AT_057:
 
 # Brave Archer
 class AT_059:
-	inspire = Find(CONTROLLER_HAND) | Hit(ENEMY_HERO, 2)
+	inspire = EMPTY_HAND & Hit(ENEMY_HERO, 2)
+
+
+# Acidmaw
+class AT_063:
+	events = Damage(MINION - SELF).on(Destroy(Damage.Args.TARGETS))
+
+
+# Dreadscale
+class AT_063t:
+	events = OWN_TURN_END.on(Hit(ALL_MINIONS - SELF, 1))
 
 
 ##

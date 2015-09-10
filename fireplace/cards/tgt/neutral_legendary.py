@@ -11,12 +11,12 @@ class AT_018:
 
 # Skycap'n Kragg
 class AT_070:
-	cost = lambda self, i: i - len(self.controller.field.filter(race=Race.PIRATE))
+	cost_mod = -Count(FRIENDLY_MINIONS + PIRATE)
 
 
 # Gormok the Impaler
 class AT_122:
-	play = Hit(TARGET, 4)
+	play = (Count(FRIENDLY_MINIONS) >= 4) & Hit(TARGET, 4)
 
 
 # Chillmaw

@@ -13,9 +13,8 @@ from .exceptions import InvalidAction
 THE_COIN = "GAME_005"
 
 
-def Card(id, data=None):
-	if data is None:
-		data = getattr(CardDB, id)
+def Card(id):
+	data = getattr(CardDB, id)
 	subclass = {
 		CardType.HERO: Hero,
 		CardType.MINION: Minion,
@@ -26,7 +25,7 @@ def Card(id, data=None):
 	}[data.type]
 	if subclass is Spell and data.secret:
 		subclass = Secret
-	return subclass(id, data)
+	return subclass(data)
 
 
 class BaseCard(Entity):
@@ -34,18 +33,16 @@ class BaseCard(Entity):
 	has_deathrattle = boolean_property("has_deathrattle")
 	atk = int_property("atk")
 	max_health = int_property("max_health")
-	cost = int_property("cost")
 
-	def __init__(self, id, data):
+	def __init__(self, data):
 		self.data = data
 		super().__init__()
 		self.slots = []
 		self.requirements = data.requirements.copy()
-		self.id = id
+		self.id = data.id
 		self.controller = None
 		self.aura = False
 		self.heropower_damage = 0
-		self.silenced = False
 		self.spellpower = 0
 		self.turns_in_play = 0
 		self._zone = Zone.INVALID
@@ -112,7 +109,7 @@ class BaseCard(Entity):
 class PlayableCard(BaseCard, TargetableByAuras):
 	windfury = boolean_property("windfury")
 
-	def __init__(self, id, data):
+	def __init__(self, data):
 		self.cant_play = False
 		self.entourage = CardList(data.entourage)
 		self.has_battlecry = False
@@ -120,7 +117,7 @@ class PlayableCard(BaseCard, TargetableByAuras):
 		self.overload = 0
 		self.target = None
 		self.rarity = Rarity.INVALID
-		super().__init__(id, data)
+		super().__init__(data)
 
 	@property
 	def events(self):
@@ -130,6 +127,18 @@ class PlayableCard(BaseCard, TargetableByAuras):
 				ret = (ret, )
 			return ret
 		return self.base_events + self._events
+
+	@property
+	def cost(self):
+		ret = self._getattr("cost", 0)
+		mod = getattr(self.data.scripts, "cost_mod", None)
+		if mod is not None:
+			ret += mod.evaluate(self)
+		return max(0, ret)
+
+	@cost.setter
+	def cost(self, value):
+		self._cost = value
 
 	@property
 	def deathrattles(self):
@@ -152,13 +161,10 @@ class PlayableCard(BaseCard, TargetableByAuras):
 	def powered_up(self):
 		"""
 		Returns True whether the card is "powered up".
-		Currently, this only applies to some cards which require a minion with a
-		specific race on the field.
 		"""
-		for req in self.data.powerup_requirements:
-			for minion in self.controller.field:
-				if minion.race == req:
-					return True
+		script = getattr(self.data.scripts, "powered_up", None)
+		if script:
+			return script.evaluate(self)
 		return False
 
 	@property
@@ -237,6 +243,9 @@ class PlayableCard(BaseCard, TargetableByAuras):
 			self.log("%s draws %r", self.controller, self)
 			self.zone = Zone.HAND
 			self.controller.cards_drawn_this_turn += 1
+			actions = self.get_actions("draw")
+			if actions:
+				self.game.queue_actions(self, actions)
 
 	def heal(self, target, amount):
 		return self.game.queue_actions(self, [Heal(target, amount)])
@@ -320,8 +329,8 @@ class PlayableCard(BaseCard, TargetableByAuras):
 
 
 class LiveEntity(PlayableCard):
-	def __init__(self, *args):
-		super().__init__(*args)
+	def __init__(self, data):
+		super().__init__(data)
 		self._to_be_destroyed = False
 		self._damage = 0
 
@@ -348,7 +357,7 @@ class Character(LiveEntity):
 	immune = boolean_property("immune")
 	min_health = boolean_property("min_health")
 
-	def __init__(self, *args):
+	def __init__(self, data):
 		self.attacking = False
 		self.frozen = False
 		self.cant_attack = False
@@ -356,8 +365,7 @@ class Character(LiveEntity):
 		self.cant_be_targeted_by_hero_powers = False
 		self.num_attacks = 0
 		self.race = Race.INVALID
-		self._enrage = None
-		super().__init__(*args)
+		super().__init__(data)
 
 	@property
 	def attackable(self):
@@ -436,21 +444,6 @@ class Character(LiveEntity):
 
 		self._damage = amount
 
-		if self.enraged:
-			if not self._enrage:
-				self.log("Enraging %r", self)
-				self._enrage = Enrage(self.data.enrage_tags)
-				self._enrage.source = self
-				self.slots.append(self._enrage)
-		elif self._enrage:
-			self.log("Enrage fades from %r", self)
-			self.slots.remove(self._enrage)
-			self._enrage = None
-
-	@property
-	def enraged(self):
-		return False
-
 	@property
 	def health(self):
 		return max(0, self.max_health - self.damage)
@@ -473,10 +466,10 @@ class Character(LiveEntity):
 
 
 class Hero(Character):
-	def __init__(self, id, data):
+	def __init__(self, data):
 		self.armor = 0
 		self.power = None
-		super().__init__(id, data)
+		super().__init__(data)
 
 	@property
 	def entities(self):
@@ -530,12 +523,13 @@ class Minion(Character):
 		"taunt", "windfury",
 	)
 
-	def __init__(self, id, data):
+	def __init__(self, data):
 		self.always_wins_brawls = False
 		self.divine_shield = False
 		self.enrage = False
 		self.poisonous = False
-		super().__init__(id, data)
+		self.silenced = False
+		super().__init__(data)
 
 	@property
 	def events(self):
@@ -543,6 +537,10 @@ class Minion(Character):
 		if self.poisonous:
 			ret += rules.Poisonous
 		return ret
+
+	@property
+	def ignore_scripts(self):
+		return self.silenced
 
 	@property
 	def adjacent_minions(self):
@@ -576,6 +574,14 @@ class Minion(Character):
 	@property
 	def enraged(self):
 		return self.enrage and self.damage
+
+	@property
+	def update_scripts(self):
+		ret = super().update_scripts
+		if self.enraged:
+			script = self.data.scripts.enrage
+			ret += (script, )
+		return ret
 
 	def _set_zone(self, value):
 		if value == Zone.PLAY:
@@ -633,10 +639,10 @@ class Minion(Character):
 
 
 class Spell(PlayableCard):
-	def __init__(self, *args):
+	def __init__(self, data):
 		self.immune_to_spellpower = False
 		self.receives_double_spelldamage_bonus = False
-		super().__init__(*args)
+		super().__init__(data)
 
 	def hit(self, target, amount):
 		if not self.immune_to_spellpower:
@@ -669,18 +675,11 @@ class Secret(Spell):
 
 
 class Enchantment(BaseCard):
-	def __init__(self, *args):
-		self.one_turn_effect = False
-		self.attack_health_swap = False
-		super().__init__(*args)
+	cost = int_property("cost")
 
-	def _getattr(self, attr, i):
-		if self.attack_health_swap:
-			if attr == "atk":
-				return self._swapped_atk
-			elif attr == "max_health":
-				return self._swapped_health
-		return super()._getattr(attr, i)
+	def __init__(self, data):
+		self.one_turn_effect = False
+		super().__init__(data)
 
 	def _set_zone(self, zone):
 		if zone == Zone.PLAY:
@@ -694,12 +693,9 @@ class Enchantment(BaseCard):
 	def apply(self, target):
 		self.log("Applying %r to %r", self, target)
 		self.owner = target
-		if self.attack_health_swap:
-			self._swapped_atk = target.health
-			self._swapped_health = target.atk
 		if hasattr(self.data.scripts, "apply"):
 			self.data.scripts.apply(self, target)
-		if hasattr(self.data.scripts, "max_health") or self.attack_health_swap:
+		if hasattr(self.data.scripts, "max_health"):
 			self.log("%r removes all damage from %r", self, target)
 			target.damage = 0
 		self.zone = Zone.PLAY
@@ -710,19 +706,6 @@ class Enchantment(BaseCard):
 			self.data.scripts.destroy(self)
 		self.zone = Zone.REMOVEDFROMGAME
 	_destroy = destroy
-
-
-class Enrage(object):
-	"""
-	Enrage class for Minion.enrage_tags
-	Enrage buffs are just a collection of tags for the enraged Minion's slots.
-	"""
-
-	def __init__(self, tags):
-		CardManager(self).update(tags)
-
-	def _getattr(self, attr, i):
-		return i + getattr(self, attr, 0)
 
 
 class Weapon(rules.WeaponRules, LiveEntity):
@@ -781,7 +764,7 @@ class HeroPower(PlayableCard):
 			ret += self.game.queue_actions(self, actions)
 
 		for minion in self.controller.field.filter(has_inspire=True):
-			actions = self.get_actions("inspire")
+			actions = minion.get_actions("inspire")
 			if actions is None:
 				raise NotImplementedError("Missing inspire script for %r" % (minion))
 			if actions:

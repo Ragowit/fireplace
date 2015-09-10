@@ -70,6 +70,11 @@ class NAX8_02H:
 	activate = Draw(CONTROLLER), GainMana(CONTROLLER, 1)
 
 
+# Unholy Shadow
+class NAX9_06:
+	activate = Draw(CONTROLLER) * 2
+
+
 # Hateful Strike
 class NAX10_03:
 	activate = Destroy(TARGET)
@@ -85,10 +90,13 @@ class NAX12_02:
 class NAX12_02H:
 	activate = Buff(ENEMY_MINIONS, "NAX12_02e")
 
+class NAX12_02e:
+	max_health = SET(1)
+
 
 # Polarity Shift
 class NAX13_02:
-	activate = Buff(ALL_MINIONS, "NAX13_02e")
+	activate = SwapAttackAndHealth(ALL_MINIONS, "NAX13_02e")
 
 
 # Frost Breath
@@ -105,6 +113,15 @@ class NAX15_02H:
 
 
 # Chains
+class NAX15_04:
+	play = Steal(TARGET), Buff(TARGET, "NAX15_04a")
+
+class NAX15_04a:
+	events = TURN_END.on(Destroy(SELF))
+
+	def destroy(self):
+		self.controller.opponent.steal(self.owner)
+
 class NAX15_04H:
 	activate = Steal(RANDOM_ENEMY_MINION)
 
@@ -214,6 +231,11 @@ class NAX6_04:
 	play = Hit(ENEMY_MINIONS, 1), Summon(CONTROLLER, "NAX6_03t")
 
 
+# Mind Control Crystal
+class NAX7_05:
+	play = Steal(ENEMY_MINIONS + ID("NAX7_02"))
+
+
 # Mark of the Horsemen
 class NAX9_07:
 	play = Buff(FRIENDLY + (WEAPON | MINION), "NAX9_07e")
@@ -241,6 +263,20 @@ class NAX14_04:
 
 ##
 # Weapons
+
+# Runeblade
+class NAX9_05:
+	update = (
+		Find(ID("NAX9_02") | ID("NAX9_03") | ID("NAX9_04")) &
+		Refresh(SELF, {GameTag.ATK: +3})
+	)
+
+class NAX9_05H:
+	update = (
+		Find(ID("NAX9_02H") | ID("NAX9_03H") | ID("NAX9_04H")) &
+		Refresh(SELF, {GameTag.ATK: +6})
+	)
+
 
 # Hook
 class NAX10_02:

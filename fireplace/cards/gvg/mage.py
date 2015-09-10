@@ -13,12 +13,13 @@ class GVG_002:
 
 # Goblin Blastmage
 class GVG_004:
-	play = Find(FRIENDLY_MINIONS + MECH) & Hit(RANDOM_ENEMY_CHARACTER, 1) * 4
+	powered_up = Find(FRIENDLY_MINIONS + MECH)
+	play = powered_up & Hit(RANDOM_ENEMY_CHARACTER, 1) * 4
 
 
 # Flame Leviathan
 class GVG_007:
-	in_hand = Draw(CONTROLLER, SELF).on(Hit(ALL_CHARACTERS, 2))
+	draw = Hit(ALL_CHARACTERS, 2)
 
 
 # Illuminator

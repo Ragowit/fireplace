@@ -1,6 +1,6 @@
 from enum import IntEnum
 from .dsl import LazyNum, Picker, Selector
-from .enums import CardType, Mulligan, Zone
+from .enums import CardType, Mulligan, PlayState, Zone
 from .entity import Entity
 from .utils import fireplace_logger as logger
 
@@ -15,6 +15,9 @@ def _eval_card(source, card):
 	"""
 	if isinstance(card, Picker):
 		card = card.pick(source)
+
+	if isinstance(card, Action):
+		card = card.trigger(source)[0]
 
 	if not isinstance(card, list):
 		cards = [card]
@@ -55,6 +58,7 @@ class Action:  # Lawsuit
 
 	def __init__(self, *args, **kwargs):
 		self._args = args
+		self._kwargs = kwargs
 		self._argnames = []
 		for e, arg in zip(self.Args, self._args):
 			self._argnames.append(e.name)
@@ -140,6 +144,17 @@ class BeginTurn(GameAction):
 	def do(self, source, player):
 		self.broadcast(source, EventListener.ON, player)
 		source.game._begin_turn(player)
+
+
+class Concede(GameAction):
+	"""
+	Make \a player concede
+	"""
+	class Args(Action.Args):
+		PLAYER = 0
+
+	def do(self, source, player):
+		player.playstate = PlayState.QUIT
 
 
 class Deaths(GameAction):
@@ -346,7 +361,23 @@ class Buff(TargetedAction):
 		BUFF = 1
 
 	def do(self, source, target, buff):
-		source.buff(target, buff)
+		kwargs = self._kwargs.copy()
+		for k, v in kwargs.items():
+			if isinstance(v, LazyNum):
+				kwargs[k] = v.evaluate(source)
+		return source.buff(target, buff, **kwargs)
+
+
+class SwapAttackAndHealth(Buff):
+	def do(self, source, target, buff):
+		logger.info("%r swaps attack and health for %r", source, target)
+		buff = super().do(source, target, buff)
+		atk = target.health - target.atk
+		health = target.atk - target.health
+		buff._atk = atk
+		buff._max_health = health
+		target.damage = 0
+		return buff
 
 
 class Bounce(TargetedAction):
@@ -606,6 +637,25 @@ class FillMana(TargetedAction):
 
 	def do(self, source, target, amount):
 		target.used_mana -= amount
+
+
+class Retarget(TargetedAction):
+	class Args(Action.Args):
+		TARGETS = 0
+		CARDS = 1
+
+	def do(self, source, target, new_target):
+		assert len(new_target) == 1
+		new_target = new_target[0]
+		if target.type in (CardType.HERO, CardType.MINION) and target.attacking:
+			logger.info("Retargeting %r's attack to %r", source, new_target)
+			source.game.proposed_defender.defending = False
+			source.game.proposed_defender = new_target
+		else:
+			logger.info("Retargeting %r from %r to %r", target, target.target, new_target)
+			target.target = new_target
+
+		return new_target
 
 
 class Reveal(TargetedAction):

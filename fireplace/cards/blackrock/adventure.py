@@ -36,6 +36,20 @@ class BRMA04_2:
 	activate = Hit(ALL_MINIONS, 1)
 
 
+# Ignite Mana
+class BRMA05_2:
+	activate = (
+		(Attr(OPPONENT, GameTag.RESOURCES) <= Attr(OPPONENT, GameTag.RESOURCES_USED)) &
+		Hit(ENEMY_HERO, 5)
+	)
+
+class BRMA05_2H:
+	activate = (
+		(Attr(OPPONENT, GameTag.RESOURCES) <= Attr(OPPONENT, GameTag.RESOURCES_USED)) &
+		Hit(ENEMY_HERO, 10)
+	)
+
+
 # The Majordomo
 class BRMA06_2:
 	activate = Summon(CONTROLLER, "BRMA06_4")
@@ -50,6 +64,21 @@ class BRMA07_2:
 
 class BRMA07_2H:
 	activate = Destroy(RANDOM_ENEMY_MINION)
+
+
+# Intense Gaze
+class BRMA08_2:
+	update = (
+		Refresh(ALL_PLAYERS, {GameTag.MAXRESOURCES: SET(1)}),
+		Refresh(IN_HAND, {GameTag.COST: SET(1)})
+	)
+
+class BRMA08_2H:
+	update = (
+		Refresh(CONTROLLER, {GameTag.MAXRESOURCES: SET(2)}),
+		Refresh(OPPONENT, {GameTag.MAXRESOURCES: SET(1)}),
+		Refresh(IN_HAND, {GameTag.COST: SET(1)})
+	)
 
 
 # The Rookery
@@ -67,6 +96,14 @@ class BRMA11_2:
 
 class BRMA11_2H:
 	activate = Draw(ALL_PLAYERS) * 3, GainMana(CONTROLLER, 1)
+
+
+# Wild Magic
+class BRMA13_4:
+	activate = Give(CONTROLLER, RandomSpell(card_class=Attr(TARGET, GameTag.CLASS)))
+
+class BRMA13_4H:
+	activate = Give(CONTROLLER, RandomSpell(card_class=Attr(TARGET, GameTag.CLASS)))
 
 
 # Echolocate
@@ -92,6 +129,38 @@ class BRMA17_5H:
 
 ##
 # Minions
+
+# Moira Bronzebeard
+class BRMA03_3:
+	update = Refresh(ALL_HERO_POWERS + ID("BRMA03_2"), {GameTag.CANT_PLAY: True})
+	# The attack targeting is done at the AI level. But we could do this:
+	# attack_targets = ENEMY_HERO | TAUNT
+
+class BRMA03_3H:
+	update = Refresh(ALL_HERO_POWERS + ID("BRMA03_2"), {GameTag.CANT_PLAY: True})
+
+
+# Corrupted Egg
+class BRMA10_4:
+	update = (Attr(SELF, "health") >= 4) & (Destroy(SELF), Summon(CONTROLLER, "BRMA10_5"))
+
+class BRMA10_4H:
+	update = (Attr(SELF, "health") >= 5) & (Destroy(SELF), Summon(CONTROLLER, "BRMA10_5H"))
+
+
+# Firesworn
+class BRMA04_3:
+	deathrattle = Hit(ENEMY_HERO, Count(ID("BRMA04_3") + KILLED_THIS_TURN))
+
+class BRMA04_3H:
+	deathrattle = Hit(ENEMY_HERO, Count(ID("BRMA04_3H") + KILLED_THIS_TURN))
+
+
+# Chromatic Dragonkin
+class BRMA12_8t:
+	# That ID is... correct. What?
+	events = Play(OPPONENT, SPELL).on(Buff(SELF, "GVG_100e"))
+
 
 # Son of the Flame
 class BRMA13_5:
@@ -137,6 +206,11 @@ class BRMA04_4H:
 # Burning Adrenaline
 class BRMA11_3:
 	play = Hit(ENEMY_HERO, 2)
+
+
+# Chromatic Mutation (Unused)
+class BRMA12_8:
+	play = Morph(TARGET, "BRMA12_8t")
 
 
 # DIE, INSECT!

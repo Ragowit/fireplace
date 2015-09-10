@@ -57,7 +57,7 @@ class BRMC_92:
 
 # Golemagg
 class BRMC_95:
-	cost = lambda self, i: i - self.controller.hero.damage
+	cost_mod = -Attr(FRIENDLY_HERO, GameTag.DAMAGE)
 
 
 # High Justice Grimstone
@@ -89,3 +89,11 @@ class BRMC_95h:
 
 class BRMC_95he:
 	events = TURN_END.on(Summon(CONTROLLER, Copy(ID("BRMC_95he") + KILLED_THIS_TURN)))
+
+
+##
+# Weapons
+
+# Sulfuras
+class BRMC_94:
+	deathrattle = Summon(CONTROLLER, "BRM_027p")

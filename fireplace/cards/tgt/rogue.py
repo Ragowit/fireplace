@@ -47,4 +47,12 @@ class AT_035:
 	play = Shuffle(OPPONENT, "AT_035t") * 3
 
 class AT_035t:
-	in_hand = Summon(OPPONENT, "AT_036t")
+	draw = Summon(OPPONENT, "AT_036t"), Draw(CONTROLLER), Destroy(SELF)
+
+
+##
+# Weapons
+
+# Poisoned Blade
+class AT_034:
+	inspire = Buff(SELF, "AT_034e")

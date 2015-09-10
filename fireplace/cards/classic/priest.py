@@ -42,7 +42,7 @@ class EX1_350:
 	update = Refresh(CONTROLLER, {
 		GameTag.HEALING_DOUBLE: 1,
 		GameTag.SPELLPOWER_DOUBLE: 1,
-		GameTag.TAG_HERO_POWER_DOUBLE: 1,
+		GameTag.HERO_POWER_DOUBLE: 1,
 	})
 
 
@@ -126,9 +126,7 @@ class EX1_334:
 	play = Steal(TARGET), Buff(TARGET, "EX1_334e")
 
 class EX1_334e:
-	events = [
-		TURN_END.on(Destroy(SELF))
-	]
+	events = TURN_END.on(Destroy(SELF))
 
 	def destroy(self):
 		self.controller.opponent.steal(self.owner)

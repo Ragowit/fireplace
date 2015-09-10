@@ -8,6 +8,10 @@ from ..utils import *
 class CS2_101:
 	activate = Summon(CONTROLLER, "CS2_101t")
 
+# Reinforce (Uther Skin 1)
+class CS2_101_H1:
+	activate = CS2_101.activate
+
 
 ##
 # Minions
@@ -125,6 +129,13 @@ class EX1_619e:
 
 ##
 # Secrets
+
+# Noble Sacrifice
+class EX1_130:
+	events = Attack(ENEMY_MINIONS).on(
+		Retarget(Attack.Args.ATTACKER, Summon(CONTROLLER, "EX1_130a")), Reveal(SELF)
+	)
+
 
 # Eye for an Eye
 class EX1_132:

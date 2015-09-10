@@ -6,7 +6,7 @@ from ..utils import *
 
 # Dagger Mastery
 class CS2_083b:
-	activate = Summon(CONTROLLER, "CS2_082")
+	activate = Find(FRIENDLY_WEAPON + ID("AT_034")) | Summon(CONTROLLER, "CS2_082")
 
 
 ##
@@ -34,7 +34,7 @@ class NEW1_005:
 
 # Master of Disguise
 class NEW1_014:
-	play = SetTag(TARGET, {GameTag.STEALTH: False})
+	play = SetTag(TARGET, {GameTag.STEALTH: True})
 
 
 ##
@@ -89,10 +89,13 @@ class EX1_126:
 
 # Conceal
 class EX1_128:
-	play = Buff(FRIENDLY_MINIONS, "EX1_128e")
+	play = (
+		Buff(FRIENDLY_MINIONS - STEALTH, "EX1_128e"),
+		SetTag(FRIENDLY_MINIONS, {GameTag.STEALTH: True})
+	)
 
 class EX1_128e:
-	events = OWN_TURN_BEGIN.on(Destroy(SELF))
+	events = OWN_TURN_BEGIN.on(SetTag(OWNER, {GameTag.STEALTH: False}), Destroy(SELF))
 
 
 # Fan of Knives

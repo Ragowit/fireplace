@@ -22,10 +22,11 @@ class PART_003:
 
 # Finicky Cloakfield
 class PART_004:
-	play = Buff(TARGET, "PART_004e")
+	play = Buff(TARGET + STEALTH, "PART_004e")
+
 
 class PART_004e:
-	events = OWN_TURN_BEGIN.on(Destroy(SELF))
+	events = OWN_TURN_BEGIN.on(SetTag(OWNER, {GameTag.STEALTH: False}), Destroy(SELF))
 
 
 # Emergency Coolant
@@ -35,7 +36,7 @@ class PART_005:
 
 # Reversing Switch
 class PART_006:
-	play = Buff(TARGET, "PART_006a")
+	play = SwapAttackAndHealth(TARGET, "PART_006a")
 
 
 # Whirling Blades

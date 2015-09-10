@@ -80,7 +80,7 @@ class GameTag(IntEnum):
 	NUM_MINIONS_PLAYED_THIS_TURN = 317
 	CANT_BE_TARGETED_BY_HERO_POWERS = 332
 	HEALTH_MINIMUM = 337
-	OneTurnEffect = 338
+	TAG_ONE_TURN_EFFECT = 338
 	SILENCE = 339
 	ImmuneToSpellpower = 349
 	ADJACENT_BUFF = 350
@@ -88,8 +88,8 @@ class GameTag(IntEnum):
 	HEALING_DOUBLE = 357
 	AURA = 362
 	POISONOUS = 363
-	TAG_HERO_POWER_DOUBLE = 366
-	TAG_AI_MUST_PLAY = 367
+	HERO_POWER_DOUBLE = 366
+	AI_MUST_PLAY = 367
 	NUM_MINIONS_PLAYER_KILLED_THIS_TURN = 368
 	NUM_MINIONS_KILLED_THIS_TURN = 369
 	AFFECTED_BY_SPELL_POWER = 370
@@ -140,15 +140,14 @@ class GameTag(IntEnum):
 
 	# Renamed
 	DEATH_RATTLE = 217
+	TAG_HERO_POWER_DOUBLE = 366
+	TAG_AI_MUST_PLAY = 367
 	OVERKILL = 380
 
 	# Internal
 	ALWAYS_WINS_BRAWLS = -10
 	ATTACK_HEALTH_SWAP = -11
 	KILLED_THIS_TURN = -12
-
-	def test(self, entity, *args):
-		return bool(entity.tags.get(self))
 
 
 ##
@@ -205,9 +204,6 @@ class CardType(IntEnum):
 	ITEM = 8
 	TOKEN = 9
 	HERO_POWER = 10
-
-	def test(self, entity, *args):
-		return self == entity.type
 
 
 class Faction(IntEnum):
@@ -309,9 +305,6 @@ class Race(IntEnum):
 	# Alias for PET
 	BEAST = 20
 
-	def test(self, entity, *args):
-		return self == getattr(entity, "race", Race.INVALID)
-
 
 class Rarity(IntEnum):
 	INVALID = 0
@@ -334,9 +327,6 @@ class Zone(IntEnum):
 
 	# Fireplace-specific zone
 	DISCARD = -1
-
-	def test(self, entity, *args):
-		return self == getattr(entity, "zone", Zone.INVALID)
 
 
 ##
@@ -423,22 +413,3 @@ class Step(IntEnum):
 	FINAL_GAMEOVER = 15
 	MAIN_CLEANUP = 16
 	MAIN_START_TRIGGERS = 17
-
-
-##
-# Fireplace enums
-
-class Affiliation(IntEnum):
-	FRIENDLY = 1
-	HOSTILE = 2
-	TARGET = 3
-
-	def test(self, target, source):
-		if target.type == CardType.GAME:
-			return False
-		if self == self.__class__.FRIENDLY:
-			return target.controller == source.controller
-		elif self == self.__class__.HOSTILE:
-			return target.controller != source.controller
-		elif self == self.__class__.TARGET:
-			return target.controller == source.target.controller

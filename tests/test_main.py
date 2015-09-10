@@ -687,6 +687,29 @@ def test_dragon_egg():
 	assert len(game.player1.field.filter(id="BRM_022t")) == 3
 
 
+def test_dragonhawk_rider():
+	game = prepare_game(WARRIOR, WARRIOR)
+	rider = game.player1.give("AT_083")
+	rider.play()
+	game.end_turn(); game.end_turn()
+
+	assert not rider.windfury
+	game.player1.hero.power.use()
+	assert rider.windfury
+	game.end_turn(); game.end_turn()
+
+	windfury = game.player1.give("CS2_039")
+	windfury.play(target=rider)
+	assert rider.windfury
+	game.end_turn(); game.end_turn()
+
+	assert rider.windfury
+	game.player1.hero.power.use()
+	rider.attack(game.player2.hero)
+	rider.attack(game.player2.hero)
+	assert not rider.can_attack()
+
+
 def test_dr_boom():
 	game = prepare_game()
 	boom = game.player1.give("GVG_110")
@@ -802,6 +825,16 @@ def test_siltfin_spiritwalker():
 	assert len(game.player1.hand) == 1
 
 
+def test_silver_hand_regent():
+	game = prepare_game(HUNTER, HUNTER)
+	regent = game.player1.give("AT_100")
+	regent.play()
+	assert len(game.player1.field) == 1
+	game.player1.hero.power.use()
+	assert len(game.player1.field) == 2
+	assert game.player1.field[1].id == "CS2_101t"
+
+
 def test_skycapn_kragg():
 	game = prepare_game()
 	kragg = game.player1.give("AT_070")
@@ -903,6 +936,30 @@ def test_southsea_deckhand():
 	assert deckhand.charge
 
 
+def test_spellbender():
+	game = prepare_game()
+	spellbender = game.player1.give("tt_010")
+	spellbender.play()
+	goldshire = game.player1.give(GOLDSHIRE_FOOTMAN)
+	goldshire.play()
+	game.end_turn()
+
+	assert game.player1.hero.health == 30
+	game.player2.give(MOONFIRE).play(target=game.player1.hero)
+	assert game.player1.hero.health == 29
+	assert spellbender in game.player1.secrets
+	assert goldshire.health == 2
+	assert len(game.player1.field) == 1
+	game.player2.give(MOONFIRE).play(target=goldshire)
+	assert spellbender not in game.player1.secrets
+	assert goldshire.health == 2
+	assert len(game.player1.field) == 2
+	target = game.player1.field[1]
+	assert target.id == "tt_010a"
+	assert target.max_health == 3
+	assert target.health == 2
+
+
 def test_spiteful_smith():
 	game = prepare_game()
 	assert not game.current_player.hero.atk
@@ -958,6 +1015,43 @@ def test_sword_of_justice():
 	assert wisp2.health == 1
 	assert wisp2.atk == 1
 	assert not wisp2.buffs
+
+
+def test_sylvanas_windrunner():
+	game = prepare_game()
+	sylvanas1 = game.player1.give("EX1_016")
+	sylvanas1.play()
+	sylvanas1.destroy()
+	assert len(game.player1.field) == 0
+	game.end_turn(); game.end_turn()
+
+	wisp = game.player2.summon(WISP)
+	sylvanas2 = game.player1.give("EX1_016")
+	sylvanas2.play()
+	assert wisp in game.player2.field
+	sylvanas2.destroy()
+	assert wisp in game.player1.field
+
+
+def test_sylvanas_windrunner_kel_thuzad():
+	# Test for https://github.com/HearthSim/hs-bugs/issues/137
+	game = prepare_game()
+	sylvanas = game.player2.summon("EX1_016")
+	wisp = game.player1.summon(WISP)
+	game.player1.give(MOONFIRE).play(target=wisp)
+	assert len(game.player1.field) == 0
+	assert len(game.player2.field) == 1
+	sylvanas.destroy()
+	assert len(game.player1.field) == 0
+	assert len(game.player2.field) == 0
+	kel_thuzad = game.player1.give("FP1_013")
+	kel_thuzad.play()
+	assert len(game.player1.field) == 1
+	assert len(game.player2.field) == 0
+	game.end_turn()
+
+	assert len(game.player1.field) == 2
+	assert len(game.player2.field) == 0
 
 
 def test_emperor_thaurissan():
@@ -1635,6 +1729,26 @@ def test_mad_scientist():
 	assert counterspell in game.player1.hand
 
 
+def test_malganis():
+	game = prepare_game(HUNTER, HUNTER)
+	voidwalker = game.player1.give("CS2_065")
+	voidwalker.play()
+	malganis = game.player1.give("GVG_021")
+	assert voidwalker.atk == 1
+	assert voidwalker.health == 3
+	malganis.play()
+	assert voidwalker.atk == 1 + 2
+	assert voidwalker.health == 3 + 2
+	assert game.player1.hero.immune
+	game.end_turn()
+
+	game.player2.hero.power.use()
+	assert game.player1.hero.health == 30
+	malganis.destroy()
+	assert voidwalker.atk == 1
+	assert voidwalker.health == 3
+
+
 def test_malorne():
 	game = prepare_empty_game()
 	assert len(game.player1.deck) == 0
@@ -1684,6 +1798,17 @@ def test_mana_wyrm():
 	assert wyrm.atk == 2
 	game.player1.give(THE_COIN).play()
 	assert wyrm.atk == 3
+
+
+def test_master_of_disguise():
+	game = prepare_game()
+	wisp = game.player1.give(WISP)
+	wisp.play()
+	masterofdisguise = game.player1.give("NEW1_014")
+	masterofdisguise.play(target=wisp)
+	assert wisp.stealthed
+	game.end_turn(); game.end_turn()
+	assert wisp.stealthed
 
 
 def test_old_murkeye():
@@ -1982,6 +2107,21 @@ def test_mirror_entity_summon_trigger():
 	assert game.player2.field[0].id == "NEW1_041"
 
 
+def test_beneath_the_grounds():
+	game = prepare_empty_game()
+	game.player2.discard_hand()
+	assert len(game.player2.deck) == 0
+	grounds = game.player1.give("AT_035")
+	grounds.play()
+	assert len(game.player2.deck) == 3
+	assert len(game.player2.hand) == 0
+	game.end_turn()
+
+	assert len(game.player2.hand) == 0
+	assert len(game.player1.field) == 3
+	assert game.player1.field[0].id == game.player1.field[1].id == game.player1.field[2].id == "AT_036t"
+
+
 def test_bestial_wrath():
 	game = prepare_game()
 	wolf = game.current_player.give("DS1_175")
@@ -2048,6 +2188,46 @@ def test_betrayal_poisonous():
 	assert watcher1.dead
 	assert not cobra.dead
 	assert watcher2.dead
+
+
+def test_gormok_the_impaler():
+	game = prepare_game()
+	yeti = game.player1.give("CS2_182")
+	dummy1 = game.player1.give(TARGET_DUMMY)
+	yeti.play()
+	dummy1.play()
+	game.end_turn()
+
+	gormok1 = game.player2.give("AT_122")
+	assert not gormok1.has_target()
+	gormok1.play()
+	assert game.player1.hero.health == game.player1.hero.max_health
+	assert yeti.health == 5
+	assert dummy1.health == 2
+
+	game.player2.discard_hand()
+	gormok2 = game.player2.give("AT_122")
+	wisp1 = game.player2.give(WISP)
+	wisp2 = game.player2.give(WISP)
+	dummy2 = game.player2.give(TARGET_DUMMY)
+	wisp1.play()
+	wisp2.play()
+	dummy2.play()
+	assert len(game.player2.field) == 4
+	assert gormok2.has_target()
+	assert game.player1.hero in gormok2.targets
+	assert game.player2.hero in gormok2.targets
+	assert yeti in gormok2.targets
+	assert dummy1 in gormok2.targets
+	assert gormok1 in gormok2.targets
+	assert wisp1 in gormok2.targets
+	assert wisp2 in gormok2.targets
+	assert dummy2 in gormok2.targets
+
+	gormok2.play(target=yeti)
+	assert yeti.health == 1
+	assert gormok2.atk == 4
+	assert gormok2.health == 4
 
 
 def test_big_game_hunter():
@@ -2229,6 +2409,7 @@ def test_hunters_mark():
 	mark = game.current_player.give("CS2_084")
 	mark.play(target=token)
 	assert token.health == 1
+	assert not token.dead
 	game.current_player.give(SILENCE).play(target=token)
 	assert token.health == 3
 
@@ -2905,6 +3086,17 @@ def test_gahzrilla():
 	# assert gahz.atk == (6*2*2) + 1
 
 
+def test_grand_crusader():
+	game = prepare_game(WARRIOR, WARRIOR)
+	game.player1.discard_hand()
+	crusader = game.player1.give("AT_118")
+	assert len(game.player1.hand) == 1
+	crusader.play()
+	assert len(game.player1.hand) == 1
+	assert game.player1.hand[0].card_class == CardClass.PALADIN
+	assert game.player1.hand[0].data.collectible
+
+
 def test_grimscale_oracle():
 	game = prepare_game()
 	grimscale = game.player1.give("EX1_508")
@@ -3109,15 +3301,35 @@ def test_illidan_full_board():
 
 def test_iron_juggernaut():
 	game = prepare_empty_game()
+	game.player2.discard_hand()
 	juggernaut = game.player1.give("GVG_056")
 	assert len(game.player2.deck) == 0
 	juggernaut.play()
 
 	assert game.player2.hero.health == 30
 	assert len(game.player2.deck) == 1
+	assert len(game.player2.hand) == 0
 	game.end_turn()
 	assert game.player2.hero.health == 20
 	assert len(game.player2.deck) == 0
+	assert len(game.player2.hand) == 0
+
+
+def test_lance_carrier():
+	game = prepare_game()
+	wisp = game.player2.summon(WISP)
+	carrier1 = game.player1.give("AT_084")
+	assert len(carrier1.targets) == 0
+	carrier1.play()
+	game.end_turn()
+
+	carrier2 = game.player2.give("AT_084")
+	assert wisp.atk == 1
+	carrier2.play(target=wisp)
+	assert wisp.atk == 3
+	game.end_turn(); game.end_turn()
+
+	assert wisp.atk == 3
 
 
 def test_leeroy():
@@ -3171,6 +3383,20 @@ def test_lorewalker_cho():
 	assert len(game.current_player.opponent.hand) == 1
 	assert game.current_player.opponent.hand[0].id == THE_COIN
 	game.current_player.give(THE_COIN).play()
+
+
+def test_lowly_squire():
+	game = prepare_game(HUNTER, HUNTER)
+	squire = game.player1.give("AT_082")
+	squire.play()
+	assert squire.atk == 1
+	game.player1.hero.power.use()
+	assert squire.atk == 2
+	game.end_turn(); game.end_turn()
+
+	assert squire.atk == 2
+	game.player1.hero.power.use()
+	assert squire.atk == 3
 
 
 def test_lava_shock():
@@ -3515,6 +3741,24 @@ def test_nerubar_weblord():
 	assert footman1.cost == footman2.cost == 1
 	assert archer1.cost == archer2.cost == 1 + 2
 	assert perdition1.cost == perdition2.cost == 3
+
+
+def test_noble_sacrifice():
+	game = prepare_game()
+	sacrifice = game.player1.give("EX1_130")
+	sacrifice.play()
+	wisp = game.player2.summon(WISP)
+	game.end_turn()
+
+	assert sacrifice in game.player1.secrets
+	assert not wisp.dead
+	assert len(game.player1.field) == 0
+	assert len(game.player2.field) == 1
+	wisp.attack(game.player1.hero)
+	assert sacrifice not in game.player1.secrets
+	assert wisp.dead
+	assert len(game.player1.field) == 0
+	assert len(game.player2.field) == 0
 
 
 def test_northshire_cleric():
@@ -3984,6 +4228,18 @@ def test_warsong_commander_faceless_manipulator_buffed():
 	copy = game.player1.field.filter(id="EX1_399")[0]
 	assert copy == gurubashi
 	assert not copy.charge
+
+
+def test_warsong_commander_stormwind_champion():
+	# test 9 - Warsong and Stormwind Champion on Play, then Raging Worgen
+	game = prepare_game()
+	game.player1.give(WARSONG_COMMANDER).play()
+	game.player1.give("CS2_222").play()
+	game.end_turn(); game.end_turn()
+
+	worgen = game.player1.give("EX1_412")
+	worgen.play()
+	assert not worgen.charge
 
 
 def test_warsong_commander_lightspawn():
@@ -5152,12 +5408,15 @@ def test_quick_shot():
 	quickshot1 = game.player1.give("BRM_013")
 	wisp = game.player1.give("CS2_231")
 	wisp.play()
+	assert quickshot1.powered_up
 	quickshot1.play(target=wisp)
 	assert wisp.dead
 	assert len(game.player1.hand) == 1
 	quickshot2 = game.player1.give("BRM_013")
-	quickshot2.play(target=game.current_player.opponent.hero)
-	assert game.current_player.opponent.hero.health == 27
+	assert len(game.player1.hand) == 2
+	assert not quickshot2.powered_up
+	quickshot2.play(target=game.player2.hero)
+	assert game.player2.hero.health == 27
 	assert len(game.player1.hand) == 1
 
 

@@ -23,6 +23,8 @@ class RandomEntourage(RandomCardPicker):
 
 
 CLEAVE = Hit(TARGET_ADJACENT, Attr(SELF, GameTag.ATK))
+COINFLIP = RandomNumber(0, 1) == 1
+EMPTY_HAND = Count(CONTROLLER_HAND) == 0
 HOLDING_DRAGON = Find(CONTROLLER_HAND + DRAGON)
 JOUST = Joust(FRIENDLY + MINION + IN_DECK, ENEMY + MINION + IN_DECK)
 

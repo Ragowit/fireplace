@@ -21,6 +21,11 @@ class EX1_402:
 	events = Damage(FRIENDLY_MINIONS).on(GainArmor(FRIENDLY_HERO, 1))
 
 
+# Grommash Hellscream
+class EX1_414:
+	enrage = Refresh(SELF, {GameTag.ATK: +6})
+
+
 # Cruel Taskmaster
 class EX1_603:
 	play = Buff(TARGET, "EX1_603e"), Hit(TARGET, 1)
@@ -114,7 +119,10 @@ class EX1_607:
 
 # Commanding Shout
 class NEW1_036:
-	play = Buff(FRIENDLY_MINIONS, "NEW1_036e")
+	play = Buff(FRIENDLY_MINIONS, "NEW1_036e"), Buff(FRIENDLY_HERO, "NEW1_036e2")
+
+class NEW1_036e2:
+	events = Summon(CONTROLLER, MINION).on(Buff(Summon.Args.CARDS, "NEW1_036e"))
 
 
 # Warsong Commander

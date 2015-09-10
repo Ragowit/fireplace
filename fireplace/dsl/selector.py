@@ -1,7 +1,7 @@
 import operator
 import random
 from enum import IntEnum
-from ..enums import Affiliation, CardType, GameTag, Race, Zone
+from ..enums import CardType, GameTag, Race, Zone
 from ..utils import CardList
 
 
@@ -40,12 +40,18 @@ class Selector:
 			name = ""
 			if hasattr(op, "__name__"):
 				name = op.__name__
+				if name == "_and":
+					name = "+"
+				elif name == "_not":
+					name = "-"
+				elif name == "_or":
+					name = "|"
 			elif isinstance(op, IntEnum):
 				name = op.name
 			else:
 				name = repr(op)
-			prog.append(name.lstrip("_"))
-		return "<{}: {}>".format(self.__class__.__name__, " ".join(prog))
+			prog.append(name)
+		return "<%s>" % (" ".join(prog))
 
 	def __or__(self, other):
 		result = Selector()
@@ -179,6 +185,9 @@ class SelfSelector(Selector):
 	Selects the source.
 	"""
 	class IsSelf:
+		def __repr__(self):
+			return "SELF"
+
 		def test(self, entity, source):
 			return entity is source
 
@@ -263,6 +272,9 @@ class AdjacentSelector(Selector):
 		self.program.append(self.SelectAdjacent())
 		self.program.append(Selector.Unmerge)
 
+	def __repr__(self):
+		return "<ADJACENT>"
+
 SELF_ADJACENT = AdjacentSelector(SELF)
 TARGET_ADJACENT = AdjacentSelector(TARGET)
 
@@ -317,6 +329,29 @@ class IdSelector(Selector):
 ID = IdSelector
 
 
+class Affiliation(IntEnum):
+	FRIENDLY = 1
+	HOSTILE = 2
+	TARGET = 3
+
+	def test(self, target, source):
+		if target.type == CardType.GAME:
+			return False
+		if self == self.__class__.FRIENDLY:
+			return target.controller == source.controller
+		elif self == self.__class__.HOSTILE:
+			return target.controller != source.controller
+		elif self == self.__class__.TARGET:
+			return target.controller == source.target.controller
+
+
+# Enum tests
+GameTag.test = lambda self, entity, *args: bool(entity.tags.get(self))
+CardType.test = lambda self, entity, *args: self == entity.type
+Race.test = lambda self, entity, *args: self == getattr(entity, "race", Race.INVALID)
+Zone.test = lambda self, entity, *args: self == entity.zone
+
+
 BATTLECRY = Selector(GameTag.BATTLECRY)
 DAMAGED = Selector(GameTag.DAMAGE)
 DEATHRATTLE = Selector(GameTag.DEATHRATTLE)
@@ -324,6 +359,7 @@ DIVINE_SHIELD = Selector(GameTag.DIVINE_SHIELD)
 FROZEN = Selector(GameTag.FROZEN)
 OVERLOAD = Selector(GameTag.RECALL)
 SPELLPOWER = Selector(GameTag.SPELLPOWER)
+STEALTH = Selector(GameTag.STEALTH)
 TAUNT = Selector(GameTag.TAUNT)
 ALWAYS_WINS_BRAWLS = Selector(GameTag.ALWAYS_WINS_BRAWLS)
 KILLED_THIS_TURN = Selector(GameTag.KILLED_THIS_TURN)
@@ -339,11 +375,8 @@ FRIENDLY = Selector(Affiliation.FRIENDLY)
 ENEMY = Selector(Affiliation.HOSTILE)
 CONTROLLED_BY_TARGET = Selector(Affiliation.TARGET)
 
-ALL_PLAYERS = PLAYER = Selector(CardType.PLAYER)
-CONTROLLER = PLAYER + FRIENDLY
-OPPONENT = PLAYER + ENEMY
-TARGET_PLAYER = ALL_PLAYERS + CONTROLLED_BY_TARGET
-
+GAME = Selector(CardType.GAME)
+PLAYER = Selector(CardType.PLAYER)
 HERO = Selector(CardType.HERO)
 MINION = Selector(CardType.MINION)
 CHARACTER = MINION | HERO
@@ -365,6 +398,7 @@ CONTROLLER_DECK = IN_DECK + FRIENDLY
 OPPONENT_HAND = IN_HAND + ENEMY
 OPPONENT_DECK = IN_DECK + ENEMY
 
+ALL_PLAYERS = IN_PLAY + PLAYER
 ALL_HEROES = IN_PLAY + HERO
 ALL_MINIONS = IN_PLAY + MINION
 ALL_CHARACTERS = IN_PLAY + CHARACTER
@@ -372,18 +406,23 @@ ALL_WEAPONS = IN_PLAY + WEAPON
 ALL_SECRETS = HIDDEN + SECRET
 ALL_HERO_POWERS = IN_PLAY + HERO_POWER
 
+CONTROLLER = ALL_PLAYERS + FRIENDLY
 FRIENDLY_HERO = IN_PLAY + FRIENDLY + HERO
 FRIENDLY_MINIONS = IN_PLAY + FRIENDLY + MINION
 FRIENDLY_CHARACTERS = IN_PLAY + FRIENDLY + CHARACTER
 FRIENDLY_WEAPON = IN_PLAY + FRIENDLY + WEAPON
 FRIENDLY_SECRETS = HIDDEN + FRIENDLY + SECRET
 FRIENDLY_HERO_POWER = IN_PLAY + FRIENDLY + HERO_POWER
+
+OPPONENT = ALL_PLAYERS + ENEMY
 ENEMY_HERO = IN_PLAY + ENEMY + HERO
 ENEMY_MINIONS = IN_PLAY + ENEMY + MINION
 ENEMY_CHARACTERS = IN_PLAY + ENEMY + CHARACTER
 ENEMY_WEAPON = IN_PLAY + ENEMY + WEAPON
 ENEMY_SECRETS = HIDDEN + ENEMY + SECRET
 ENEMY_HERO_POWER = IN_PLAY + ENEMY + HERO_POWER
+
+TARGET_PLAYER = ALL_PLAYERS + CONTROLLED_BY_TARGET
 
 RANDOM_MINION = RANDOM(ALL_MINIONS)
 RANDOM_CHARACTER = RANDOM(ALL_CHARACTERS)

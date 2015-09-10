@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import argparse
 import importlib
 import re
 import string
@@ -46,7 +47,12 @@ DUMMY_CARDS = (
 	"EX1_246e",  # Hexxed
 	"Mekka4e",  # Transformed
 	"NEW1_025e",  # Bolstered (Unused)
+	"XXX_009e",  # Empty Enchant
 	"XXX_058e",  # Weapon Nerf Enchant
+
+	# Dynamic buffs set by their parent
+	"EX1_304e",  # Consume (Void Terror)
+	"NEW1_018e",  # Treasure Crazed (Bloodsail Raider)
 )
 
 
@@ -68,6 +74,25 @@ def cleanup_description(description):
 def main():
 	impl = 0
 	unimpl = 0
+
+	p = argparse.ArgumentParser()
+	p.add_argument(
+		"--implemented",
+		action="store_true",
+		dest="implemented",
+		help="Show only implemented cards"
+	)
+	p.add_argument(
+		"--unimplemented",
+		action="store_true",
+		dest="unimplemented",
+		help="Show only unimplemented cards"
+	)
+	args = p.parse_args(sys.argv[1:])
+
+	if not args.implemented and not args.unimplemented:
+		args.implemented = True
+		args.unimplemented = True
 
 	for id in sorted(cards.db):
 		card = cards.db[id]
@@ -98,12 +123,15 @@ def main():
 
 		color = GREEN if implemented else RED
 		name = color + "%s: %s" % (PREFIXES[color], card.name) + ENDC
-		print("%s (%s)" % (name, id))
 
 		if implemented:
 			impl += 1
+			if args.implemented:
+				print("%s (%s)" % (name, id))
 		else:
 			unimpl += 1
+			if args.unimplemented:
+				print("%s (%s)" % (name, id))
 
 	total = impl + unimpl
 
