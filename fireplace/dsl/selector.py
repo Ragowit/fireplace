@@ -1,7 +1,8 @@
 import operator
 import random
 from enum import IntEnum
-from ..enums import CardType, GameTag, Race, Zone
+from hearthstone.enums import CardType, GameTag, Race, Zone
+from .. import enums
 from ..utils import CardList
 
 
@@ -346,10 +347,10 @@ class Affiliation(IntEnum):
 
 
 # Enum tests
-GameTag.test = lambda self, entity, *args: bool(entity.tags.get(self))
-CardType.test = lambda self, entity, *args: self == entity.type
-Race.test = lambda self, entity, *args: self == getattr(entity, "race", Race.INVALID)
-Zone.test = lambda self, entity, *args: self == entity.zone
+GameTag.test = lambda self, entity, *args: entity is not None and bool(entity.tags.get(self))
+CardType.test = lambda self, entity, *args: entity is not None and self == entity.type
+Race.test = lambda self, entity, *args: entity is not None and self == getattr(entity, "race", Race.INVALID)
+Zone.test = lambda self, entity, *args: entity is not None and self == entity.zone
 
 
 BATTLECRY = Selector(GameTag.BATTLECRY)
@@ -361,8 +362,9 @@ OVERLOAD = Selector(GameTag.RECALL)
 SPELLPOWER = Selector(GameTag.SPELLPOWER)
 STEALTH = Selector(GameTag.STEALTH)
 TAUNT = Selector(GameTag.TAUNT)
-ALWAYS_WINS_BRAWLS = Selector(GameTag.ALWAYS_WINS_BRAWLS)
-KILLED_THIS_TURN = Selector(GameTag.KILLED_THIS_TURN)
+
+ALWAYS_WINS_BRAWLS = AttrSelector(enums.ALWAYS_WINS_BRAWLS) == True
+KILLED_THIS_TURN = AttrSelector(enums.KILLED_THIS_TURN) == True
 
 
 IN_PLAY = Selector(Zone.PLAY)

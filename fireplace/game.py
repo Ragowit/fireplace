@@ -2,10 +2,10 @@ import random
 import time
 from calendar import timegm
 from itertools import chain
-from .actions import Attack, BeginTurn, Death, EndTurn, EventListener
+from hearthstone.enums import CardType, PlayState, State, Step, Zone
+from .actions import Attack, BeginTurn, Death, EndTurn, EventListener, Hit
 from .card import THE_COIN
 from .entity import Entity
-from .enums import CardType, PlayState, State, Step, Zone
 from .managers import GameManager
 from .utils import CardList
 from .exceptions import GameOver
@@ -97,9 +97,9 @@ class BaseGame(Entity):
 		# Save the attacker/defender atk values in case they change during the attack
 		# (eg. in case of Enrage)
 		def_atk = defender.atk
-		attacker.hit(defender, attacker.atk)
+		self.queue_actions(attacker, [Hit(defender, attacker.atk)])
 		if def_atk:
-			defender.hit(attacker, def_atk)
+			self.queue_actions(defender, [Hit(attacker, def_atk)])
 		attacker.attacking = False
 		defender.defending = False
 		attacker.num_attacks += 1

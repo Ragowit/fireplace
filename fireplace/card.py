@@ -1,9 +1,9 @@
 from itertools import chain
+from hearthstone.enums import CardType, PlayReq, Race, Rarity, Zone
 from . import cards as CardDB, rules
-from .actions import Damage, Deaths, Destroy, Heal, Morph, Play, Shuffle, SetCurrentHealth
+from .actions import Activate, Deaths, Destroy, Heal, Hit, Morph, Play, Shuffle, SetCurrentHealth
 from .aura import TargetableByAuras
 from .entity import Entity, boolean_property, int_property
-from .enums import CardType, PlayReq, Race, Rarity, Zone
 from .managers import CardManager
 from .targeting import is_valid_target
 from .utils import CardList
@@ -47,6 +47,8 @@ class BaseCard(Entity):
 		self.turns_in_play = 0
 		self._zone = Zone.INVALID
 		self.tags.update(data.tags)
+		if hasattr(data.scripts, "tags"):
+			self.tags.update(data.scripts.tags)
 
 	def __str__(self):
 		return self.name
@@ -105,6 +107,9 @@ class BaseCard(Entity):
 			setattr(ret, k, v)
 		return ret
 
+	def get_damage(self, amount, target):
+		return amount
+
 
 class PlayableCard(BaseCard, TargetableByAuras):
 	windfury = boolean_property("windfury")
@@ -131,9 +136,10 @@ class PlayableCard(BaseCard, TargetableByAuras):
 	@property
 	def cost(self):
 		ret = self._getattr("cost", 0)
-		mod = getattr(self.data.scripts, "cost_mod", None)
-		if mod is not None:
-			ret += mod.evaluate(self)
+		if self.zone == Zone.HAND:
+			mod = getattr(self.data.scripts, "cost_mod", None)
+			if mod is not None:
+				ret += mod.evaluate(self)
 		return max(0, ret)
 
 	@cost.setter
@@ -250,9 +256,6 @@ class PlayableCard(BaseCard, TargetableByAuras):
 	def heal(self, target, amount):
 		return self.game.queue_actions(self, [Heal(target, amount)])
 
-	def hit(self, target, amount):
-		return self.game.queue_actions(self, [Damage(target, amount)])
-
 	def is_playable(self):
 		if self.controller.choice:
 			return False
@@ -349,6 +352,9 @@ class LiveEntity(PlayableCard):
 	@property
 	def killed_this_turn(self):
 		return self in self.game.minions_killed_this_turn
+
+	def hit(self, amount):
+		return self.game.queue_actions(self, [Hit(self, amount)])
 
 
 class Character(LiveEntity):
@@ -597,16 +603,11 @@ class Minion(Character):
 
 	def bounce(self):
 		self.log("%r is bounced back to %s's hand", self, self.controller)
-		if len(self.controller.hand) == self.controller.max_hand_size:
+		if len(self.controller.hand) >= self.controller.max_hand_size:
 			self.log("%s's hand is full and bounce fails", self.controller)
 			self.destroy()
 		else:
 			self.zone = Zone.HAND
-
-	def hit(self, target, amount):
-		super().hit(target, amount)
-		if self.stealthed:
-			self.stealthed = False
 
 	def _hit(self, source, amount):
 		if self.divine_shield:
@@ -644,12 +645,12 @@ class Spell(PlayableCard):
 		self.receives_double_spelldamage_bonus = False
 		super().__init__(data)
 
-	def hit(self, target, amount):
+	def get_damage(self, amount, target):
 		if not self.immune_to_spellpower:
 			amount = self.controller.get_spell_damage(amount)
 		if self.receives_double_spelldamage_bonus:
 			amount *= 2
-		super().hit(target, amount)
+		return amount
 
 
 class Secret(Spell):
@@ -757,25 +758,12 @@ class HeroPower(PlayableCard):
 		super()._set_zone(value)
 
 	def activate(self):
-		actions = self.get_actions("activate")
+		return self.game.queue_actions(self.controller, [Activate(self, self.target)])
 
-		ret = []
-		if actions:
-			ret += self.game.queue_actions(self, actions)
-
-		for minion in self.controller.field.filter(has_inspire=True):
-			actions = minion.get_actions("inspire")
-			if actions is None:
-				raise NotImplementedError("Missing inspire script for %r" % (minion))
-			if actions:
-				ret += self.game.queue_actions(minion, actions)
-
-		return ret
-
-	def hit(self, target, amount):
+	def get_damage(self, amount, target):
 		amount += self.controller.heropower_damage
 		amount *= (self.controller.hero_power_double + 1)
-		super().hit(target, amount)
+		return amount
 
 	def is_playable(self):
 		return False

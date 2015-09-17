@@ -1,6 +1,6 @@
 from enum import IntEnum
+from hearthstone.enums import CardType, Mulligan, PlayState, Zone
 from .dsl import LazyNum, Picker, Selector
-from .enums import CardType, Mulligan, PlayState, Zone
 from .entity import Entity
 from .utils import fireplace_logger as logger
 
@@ -268,6 +268,34 @@ class Play(GameAction):
 		card.choose = None
 
 
+class Activate(GameAction):
+	class Args(Action.Args):
+		PLAYER = 0
+		HEROPOWER = 1
+		TARGET = 2
+
+	def get_args(self, source):
+		return (source, ) + super().get_args(source)
+
+	def do(self, source, player, heropower, target=None):
+		ret = []
+
+		self.broadcast(source, EventListener.ON, heropower, target);
+
+		actions = heropower.get_actions("activate")
+		if actions:
+			ret += source.game.queue_actions(heropower, actions)
+
+		for minion in player.field.filter(has_inspire=True):
+			actions = minion.get_actions("inspire")
+			if actions is None:
+				raise NotImplementedError("Missing inspire script for %r" % (minion))
+			if actions:
+				ret += source.game.queue_actions(minion, actions)
+
+		return ret
+
+
 class TargetedAction(Action):
 	class Args(Action.Args):
 		TARGETS = 0
@@ -406,6 +434,9 @@ class Damage(TargetedAction):
 
 	def do(self, source, target, amount):
 		amount = target._hit(source, amount)
+		if source.type == CardType.MINION and source.stealthed:
+			# TODO this should be an event listener of sorts
+			source.stealthed = False
 		if amount:
 			self.broadcast(source, EventListener.ON, target, amount, source)
 
@@ -547,7 +578,9 @@ class Hit(TargetedAction):
 		AMOUNT = 1
 
 	def do(self, source, target, amount):
-		source.hit(target, amount)
+		amount = source.get_damage(amount, target)
+		if amount:
+			source.game.queue_actions(source, [Damage(target, amount)])
 
 
 class Heal(TargetedAction):
@@ -561,7 +594,7 @@ class Heal(TargetedAction):
 	def do(self, source, target, amount):
 		if source.controller.outgoing_healing_adjustment:
 			# "healing as damage" (hack-ish)
-			return source.hit(target, amount)
+			return source.game.queue_actions(source, Hit(target, amount))
 
 		amount *= (source.controller.healing_double + 1)
 		amount = min(amount, target.damage)
@@ -617,14 +650,6 @@ class Morph(TargetedAction):
 		target.zone = Zone.SETASIDE
 		card.zone = Zone.PLAY
 		return card
-
-
-class Freeze(TargetedAction):
-	"""
-	Freeze character targets.
-	"""
-	def do(self, source, target):
-		target.frozen = True
 
 
 class FillMana(TargetedAction):

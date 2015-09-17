@@ -5,7 +5,7 @@ import re
 import sys; sys.path.append(os.path.join(os.path.dirname(__file__), "../../.."))
 from xml.dom import minidom
 from xml.etree import ElementTree
-from fireplace.enums import GameTag
+from hearthstone.enums import GameTag
 import buffs
 import chooseone
 import missing_cards
@@ -140,7 +140,7 @@ def load_dbf(path):
 
 
 def main():
-	from fireplace.cardxml import load
+	from hearthstone.cardxml import load
 
 	if len(sys.argv) < 3:
 		print("Usage: %s <in> <out/CardDefs.xml>" % (sys.argv[0]))
@@ -179,9 +179,6 @@ def main():
 		if "Can't be targeted by spells or Hero Powers." in card.description:
 			set_tag(card, GameTag.CANT_BE_TARGETED_BY_ABILITIES, True)
 			set_tag(card, GameTag.CANT_BE_TARGETED_BY_HERO_POWERS, True)
-
-		if "Always wins Brawls." in card.description:
-			set_tag(card, GameTag.ALWAYS_WINS_BRAWLS, True)
 
 		if id in italicize:
 			description = card.description

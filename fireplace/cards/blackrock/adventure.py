@@ -18,6 +18,13 @@ class BRMA01_2H:
 	)
 
 
+# Dark Iron Bouncer
+class BRMA01_3:
+	tags = {
+		enums.ALWAYS_WINS_BRAWLS: True,
+	}
+
+
 # Jeering Crowd
 class BRMA02_2:
 	activate = Summon(CONTROLLER, "BRMA02_2t")
@@ -178,6 +185,20 @@ class BRMA_01:
 # Get 'em!
 class BRMA01_4:
 	play = Summon(CONTROLLER, "BRMA01_4t") * 4
+
+
+# Living Bomb
+class BRMA05_3:
+	play = Buff(TARGET, "BRMA05_3e")
+
+class BRMA05_3e:
+	events = OWN_TURN_BEGIN.on(Hit(ENEMY_CHARACTERS, 5))
+
+class BRMA05_3H:
+	play = Buff(TARGET, "BRMA05_3He")
+
+class BRMA05_3He:
+	events = OWN_TURN_BEGIN.on(Hit(ENEMY_CHARACTERS, 10))
 
 
 # TIME FOR SMASH

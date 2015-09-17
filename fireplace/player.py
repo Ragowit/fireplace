@@ -1,14 +1,13 @@
 import random
 from itertools import chain
+from hearthstone.enums import CardType, PlayState, Zone
 from .actions import Concede, Draw, Give, Steal, Summon
 from .aura import TargetableByAuras
 from .card import Card
 from .deck import Deck
 from .entity import Entity
-from .enums import CardType, PlayState, Zone
 from .entity import slot_property
 from .managers import PlayerManager
-from .targeting import *
 from .utils import CardList
 
 
@@ -181,7 +180,7 @@ class Player(Entity, TargetableByAuras):
 			return
 		self.fatigue_counter += 1
 		self.log("%s takes %i fatigue damage", self, self.fatigue_counter)
-		self.hero.hit(self.hero, self.fatigue_counter)
+		self.hero.hit(self.fatigue_counter)
 
 	@property
 	def max_mana(self):

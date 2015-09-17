@@ -167,21 +167,28 @@ def test_savagery():
 	watcher = game.player1.give("EX1_045")
 	watcher.play()
 	assert watcher.health == 5
-	savagery = game.player1.give("EX1_578")
-	savagery.play(watcher)
+	savagery1 = game.player1.give("EX1_578")
+	savagery1.play(watcher)
 	assert watcher.health == 5
 
-	game.player1.hero.power.use()
+	game.player1.give(HAND_OF_PROTECTION).play(target=watcher)
 	savagery2 = game.player1.give("EX1_578")
 	savagery2.play(watcher)
+	assert watcher.divine_shield
+	game.player1.give(MOONFIRE).play(target=watcher)
+	assert not watcher.divine_shield
+
+	game.player1.hero.power.use()
+	savagery3 = game.player1.give("EX1_578")
+	savagery3.play(watcher)
 	assert watcher.health == 5 - 1
 	game.end_turn(); game.end_turn()
 
-	# Play a kobold
 	game.current_player.give(KOBOLD_GEOMANCER).play()
-	savagery3 = game.player1.give("EX1_578")
-	savagery3.play(watcher)
+	savagery4 = game.player1.give("EX1_578")
+	savagery4.play(watcher)
 	assert watcher.health == 5 - 1 - 1
+
 
 
 def test_earth_shock():
@@ -783,15 +790,23 @@ def test_shield_slam():
 	shieldslam1 = game.player1.give("EX1_410")
 	shieldslam1.play(target=wisp)
 	assert not wisp.dead
+
 	game.player1.give(HAND_OF_PROTECTION).play(target=wisp)
 	assert wisp.divine_shield
 	shieldslam2 = game.player1.give("EX1_410")
 	shieldslam2.play(target=wisp)
-	assert not wisp.divine_shield
-	game.player1.hero.power.use()
-	assert game.player1.hero.armor == 2
+	assert wisp.divine_shield
+
+	geomancer = game.player1.summon(KOBOLD_GEOMANCER)
 	shieldslam3 = game.player1.give("EX1_410")
 	shieldslam3.play(target=wisp)
+	assert not wisp.divine_shield
+	geomancer.destroy()
+
+	game.player1.hero.power.use()
+	assert game.player1.hero.armor == 2
+	shieldslam4 = game.player1.give("EX1_410")
+	shieldslam4.play(target=wisp)
 	assert wisp.dead
 
 
@@ -958,6 +973,24 @@ def test_spellbender():
 	assert target.id == "tt_010a"
 	assert target.max_health == 3
 	assert target.health == 2
+
+
+def test_spellbender_echo_of_medivh():
+	game = prepare_game()
+	game.player1.discard_hand()
+	spellbender = game.player1.give("tt_010")
+	spellbender.play()
+	game.end_turn()
+
+	game.player2.discard_hand()
+	wisp = game.player2.give(WISP)
+	echo = game.player2.give("GVG_005")
+	wisp.play()
+	echo.play()
+
+	assert spellbender in game.player1.secrets
+	assert len(game.player2.hand) == 1
+	assert game.player2.hand[0].id == WISP
 
 
 def test_spiteful_smith():
@@ -1657,6 +1690,20 @@ def test_voidcaller():
 	assert doomguard.zone == Zone.PLAY
 	assert doomguard.can_attack()
 	assert len(game.current_player.hand) == 3
+
+
+def test_void_crusher():
+	game = prepare_game(WARLOCK, WARLOCK)
+	for i in range(3):
+		game.player2.summon(WISP)
+	crusher = game.player1.give("AT_023")
+	crusher.play()
+	assert len(game.player1.field) == 1
+	assert len(game.player2.field) == 3
+	game.player1.hero.power.use()
+	assert crusher.dead
+	assert len(game.player1.field) == 0
+	assert len(game.player2.field) == 2
 
 
 def test_void_terror():
@@ -2701,6 +2748,33 @@ def test_auchenai_soulpriest():
 	assert game.player2.hero.health == 28
 	game.player1.give(CIRCLE_OF_HEALING).play()
 	assert auchenai.health == 1
+
+
+def test_auchenai_soulpriest_divine_shield():
+	game = prepare_game(PRIEST, PRIEST)
+	gurubashi =  game.player1.summon("EX1_399")
+	auchenai = game.player1.summon("EX1_591")
+	game.player1.give(HAND_OF_PROTECTION).play(target=gurubashi)
+	assert gurubashi.divine_shield
+	game.player1.hero.power.use(target=gurubashi)
+	assert not gurubashi.divine_shield
+	assert gurubashi.atk == 2
+	assert gurubashi.health == 7
+
+
+def test_power_word_glory_auchenai_soulpriest():
+	game = prepare_game()
+	wisp = game.player1.give(WISP)
+	wisp.play()
+	pwglory = game.player1.give("AT_013")
+	pwglory.play(target=wisp)
+	auchenai = game.player1.give("EX1_591")
+	auchenai.play()
+	game.end_turn(); game.end_turn()
+
+	assert game.player1.hero.health == 30
+	wisp.attack(game.player2.hero)
+	assert game.player1.hero.health == 30 - 4
 
 
 def test_blessing_of_wisdom():
@@ -5182,11 +5256,15 @@ def test_fist_of_jaraxxus():
 def test_far_sight():
 	game = prepare_game()
 	game.player1.discard_hand()
-	farsight = game.current_player.give("CS2_053")
+	farsight = game.player1.give("CS2_053")
 	farsight.play()
-	assert len(game.current_player.hand) == 1
-	assert game.current_player.hand[0].buffs
-	assert game.current_player.hand[0].cost >= 0
+	assert len(game.player1.hand) == 1
+	card1 = game.player1.hand[0]
+
+	assert card1.buffs
+	assert card1.cost >= 0
+	card2 = game.player1.give(card1.id)
+	assert card1.cost == max(card2.cost - 3, 0)
 
 
 def test_fatigue():
@@ -5830,6 +5908,15 @@ def test_starfall_5_to_one():
 	starfall = game.player1.give("NEW1_007")
 	starfall.play(choose="NEW1_007b", target=snapjaw)
 	assert snapjaw.health == 2
+
+
+def test_burgle():
+	game = prepare_empty_game()
+	burgle = game.player1.give("AT_033")
+	burgle.play()
+	assert len(game.player1.hand) == 2
+	assert game.player1.hand[0].card_class == game.player2.hero.card_class
+	assert game.player1.hand[1].card_class == game.player2.hero.card_class
 
 
 def main():
