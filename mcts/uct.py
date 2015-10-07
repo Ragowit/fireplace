@@ -26,7 +26,7 @@ from enum import Enum
 from fireplace import cards
 from fireplace.cards.heroes import *
 from fireplace.deck import Deck
-from fireplace.enums import CardType, Rarity, PlayState, Mulligan
+from hearthstone.enums import CardType, Rarity, PlayState, Mulligan
 from fireplace.game import Game
 from fireplace.player import Player
 
