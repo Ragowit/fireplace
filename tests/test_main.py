@@ -190,7 +190,6 @@ def test_savagery():
 	assert watcher.health == 5 - 1 - 1
 
 
-
 def test_earth_shock():
 	game = prepare_game()
 	crusader = game.current_player.give("EX1_020")
@@ -329,16 +328,28 @@ def test_demonfuse():
 	game = prepare_game()
 	game.player2.max_mana = 9
 	demonfuse = game.player1.give("AT_024")
-	wisp = game.player2.summon(WISP)
-	imp1 = game.player1.give("EX1_319")
-	imp1.play()
-	imp2 = game.player2.summon("EX1_319")
+	game.player2.summon(WISP)
+	imp = game.player1.give(IMP)
+	imp.play()
+	game.player2.summon(IMP)
 	assert len(demonfuse.targets) == 2
-	demonfuse.play(target=imp1)
-	assert imp1.atk == 3 + 3
-	assert imp1.health == 2 + 3
-	assert imp1.buffs
+	assert imp.atk == imp.health == 1
+	demonfuse.play(target=imp)
+	assert imp.atk == imp.health == 4
 	assert game.player2.max_mana == 10
+
+
+def test_sense_demons_demonfuse():
+	# https://github.com/HearthSim/hs-bugs/issues/111
+	game = prepare_empty_game()
+	demonfuse1 = game.player1.give("AT_024")
+	demonfuse1.shuffle_into_deck()
+	demonfuse2 = game.player1.give("AT_024")
+	demonfuse2.shuffle_into_deck()
+	sense = game.player1.give("EX1_317")
+	sense.play()
+	assert demonfuse1.zone == Zone.DECK
+	assert demonfuse2.zone == Zone.DECK
 
 
 def test_duplicate():
@@ -907,7 +918,8 @@ def test_sorcerers_apprentice():
 	assert fireball1.cost == 4
 	apprentice1.play()
 	assert fireball1.cost == 3
-	apprentice2 = game.player1.summon("EX1_608")
+	apprentice2 = game.player1.give("EX1_608")
+	apprentice2.play()
 	assert fireball1.cost == 2
 	apprentice1.destroy()
 	assert fireball1.cost == 3
@@ -2166,7 +2178,8 @@ def test_beneath_the_grounds():
 
 	assert len(game.player2.hand) == 0
 	assert len(game.player1.field) == 3
-	assert game.player1.field[0].id == game.player1.field[1].id == game.player1.field[2].id == "AT_036t"
+	for minion in game.player1.field:
+		assert minion.id == "AT_036t"
 
 
 def test_bestial_wrath():
@@ -2752,8 +2765,9 @@ def test_auchenai_soulpriest():
 
 def test_auchenai_soulpriest_divine_shield():
 	game = prepare_game(PRIEST, PRIEST)
-	gurubashi =  game.player1.summon("EX1_399")
-	auchenai = game.player1.summon("EX1_591")
+	gurubashi = game.player1.summon("EX1_399")
+	auchenai = game.player1.give("EX1_591")
+	auchenai.play()
 	game.player1.give(HAND_OF_PROTECTION).play(target=gurubashi)
 	assert gurubashi.divine_shield
 	game.player1.hero.power.use(target=gurubashi)
@@ -3901,6 +3915,23 @@ def test_recombobulator():
 	assert game.player1.field[0].cost == 0
 
 
+def test_recombobulator_molten():
+	game = prepare_game()
+	game.player1.hero.set_current_health(15)
+
+	molten = game.player1.give("EX1_620")
+	assert molten.cost == 5
+	molten.play()
+	game.end_turn(); game.end_turn()
+
+	recom = game.player1.give("GVG_108")
+	recom.play(target=molten)
+	recom.destroy()
+
+	assert molten not in game.player1.field
+	assert game.player1.field[0].cost == 20
+
+
 def test_redemption():
 	game = prepare_game()
 	redemption = game.player1.give("EX1_136")
@@ -4587,7 +4618,7 @@ def test_savage_roar():
 def test_sense_demons():
 	game = prepare_empty_game()
 	game.player1.discard_hand()
-	demon1 = game.player1.give("EX1_319")
+	demon1 = game.player1.give(IMP)
 	demon1.shuffle_into_deck()
 	demon2 = game.player1.give("CS2_065")
 	demon2.shuffle_into_deck()
@@ -4746,32 +4777,38 @@ def test_shadow_word_pain_questing_adventurer():
 def test_shadowform():
 	game = prepare_game(PRIEST, PRIEST)
 	# Hero Power should reset
-	shadowform1 = game.current_player.give("EX1_625")
-	assert game.current_player.hero.power.id == "CS1h_001"
-	assert game.current_player.hero.power.is_usable()
-	game.current_player.hero.power.use(target=game.current_player.hero)
-	assert not game.current_player.hero.power.is_usable()
+	shadowform1 = game.player1.give("EX1_625")
+	assert game.player1.hero.power.id == "CS1h_001"
+	assert game.player1.hero.power.is_usable()
+	game.player1.hero.power.use(target=game.player1.hero)
+	assert not game.player1.hero.power.is_usable()
+	assert not game.player1.shadowform
 	assert shadowform1.is_playable()
+	print(game.player1.slots)
 	shadowform1.play()
-	assert game.current_player.hero.power.id == "EX1_625t"
-	assert game.current_player.hero.power.is_usable()
-	game.current_player.hero.power.use(target=game.current_player.opponent.hero)
-	assert not game.current_player.hero.power.is_usable()
-	assert game.current_player.opponent.hero.health == 28
+	print(game.player1.slots)
+	assert game.player1.shadowform
+	assert game.player1.hero.power.id == "EX1_625t"
+	assert game.player1.hero.power.is_usable()
+	game.player1.hero.power.use(target=game.player2.hero)
+	assert not game.player1.hero.power.is_usable()
+	assert game.player2.hero.health == 28
 	game.end_turn(); game.end_turn()
 
-	shadowform2 = game.current_player.give("EX1_625")
+	shadowform2 = game.player1.give("EX1_625")
 	shadowform2.play()
-	assert game.current_player.hero.power.id == "EX1_625t2"
-	assert game.current_player.hero.power.is_usable()
-	game.current_player.hero.power.use(target=game.current_player.opponent.hero)
-	assert not game.current_player.hero.power.is_usable()
-	assert game.current_player.opponent.hero.health == 25
+	assert game.player1.shadowform
+	assert game.player1.hero.power.id == "EX1_625t2"
+	assert game.player1.hero.power.is_usable()
+	game.player1.hero.power.use(target=game.player2.hero)
+	assert not game.player1.hero.power.is_usable()
+	assert game.player2.hero.health == 25
 
-	shadowform3 = game.current_player.give("EX1_625")
+	shadowform3 = game.player1.give("EX1_625")
 	shadowform3.play()
-	assert game.current_player.hero.power.id == "EX1_625t2"
-	assert not game.current_player.hero.power.is_usable()
+	assert game.player1.shadowform
+	assert game.player1.hero.power.id == "EX1_625t2"
+	assert not game.player1.hero.power.is_usable()
 
 
 def test_shadowstep():

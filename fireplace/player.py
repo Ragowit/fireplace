@@ -17,6 +17,7 @@ class Player(Entity, TargetableByAuras):
 	healing_double = slot_property("healing_double", sum)
 	hero_power_double = slot_property("hero_power_double", sum)
 	outgoing_healing_adjustment = slot_property("outgoing_healing_adjustment")
+	shadowform = slot_property("shadowform")
 	spellpower_double = slot_property("spellpower_double", sum)
 	type = CardType.PLAYER
 
@@ -114,6 +115,8 @@ class Player(Entity, TargetableByAuras):
 		card = Card(id)
 		card.controller = self
 		card.zone = zone
+		card.play_counter = self.game.play_counter
+		self.game.play_counter += 1
 		if source is not None:
 			card.creator = source
 		self.game.manager.new_entity(card)

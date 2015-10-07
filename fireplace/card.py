@@ -41,6 +41,8 @@ class BaseCard(Entity):
 		self.requirements = data.requirements.copy()
 		self.id = data.id
 		self.controller = None
+		self.choose = None
+		self.parent_card = None
 		self.aura = False
 		self.heropower_damage = 0
 		self.spellpower = 0
@@ -113,6 +115,7 @@ class BaseCard(Entity):
 
 class PlayableCard(BaseCard, TargetableByAuras):
 	windfury = boolean_property("windfury")
+	playable_zone = Zone.HAND
 
 	def __init__(self, data):
 		self.cant_play = False
@@ -122,6 +125,7 @@ class PlayableCard(BaseCard, TargetableByAuras):
 		self.overload = 0
 		self.target = None
 		self.rarity = Rarity.INVALID
+		self.choose_cards = CardList()
 		super().__init__(data)
 
 	@property
@@ -187,6 +191,14 @@ class PlayableCard(BaseCard, TargetableByAuras):
 		if old_zone == Zone.PLAY and zone not in (Zone.GRAVEYARD, Zone.SETASIDE):
 			self.clear_buffs()
 
+		if self.zone == Zone.HAND:
+			# Create the "Choose One" subcards
+			del self.choose_cards[:]
+			for id in self.data.choose_cards:
+				card = self.controller.card(id)
+				card.parent_card = self
+				self.choose_cards.append(card)
+
 	def action(self):
 		if self.cant_play:
 			self.log("%r play action cannot continue", self)
@@ -199,15 +211,13 @@ class PlayableCard(BaseCard, TargetableByAuras):
 		if self.has_combo and self.controller.combo:
 			self.log("Activating %r combo targeting %r", self, self.target)
 			actions = self.get_actions("combo")
-		elif self.choose:
-			self.log("Activating %r Choose One: %r", self, self.chosen)
-			actions = self.chosen.get_actions("play")
 		else:
 			self.log("Activating %r action targeting %r", self, self.target)
 			actions = self.get_actions("play")
 
 		if actions:
-			self.game.queue_actions(self, actions)
+			source = self.parent_card or self
+			self.game.queue_actions(source, actions)
 			# Hard-process deaths after a battlecry.
 			# cf. test_knife_juggler()
 			self.game.process_deaths()
@@ -261,6 +271,9 @@ class PlayableCard(BaseCard, TargetableByAuras):
 			return False
 		if not self.controller.current_player:
 			return False
+		zone = self.parent_card.zone if self.parent_card else self.zone
+		if zone != self.playable_zone:
+			return False
 		if self.controller.mana < self.cost:
 			return False
 		if PlayReq.REQ_TARGET_TO_PLAY in self.requirements:
@@ -284,25 +297,24 @@ class PlayableCard(BaseCard, TargetableByAuras):
 				return False
 		return True
 
-	def play(self, target=None, choose=None):
+	def play(self, target=None, index=None, choose=None):
 		"""
 		Queue a Play action on the card.
 		"""
+		if choose:
+			# This is a helper so we can do keeper.play(choose=id)
+			# instead of having to mess with keeper.choose_cards.filter(...)
+			return self.choose_cards.filter(id=choose)[0].play(target=target, index=index)
 		if self.has_target():
 			if not target:
 				raise InvalidAction("%r requires a target to play." % (self))
 			elif target not in self.targets:
 				raise InvalidAction("%r is not a valid target for %r." % (target, self))
-		if self.data.choose_cards:
-			if not choose:
-				raise InvalidAction("%r requires a choice to play." % (self))
-			if choose not in self.data.choose_cards:
-				raise InvalidAction("%r is not a valid choice for %r." % (choose, self))
-		if not self.zone == Zone.HAND:
-			raise InvalidAction("Attempted to play %r in %r." % (self, self.zone))
+		if self.choose_cards:
+			raise InvalidAction("Do not play %r! Play one of its Choose Cards instead" % (self))
 		if not self.is_playable():
 			raise InvalidAction("%r isn't playable." % (self))
-		self.game.queue_actions(self.controller, [Play(self, target, choose)])
+		self.game.queue_actions(self.controller, [Play(self, target, index)])
 		return self
 
 	def shuffle_into_deck(self):
@@ -535,6 +547,7 @@ class Minion(Character):
 		self.enrage = False
 		self.poisonous = False
 		self.silenced = False
+		self._summon_index = None
 		super().__init__(data)
 
 	@property
@@ -591,7 +604,10 @@ class Minion(Character):
 
 	def _set_zone(self, value):
 		if value == Zone.PLAY:
-			self.controller.field.append(self)
+			if self._summon_index is not None:
+				self.controller.field.insert(self._summon_index, self)
+			else:
+				self.controller.field.append(self)
 
 		if self.zone == Zone.PLAY:
 			self.log("%r is removed from the field", self)
@@ -749,6 +765,8 @@ class Weapon(rules.WeaponRules, LiveEntity):
 
 
 class HeroPower(PlayableCard):
+	playable_zone = Zone.PLAY
+
 	def _set_zone(self, value):
 		if value == Zone.PLAY:
 			if self.controller.hero.power:
