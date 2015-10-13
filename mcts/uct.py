@@ -413,7 +413,7 @@ def UCTPlayGame():
     while (state.GetMoves() != []):
         print(str(state))
         try:
-            m = UCT(rootstate = state, seconds = 10, verbose = False)
+            m = UCT(rootstate = state, seconds = 14400, verbose = False)
         except:
             print(state.deck1)
             print(state.deck2)
