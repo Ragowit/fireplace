@@ -281,7 +281,7 @@ class Activate(GameAction):
 	def do(self, source, player, heropower, target=None):
 		ret = []
 
-		self.broadcast(source, EventListener.ON, heropower, target)
+		self.broadcast(source, EventListener.ON, player, heropower, target)
 
 		actions = heropower.get_actions("activate")
 		if actions:
@@ -430,6 +430,20 @@ class Counter(TargetedAction):
 		target.cant_play = True
 
 
+class Predamage(TargetedAction):
+	"""
+	Predamage target by \a amount.
+	"""
+	class Args(Action.Args):
+		TARGETS = 0
+		AMOUNT = 1
+
+	def do(self, source, target, amount):
+		if amount:
+			target.predamage += amount
+			source.game.trigger_actions(source, [Damage(target, amount)])
+
+
 class Damage(TargetedAction):
 	"""
 	Damage target by \a amount.
@@ -439,7 +453,8 @@ class Damage(TargetedAction):
 		AMOUNT = 1
 
 	def do(self, source, target, amount):
-		amount = target._hit(source, amount)
+		amount = target._hit(source, target.predamage)
+		target.predamage = 0
 		if source.type == CardType.MINION and source.stealthed:
 			# TODO this should be an event listener of sorts
 			source.stealthed = False
@@ -586,7 +601,7 @@ class Hit(TargetedAction):
 	def do(self, source, target, amount):
 		amount = source.get_damage(amount, target)
 		if amount:
-			source.game.queue_actions(source, [Damage(target, amount)])
+			source.game.queue_actions(source, [Predamage(target, amount)])
 
 
 class Heal(TargetedAction):
@@ -710,7 +725,7 @@ class SetCurrentHealth(TargetedAction):
 	def do(self, source, target, amount):
 		logger.info("Setting current health on %r to %i", target, amount)
 		maxhp = target.max_health
-		target.damage = max(0, maxhp - amount)
+		target._damage = max(0, maxhp - amount)
 
 
 class SetTag(TargetedAction):

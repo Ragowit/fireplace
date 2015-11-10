@@ -1,7 +1,6 @@
 from itertools import chain
 from hearthstone.enums import CardType, PlayReq, Race, Rarity, Zone
-from . import cards as CardDB, rules
-from .actions import Activate, Deaths, Destroy, Heal, Hit, Morph, Play, Shuffle, SetCurrentHealth
+from . import actions, cards as CardDB, rules
 from .aura import TargetableByAuras
 from .entity import Entity, boolean_property, int_property
 from .managers import CardManager
@@ -37,7 +36,6 @@ class BaseCard(Entity):
 	def __init__(self, data):
 		self.data = data
 		super().__init__()
-		self.slots = []
 		self.requirements = data.requirements.copy()
 		self.id = data.id
 		self.controller = None
@@ -143,7 +141,10 @@ class PlayableCard(BaseCard, TargetableByAuras):
 		if self.zone == Zone.HAND:
 			mod = getattr(self.data.scripts, "cost_mod", None)
 			if mod is not None:
-				ret += mod.evaluate(self)
+				r = mod.evaluate(self)
+				# evaluate() can return None if it's an Evaluator (Crush)
+				if r:
+					ret += r
 		return max(0, ret)
 
 	@cost.setter
@@ -174,12 +175,8 @@ class PlayableCard(BaseCard, TargetableByAuras):
 		"""
 		script = getattr(self.data.scripts, "powered_up", None)
 		if script:
-			return script.evaluate(self)
+			return script.check(self)
 		return False
-
-	@property
-	def buffs(self):
-		return [slot for slot in self.slots if isinstance(slot, Enchantment)]
 
 	@property
 	def entities(self):
@@ -226,14 +223,8 @@ class PlayableCard(BaseCard, TargetableByAuras):
 			self.log("%r overloads %s for %i", self, self.controller, self.overload)
 			self.controller.overloaded += self.overload
 
-	def clear_buffs(self):
-		if self.buffs:
-			self.log("Clearing buffs from %r", self)
-			for buff in self.buffs:
-				buff.destroy()
-
 	def destroy(self):
-		return self.game.queue_actions(self, [Destroy(self), Deaths()])
+		return self.game.queue_actions(self, [actions.Destroy(self), actions.Deaths()])
 
 	def _destroy(self):
 		"""
@@ -264,7 +255,7 @@ class PlayableCard(BaseCard, TargetableByAuras):
 				self.game.queue_actions(self, actions)
 
 	def heal(self, target, amount):
-		return self.game.queue_actions(self, [Heal(target, amount)])
+		return self.game.queue_actions(self, [actions.Heal(target, amount)])
 
 	def is_playable(self):
 		if self.controller.choice:
@@ -314,14 +305,14 @@ class PlayableCard(BaseCard, TargetableByAuras):
 			raise InvalidAction("Do not play %r! Play one of its Choose Cards instead" % (self))
 		if not self.is_playable():
 			raise InvalidAction("%r isn't playable." % (self))
-		self.game.queue_actions(self.controller, [Play(self, target, index)])
+		self.game.queue_actions(self.controller, [actions.Play(self, target, index)])
 		return self
 
 	def shuffle_into_deck(self):
 		"""
 		Shuffle the card into the controller's deck
 		"""
-		return self.game.queue_actions(self.controller, [Shuffle(self.controller, self)])
+		return self.game.queue_actions(self.controller, [actions.Shuffle(self.controller, self)])
 
 	def has_target(self):
 		if self.has_combo and PlayReq.REQ_TARGET_FOR_COMBO in self.requirements:
@@ -348,6 +339,23 @@ class LiveEntity(PlayableCard):
 		super().__init__(data)
 		self._to_be_destroyed = False
 		self._damage = 0
+		self.predamage = 0
+
+	@property
+	def damaged(self):
+		return bool(self.damage)
+
+	@property
+	def damage(self):
+		return self._damage
+
+	@damage.setter
+	def damage(self, amount):
+		self._set_damage(amount)
+
+	def _set_damage(self, amount):
+		amount = max(0, amount)
+		self._damage = amount
 
 	@property
 	def dead(self):
@@ -366,7 +374,7 @@ class LiveEntity(PlayableCard):
 		return self in self.game.minions_killed_this_turn
 
 	def hit(self, amount):
-		return self.game.queue_actions(self, [Hit(self, amount)])
+		return self.game.queue_actions(self, [actions.Hit(self, amount)])
 
 
 class Character(LiveEntity):
@@ -445,24 +453,6 @@ class Character(LiveEntity):
 		self.game.attack(self, target)
 
 	@property
-	def damaged(self):
-		return bool(self.damage)
-
-	@property
-	def damage(self):
-		return self._damage
-
-	@damage.setter
-	def damage(self, amount):
-		amount = max(0, amount)
-
-		if self.min_health:
-			self.log("%r has HEALTH_MINIMUM of %i", self, self.min_health)
-			amount = min(amount, self.max_health - self.min_health)
-
-		self._damage = amount
-
-	@property
 	def health(self):
 		return max(0, self.max_health - self.damage)
 
@@ -480,7 +470,7 @@ class Character(LiveEntity):
 		return super().targets
 
 	def set_current_health(self, amount):
-		return self.game.queue_actions(self, [SetCurrentHealth(self, amount)])
+		return self.game.queue_actions(self, [actions.SetCurrentHealth(self, amount)])
 
 
 class Hero(Character):
@@ -520,12 +510,13 @@ class Hero(Character):
 				self.controller.summon(self.data.hero_power)
 		super()._set_zone(value)
 
-	def _hit(self, source, amount):
+	def _set_damage(self, amount):
 		if self.armor:
 			new_amount = max(0, amount - self.armor)
 			self.armor -= min(self.armor, amount)
+			self.log("Damage on %r reduced to %r by armor", self, new_amount)
 			amount = new_amount
-		return super()._hit(source, amount)
+		return super()._set_damage(amount)
 
 
 class Minion(Character):
@@ -602,6 +593,12 @@ class Minion(Character):
 			ret += (script, )
 		return ret
 
+	def _set_damage(self, amount):
+		if self.min_health:
+			self.log("%r has HEALTH_MINIMUM of %i", self, self.min_health)
+			amount = min(amount, self.max_health - self.min_health)
+		super()._set_damage(amount)
+
 	def _set_zone(self, value):
 		if value == Zone.PLAY:
 			if self._summon_index is not None:
@@ -634,7 +631,7 @@ class Minion(Character):
 		return super()._hit(source, amount)
 
 	def morph(self, into):
-		return self.game.queue_actions(self, [Morph(self, into)])
+		return self.game.queue_actions(self, [actions.Morph(self, into)])
 
 	def is_playable(self):
 		playable = super().is_playable()
@@ -700,9 +697,9 @@ class Enchantment(BaseCard):
 
 	def _set_zone(self, zone):
 		if zone == Zone.PLAY:
-			self.owner.slots.append(self)
+			self.owner.buffs.append(self)
 		elif zone == Zone.REMOVEDFROMGAME:
-			self.owner.slots.remove(self)
+			self.owner.buffs.remove(self)
 			if self in self.game.active_aura_buffs:
 				self.game.active_aura_buffs.remove(self)
 		super()._set_zone(zone)
@@ -776,7 +773,7 @@ class HeroPower(PlayableCard):
 		super()._set_zone(value)
 
 	def activate(self):
-		return self.game.queue_actions(self.controller, [Activate(self, self.target)])
+		return self.game.queue_actions(self.controller, [actions.Activate(self, self.target)])
 
 	def get_damage(self, amount, target):
 		amount += self.controller.heropower_damage

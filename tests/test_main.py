@@ -256,6 +256,23 @@ def test_echo_of_medivh():
 	assert len(game.player1.field) == 4
 
 
+def test_effigy():
+	game = prepare_game()
+	wisp = game.player1.give(WISP)
+	wisp.play()
+	effigy = game.player1.give("AT_002")
+	effigy.play()
+	assert effigy in game.player1.secrets
+	game.end_turn()
+
+	game.player2.give(MOONFIRE).play(target=wisp)
+	assert effigy not in game.player1.secrets
+	assert len(game.player1.field) == 1
+	assert game.player1.field[0].cost == wisp.cost == 0
+	assert wisp.dead
+	assert not game.player2.field
+
+
 def test_equality():
 	game = prepare_game()
 	equality = game.current_player.give("EX1_619")
@@ -637,6 +654,19 @@ def test_alexstrasza():
 	assert game.player2.hero.health == 30
 	alex2.play(target=game.player2.hero)
 	assert game.player2.hero.health == 15
+
+
+def test_alexstrasza_armor():
+	game = prepare_game(WARRIOR, WARRIOR)
+	game.player1.hero.power.use()
+	game.end_turn()
+
+	alex = game.player2.give("EX1_561")
+	assert game.player1.hero.health == 30
+	assert game.player1.hero.armor == 2
+	alex.play(target=game.player1.hero)
+	assert game.player1.hero.health == 15
+	assert game.player1.hero.armor == 2
 
 
 def test_alexstrasza_ragnaros():
@@ -1144,6 +1174,27 @@ def test_emperor_thaurissan():
 	assert wisp.cost == 0
 	assert footman.cost == 0
 	assert deathwing.cost == 10 - 2
+
+
+def test_emperor_thaurissan_molten_recombobulator():
+	game = prepare_empty_game()
+	molten = game.player1.give("EX1_620")
+	thaurissan = game.player1.give("BRM_028")
+	thaurissan.play()
+	game.end_turn(); game.end_turn()
+
+	assert molten.cost == 19
+	thaurissan.destroy()
+	ancestor = game.player1.give("GVG_029")
+	ancestor.play()
+	assert molten.cost == 20
+	assert molten in game.player1.field
+	game.end_turn(); game.end_turn()
+
+	recomb = game.player1.give("GVG_108")
+	recomb.play(target=molten)
+	assert len(game.player1.field) == 2
+	assert game.player1.field[1].cost == 20
 
 
 def test_ethereal_arcanist():
@@ -3181,8 +3232,10 @@ def test_grand_crusader():
 	assert len(game.player1.hand) == 1
 	crusader.play()
 	assert len(game.player1.hand) == 1
-	assert game.player1.hand[0].card_class == CardClass.PALADIN
-	assert game.player1.hand[0].data.collectible
+	card = game.player1.hand[0]
+	assert card.card_class == CardClass.PALADIN
+	assert card.data.collectible
+	assert card.type != CardType.HERO
 
 
 def test_grimscale_oracle():
@@ -3829,6 +3882,15 @@ def test_nerubar_weblord():
 	assert footman1.cost == footman2.cost == 1
 	assert archer1.cost == archer2.cost == 1 + 2
 	assert perdition1.cost == perdition2.cost == 3
+
+
+def test_lord_jaraxxus_molten():
+	game = prepare_game()
+	jaraxxus = game.player1.give("EX1_323")
+	molten = game.player1.give("EX1_620")
+	jaraxxus.play()
+	assert game.player1.hero.health == 15
+	assert molten.cost == 20
 
 
 def test_noble_sacrifice():
@@ -5271,6 +5333,19 @@ def test_felguard():
 	assert game.player1.mana == 1
 
 
+def test_fencing_coach():
+	game = prepare_game(WARRIOR, WARRIOR)
+	coach = game.player1.give("AT_115")
+	assert game.player1.hero.power.cost == 2
+	coach.play()
+	assert game.player1.hero.power.cost == 0
+	game.end_turn(); game.end_turn()
+
+	assert game.player1.hero.power.cost == 0
+	game.player1.hero.power.activate()
+	assert game.player1.hero.power.cost == 2
+
+
 def test_fireguard_destroyer():
 	game = prepare_game()
 	fireguard = game.player1.give("BRM_012")
@@ -5408,7 +5483,6 @@ def test_flame_leviathan():
 
 
 def test_floating_watcher():
-	game = prepare_game()
 	game = prepare_game(WARLOCK, WARLOCK)
 	watcher = game.player1.give("GVG_100")
 	watcher.play()
@@ -5419,6 +5493,22 @@ def test_floating_watcher():
 	assert watcher.atk == watcher.health == 4 + 2
 	game.player1.hero.power.use()
 	assert watcher.atk == watcher.health == 4 + 4
+
+
+def test_floating_watcher_armor():
+	game = prepare_game()
+	watcher = game.player1.give("GVG_100")
+	watcher.play()
+	shieldblock = game.player1.give("EX1_606")
+	shieldblock.play()
+	assert watcher.atk == watcher.health == 4
+	assert game.player1.hero.armor == 5
+	assert not game.player1.hero.damaged
+	flameimp = game.player1.give("EX1_319")
+	flameimp.play()
+	assert watcher.atk == watcher.health == 6
+	assert game.player1.hero.armor == 2
+	assert not game.player1.hero.damaged
 
 
 def test_force_of_nature():
@@ -5904,6 +5994,19 @@ def test_crackle_malygos():
 	assert game.player1.overloaded == 1
 
 
+def test_crush():
+	game = prepare_game()
+	crush = game.player1.give("GVG_052")
+	assert crush.cost == 7
+	token = game.player1.give(SPELLBENDERT)
+	token.play()
+	assert crush.cost == 7
+	game.player1.give(MOONFIRE).play(token)
+	assert crush.cost == 3
+	token.destroy()
+	assert crush.cost == 7
+
+
 def test_i_am_murloc():
 	game = prepare_game()
 	iammurloc = game.player1.give("PRO_001a")
@@ -5953,7 +6056,9 @@ def test_burgle():
 	burgle.play()
 	assert len(game.player1.hand) == 2
 	assert game.player1.hand[0].card_class == game.player2.hero.card_class
+	assert game.player1.hand[0].type != CardType.HERO
 	assert game.player1.hand[1].card_class == game.player2.hero.card_class
+	assert game.player1.hand[1].type != CardType.HERO
 
 
 def main():

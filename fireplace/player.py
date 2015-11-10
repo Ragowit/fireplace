@@ -30,8 +30,6 @@ class Player(Entity, TargetableByAuras):
 		self.field = CardList()
 		self.graveyard = CardList()
 		self.secrets = CardList()
-		self.buffs = []
-		self.slots = []
 		self.choice = None
 		self.start_hand_size = 4
 		self.max_hand_size = 10
@@ -42,11 +40,13 @@ class Player(Entity, TargetableByAuras):
 		self.hero = None
 		self.last_card_played = None
 		self.overloaded = 0
+		self.overload_locked = 0
 		self._max_mana = 0
 		self.playstate = PlayState.INVALID
 		self.temp_mana = 0
 		self.timeout = 75
 		self.times_hero_power_used_this_game = 0
+		self.used_mana = 0
 		self.minions_killed_this_turn = 0
 		self.weapon = None
 		self.zone = Zone.INVALID
@@ -88,6 +88,7 @@ class Player(Entity, TargetableByAuras):
 		for entity in self.field:
 			ret += entity.entities
 		ret += self.secrets
+		ret += self.buffs
 		return CardList(chain(list(self.hero.entities) if self.hero else [], ret, [self]))
 
 	@property
