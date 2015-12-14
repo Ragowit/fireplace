@@ -8,51 +8,69 @@ from ..utils import *
 class CS2_017:
 	activate = Buff(FRIENDLY_HERO, "CS2_017o"), GainArmor(FRIENDLY_HERO, 1)
 
+CS2_017o = buff(atk=1)
+
 
 ##
 # Minions
 
-# Cat Form (Druid of the Claw)
+# Druid of the Claw
+class EX1_165:
+	choose = ("EX1_165a", "EX1_165b")
+
 class EX1_165a:
 	play = Morph(SELF, "EX1_165t1")
 
-# Bear Form (Druid of the Claw)
 class EX1_165b:
 	play = Morph(SELF, "EX1_165t2")
 
 
-# Moonfire (Keeper of the Grove)
+# Keeper of the Grove
+class EX1_166:
+	choose = ("EX1_166a", "EX1_166b")
+
 class EX1_166a:
 	play = Hit(TARGET, 2)
 
-# Dispel (Keeper of the Grove)
 class EX1_166b:
 	play = Silence(TARGET)
 
 
-# Rooted (Ancient of War)
+# Ancient of War
+class EX1_178:
+	choose = ("EX1_178b", "EX1_178a")
+
 class EX1_178a:
 	play = Buff(SELF, "EX1_178ae")
 
-# Uproot (Ancient of War)
+EX1_178ae = buff(health=5, taunt=True)
+
 class EX1_178b:
 	play = Buff(SELF, "EX1_178be")
 
+EX1_178be = buff(atk=5)
 
-# Demigod's Favor (Cenarius)
+
+# Cenarius
+class EX1_573:
+	choose = ("EX1_573a", "EX1_573b")
+
 class EX1_573a:
 	play = Buff(FRIENDLY_MINIONS, "EX1_573ae")
 
-# Shan'do's Lesson (Cenarius)
+EX1_573ae = buff(+2, +2)
+
 class EX1_573b:
 	play = Summon(CONTROLLER, "EX1_573t") * 2
 
 
-# Ancient Teachings (Ancient of Lore)
+# Ancient of Lore
+class NEW1_008:
+	choose = ("NEW1_008a", "NEW1_008b")
+
 class NEW1_008a:
 	play = Draw(CONTROLLER) * 2
 
-# Ancient Secrets (Ancient of Lore)
 class NEW1_008b:
 	play = Heal(TARGET, 5)
 
@@ -63,6 +81,8 @@ class NEW1_008b:
 # Claw
 class CS2_005:
 	play = Buff(FRIENDLY_HERO, "CS2_005o"), GainArmor(FRIENDLY_HERO, 2)
+
+CS2_005o = buff(atk=2)
 
 
 # Healing Touch
@@ -79,10 +99,14 @@ class CS2_008:
 class CS2_009:
 	play = Buff(TARGET, "CS2_009e")
 
+CS2_009e = buff(+2, +2, taunt=True)
+
 
 # Savage Roar
 class CS2_011:
 	play = Buff(FRIENDLY_CHARACTERS, "CS2_011o")
+
+CS2_011o = buff(atk=2)
 
 
 # Swipe
@@ -94,13 +118,17 @@ class CS2_012:
 class CS2_013:
 	def play(self):
 		if self.controller.max_mana < self.controller.max_resources:
-			return GainEmptyMana(CONTROLLER, 1)
+			yield GainEmptyMana(CONTROLLER, 1)
 		else:
-			return Give(CONTROLLER, "CS2_013t")
+			yield Give(CONTROLLER, "CS2_013t")
 
 class CS2_013t:
 	play = Draw(CONTROLLER)
 
+
+# Wrath
+class EX1_154:
+	choose = ("EX1_154a", "EX1_154b")
 
 # Wrath (3 Damage)
 class EX1_154a:
@@ -111,13 +139,19 @@ class EX1_154b:
 	play = Hit(TARGET, 1), Draw(CONTROLLER)
 
 
-# Mark of Nature (Attack)
+# Mark of Nature
+class EX1_155:
+	choose = ("EX1_155a", "EX1_155b")
+
 class EX1_155a:
 	play = Buff(TARGET, "EX1_155ae")
 
-# Mark of Nature (Health)
+EX1_155ae = buff(atk=4)
+
 class EX1_155b:
 	play = Buff(TARGET, "EX1_155be")
+
+EX1_155be = buff(health=4, taunt=True)
 
 
 # Soul of the Forest
@@ -126,15 +160,20 @@ class EX1_158:
 
 class EX1_158e:
 	deathrattle = Summon(CONTROLLER, "EX1_158t")
+	tags = {GameTag.DEATHRATTLE: True}
 
 
-# Summon a Panther (Power of the Wild)
+# Power of the Wild
+class EX1_160:
+	choose = ("EX1_160a", "EX1_160b")
+
 class EX1_160a:
 	play = Summon(CONTROLLER, "EX1_160t")
 
-# Leader of the Pack (Power of the Wild)
 class EX1_160b:
 	play = Buff(FRIENDLY_MINIONS, "EX1_160be")
+
+EX1_160be = buff(+1, +1)
 
 
 # Naturalize
@@ -142,11 +181,13 @@ class EX1_161:
 	play = Destroy(TARGET), Draw(OPPONENT) * 2
 
 
-# Nourish (Gain 2 Mana Crystals)
+# Nourish
+class EX1_164:
+	choose = ("EX1_164a", "EX1_164b")
+
 class EX1_164a:
 	play = GainMana(CONTROLLER, 2)
 
-# Nourish (Draw 3 cards)
 class EX1_164b:
 	play = Draw(CONTROLLER) * 3
 
@@ -165,6 +206,8 @@ class EX1_173:
 class EX1_570:
 	play = Buff(FRIENDLY_HERO, "EX1_570e"), GainArmor(FRIENDLY_HERO, 4)
 
+EX1_570e = buff(atk=4)
+
 
 # Force of Nature
 class EX1_571:
@@ -176,13 +219,15 @@ class EX1_tk9:
 
 # Savagery
 class EX1_578:
-	play = Hit(TARGET, Attr(FRIENDLY_HERO, GameTag.ATK))
+	play = Hit(TARGET, ATK(FRIENDLY_HERO))
 
 
-# Starfall (2 Damage to All)
+# Starfall
+class NEW1_007:
+	choose = ("NEW1_007a", "NEW1_007b")
+
 class NEW1_007a:
 	play = Hit(ENEMY_MINIONS, 2)
 
-# Starfall (5 Damage to One)
 class NEW1_007b:
 	play = Hit(TARGET, 5)

@@ -1,5 +1,6 @@
 import copy
-from ..utils import fireplace_logger as logger
+from hearthstone.enums import CardType
+from ..logging import log
 
 
 class Evaluator:
@@ -44,7 +45,31 @@ class Evaluator:
 		"""
 		actions = self.evaluate(source)
 		if actions:
+			if not hasattr(actions, "__iter__"):
+				actions = (actions, )
 			source.game.trigger_actions(source, actions)
+
+
+class Attacking(Evaluator):
+	"""
+	Evaluates to True if any target in \a selector1 is attacking
+	any target in \a selector2.
+	"""
+	def __init__(self, selector1, selector2):
+		super().__init__()
+		self.selector1 = selector1
+		self.selector2 = selector2
+
+	def __repr__(self):
+		return "%s(%r)" % (self.__class__.__name__, self.selector1, self.selector2)
+
+	def check(self, source):
+		t1 = self.selector1.eval(source.game, source)
+		t2 = self.selector2.eval(source.game, source)
+		for entity in t1:
+			if entity.attacking:
+				return entity.attack_target in t2
+		return False
 
 
 class CurrentPlayer(Evaluator):
@@ -90,6 +115,19 @@ class Find(Evaluator):
 		return bool(len(self.selector.eval(source.game, source)))
 
 
+class FindDuplicates(Evaluator):
+	"""
+	Evaluates to True if \a selector has duplicates.
+	"""
+	def __init__(self, selector, count=1):
+		super().__init__()
+		self.selector = selector
+
+	def check(self, source):
+		entities = self.selector.eval(source.game, source)
+		return len(set(entities)) < len(entities)
+
+
 class Joust(Evaluator):
 	"""
 	Compare the sum of the costs of \a selector1 versus \a selector2.
@@ -106,6 +144,32 @@ class Joust(Evaluator):
 	def check(self, source):
 		t1 = self.selector1.eval(source.game, source)
 		t2 = self.selector2.eval(source.game, source)
+		if not t1:
+			return False
+		elif not t2:
+			return True
 		diff = sum(t.cost for t in t1) - sum(t.cost for t in t2)
-		logger.info("Jousting %r vs %r -> %i difference", t1, t2, diff)
+		log.info("Jousting %r vs %r -> %i difference", t1, t2, diff)
 		return diff > 0
+
+
+class Lethal(Evaluator):
+	"""
+	Evaluates to True if \a amount damage would destroy *all* entities
+	in \a selector (including armor).
+	"""
+	def __init__(self, selector, amount):
+		super().__init__()
+		self.selector = selector
+		self.amount = amount
+
+	def check(self, source):
+		entities = self.selector.eval(source.game, source)
+		amount = self.amount.evaluate(source)
+		for entity in entities:
+			health = entity.health
+			if entity.type == CardType.HERO:
+				health += entity.armor
+			if health > amount:
+				return False
+		return True

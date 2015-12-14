@@ -11,7 +11,9 @@ class GVG_016:
 
 # Hobgoblin
 class GVG_104:
-	events = Play(CONTROLLER, MINION + (ATK == 1)).on(Buff(Play.Args.CARD, "GVG_104a"))
+	events = Play(CONTROLLER, MINION + (ATK == 1)).on(Buff(Play.CARD, "GVG_104a"))
+
+GVG_104a = buff(+2, +2)
 
 
 # Piloted Sky Golem
@@ -23,23 +25,25 @@ class GVG_105:
 class GVG_106:
 	events = Death(FRIENDLY + MECH).on(Buff(SELF, "GVG_106e"))
 
+GVG_106e = buff(+2, +2)
+
 
 # Enhance-o Mechano
 class GVG_107:
 	def play(self):
 		for target in self.controller.field.exclude(self):
 			tag = random.choice((GameTag.WINDFURY, GameTag.TAUNT, GameTag.DIVINE_SHIELD))
-			yield SetTag(target, {tag: True})
+			yield SetTag(target, (tag, ))
 
 
 # Recombobulator
 class GVG_108:
-	play = Morph(TARGET, RandomMinion(cost=Attr(TARGET, GameTag.COST)))
+	play = Morph(TARGET, RandomMinion(cost=COST(TARGET)))
 
 
 # Clockwork Giant
 class GVG_121:
-	cost_mod = -Count(OPPONENT_HAND)
+	cost_mod = -Count(ENEMY_HAND)
 
 
 # Wee Spellstopper

@@ -26,20 +26,28 @@ class DS1_070:
 	powered_up = Find(FRIENDLY_MINIONS + BEAST)
 	play = Buff(TARGET, "DS1_070o")
 
+DS1_070o = buff(+2, +2, taunt=True)
+
 
 # Timber Wolf
 class DS1_175:
 	update = Refresh(FRIENDLY_MINIONS + BEAST - SELF, buff="DS1_175o")
+
+DS1_175o = buff(atk=1)
 
 
 # Tundra Rhino
 class DS1_178:
 	update = Refresh(FRIENDLY_MINIONS + BEAST, buff="DS1_178e")
 
+DS1_178e = buff(charge=True)
+
 
 # Scavenging Hyena
 class EX1_531:
 	events = Death(FRIENDLY + BEAST).on(Buff(SELF, "EX1_531e"))
+
+EX1_531e = buff(+2, +1)
 
 
 # Savannah Highmane
@@ -50,6 +58,8 @@ class EX1_534:
 # Leokk
 class NEW1_033:
 	update = Refresh(FRIENDLY_MINIONS - SELF, buff="NEW1_033o")
+
+NEW1_033o = buff(atk=1)
 
 
 ##
@@ -66,6 +76,11 @@ class CS2_084e:
 # Multi-Shot
 class DS1_183:
 	play = Hit(RANDOM_ENEMY_MINION * 2, 3)
+
+
+# Tracking
+class DS1_184:
+	play = GenericChoice(CONTROLLER, FRIENDLY_DECK[:3])
 
 
 # Arcane Shot
@@ -102,6 +117,8 @@ class EX1_544:
 class EX1_549:
 	play = Buff(TARGET, "EX1_549o")
 
+EX1_549o = buff(atk=2, immune=True)
+
 
 # Deadly Shot
 class EX1_617:
@@ -118,47 +135,55 @@ class NEW1_031:
 
 # Misdirection
 class EX1_533:
-	events = Attack(ALL_CHARACTERS, FRIENDLY_HERO).on(
-		Retarget(Attack.Args.ATTACKER, RANDOM(ALL_CHARACTERS - FRIENDLY_HERO))
+	secret = Attack(ALL_CHARACTERS, FRIENDLY_HERO).on(
+		Retarget(Attack.ATTACKER, RANDOM(ALL_CHARACTERS - FRIENDLY_HERO))
 	)
 
 
 # Snake Trap
 class EX1_554:
-	events = Attack(ALL_MINIONS, FRIENDLY_MINIONS).on(
+	secret = Attack(ALL_MINIONS, FRIENDLY_MINIONS).on(FULL_BOARD | (
 		Reveal(SELF), Summon(CONTROLLER, "EX1_554t") * 3
-	)
+	))
 
 
 # Snipe
 class EX1_609:
-	events = Play(OPPONENT, MINION).after(
-		Reveal(SELF), Hit(Play.Args.CARD, 4)
+	secret = Play(OPPONENT, MINION | HERO).after(
+		Reveal(SELF), Hit(Play.CARD, 4)
 	)
 
 
 # Explosive Trap
 class EX1_610:
-	events = Attack(ENEMY_CHARACTERS, FRIENDLY_HERO).on(
+	secret = Attack(ENEMY_CHARACTERS, FRIENDLY_HERO).on(
 		Reveal(SELF), Hit(ENEMY_CHARACTERS, 2)
 	)
 
 
 # Freezing Trap
 class EX1_611:
-	events = Attack(ENEMY_MINIONS).on(
+	secret = Attack(ENEMY_MINIONS).on(
 		Reveal(SELF),
-		Bounce(Attack.Args.ATTACKER),
-		Buff(Attack.Args.ATTACKER, "EX1_611e")
+		Bounce(Attack.ATTACKER),
+		Buff(Attack.ATTACKER, "EX1_611e")
 	)
 
 class EX1_611e:
 	events = REMOVED_IN_PLAY
+	tags = {GameTag.COST: +2}
 
 
 ##
 # Weapons
 
+# Gladiator's Longbow
+class DS1_188:
+	update = Refresh(FRIENDLY_HERO, {GameTag.IMMUNE_WHILE_ATTACKING: True})
+
+
 # Eaglehorn Bow
 class EX1_536:
 	events = Reveal(FRIENDLY_SECRETS).on(Buff(SELF, "EX1_536e"))
+
+EX1_536e = buff(health=1)

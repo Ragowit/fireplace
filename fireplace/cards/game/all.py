@@ -4,6 +4,17 @@ GAME set and other special cards
 from ..utils import *
 
 
+# Luck of the Coin
+GAME_001 = buff(health=3)
+
+
+# Coin's Vengeance
+class GAME_003:
+	events = Play(CONTROLLER, MINION).on(Buff(Play.CARD, "GAME_003e"), Destroy(SELF))
+
+GAME_003e = buff(+1, +1)
+
+
 # AFK
 class GAME_004:
 	update = Refresh(CONTROLLER, {GameTag.TIMEOUT: 10})
@@ -18,6 +29,8 @@ class GAME_005:
 class TB_006:
 	play = Buff(TARGET, "TB_006e")
 
+TB_006e = buff(+2, +2)
+
 
 # Deviate Banana
 class TB_007:
@@ -29,6 +42,11 @@ class TB_008:
 	play = Hit(TARGET, 1)
 
 
+# Tarnished Coin
+class TB_011:
+	play = ManaThisTurn(CONTROLLER, 1)
+
+
 # Boom Bot Jr.
 class TB_MechWar_Boss2_HeroPower:
 	activate = Hit(RANDOM_ENEMY_CHARACTER, 1) * 2
@@ -36,7 +54,8 @@ class TB_MechWar_Boss2_HeroPower:
 
 # Mysterious Pilot
 class TB_Pilot1:
-	deathrattle = Summon(CONTROLLER, RandomMinion(cost=Attr(SELF, GameTag.COST)))
+	deathrattle = Summon(CONTROLLER, RandomMinion(cost=COST(SELF)))
+	tags = {GameTag.DEATHRATTLE: True}
 
 
 ##
@@ -45,8 +64,8 @@ class TB_Pilot1:
 # Pile On!!!
 class BRMA01_2H_2_TB:
 	activate = (
-		Summon(CONTROLLER, RANDOM(CONTROLLER_DECK + MINION)),
-		Summon(OPPONENT, RANDOM(OPPONENT_DECK + MINION))
+		Summon(CONTROLLER, RANDOM(FRIENDLY_DECK + MINION)),
+		Summon(OPPONENT, RANDOM(ENEMY_DECK + MINION))
 	)
 
 
@@ -81,6 +100,11 @@ class BRMA14_10H_TB:
 # Wild Magic
 class BRMA13_4_2_TB:
 	activate = Give(CONTROLLER, RandomSpell(card_class=Attr(ENEMY_HERO, GameTag.CLASS)))
+
+
+# Bone Minions
+class BRMA17_5_TB:
+	activate = Summon(CONTROLLER, "BRMA17_6") * 2
 
 
 # Web Wrap

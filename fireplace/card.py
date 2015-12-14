@@ -1,8 +1,8 @@
 from itertools import chain
-from hearthstone.enums import CardType, PlayReq, Race, Rarity, Zone
-from . import actions, cards as CardDB, rules
+from hearthstone.enums import CardType, PlayReq, Race, Rarity, Step, Zone
+from . import actions, cards, rules
 from .aura import TargetableByAuras
-from .entity import Entity, boolean_property, int_property
+from .entity import BaseEntity, Entity, boolean_property, int_property, slot_property
 from .managers import CardManager
 from .targeting import is_valid_target
 from .utils import CardList
@@ -13,7 +13,7 @@ THE_COIN = "GAME_005"
 
 
 def Card(id):
-	data = getattr(CardDB, id)
+	data = cards.db[id]
 	subclass = {
 		CardType.HERO: Hero,
 		CardType.MINION: Minion,
@@ -27,11 +27,8 @@ def Card(id):
 	return subclass(data)
 
 
-class BaseCard(Entity):
+class BaseCard(BaseEntity):
 	Manager = CardManager
-	has_deathrattle = boolean_property("has_deathrattle")
-	atk = int_property("atk")
-	max_health = int_property("max_health")
 
 	def __init__(self, data):
 		self.data = data
@@ -44,14 +41,14 @@ class BaseCard(Entity):
 		self.aura = False
 		self.heropower_damage = 0
 		self.spellpower = 0
-		self.turns_in_play = 0
 		self._zone = Zone.INVALID
 		self.tags.update(data.tags)
-		if hasattr(data.scripts, "tags"):
-			self.tags.update(data.scripts.tags)
 
 	def __str__(self):
 		return self.name
+
+	def __hash__(self):
+		return self.id.__hash__()
 
 	def __repr__(self):
 		return "<%s (%r)>" % (self.__class__.__name__, self.__str__())
@@ -107,12 +104,19 @@ class BaseCard(Entity):
 			setattr(ret, k, v)
 		return ret
 
-	def get_damage(self, amount, target):
-		return amount
+	def is_playable(self) -> bool:
+		"""
+		Return whether the card can be played.
+		Do not confuse with is_summonable()
+		"""
+		return False
+
+	def play(self, *args):
+		raise NotImplementedError
 
 
-class PlayableCard(BaseCard, TargetableByAuras):
-	windfury = boolean_property("windfury")
+class PlayableCard(BaseCard, Entity, TargetableByAuras):
+	windfury = int_property("windfury")
 	playable_zone = Zone.HAND
 
 	def __init__(self, data):
@@ -124,22 +128,20 @@ class PlayableCard(BaseCard, TargetableByAuras):
 		self.target = None
 		self.rarity = Rarity.INVALID
 		self.choose_cards = CardList()
+		self.morphed = None
 		super().__init__(data)
 
 	@property
 	def events(self):
 		if self.zone == Zone.HAND:
-			ret = getattr(self.data.scripts, "in_hand", [])
-			if not hasattr(ret, "__iter__"):
-				ret = (ret, )
-			return ret
+			return self.data.scripts.Hand.events
 		return self.base_events + self._events
 
 	@property
 	def cost(self):
 		ret = self._getattr("cost", 0)
 		if self.zone == Zone.HAND:
-			mod = getattr(self.data.scripts, "cost_mod", None)
+			mod = self.data.scripts.cost_mod
 			if mod is not None:
 				r = mod.evaluate(self)
 				# evaluate() can return None if it's an Evaluator (Crush)
@@ -152,30 +154,15 @@ class PlayableCard(BaseCard, TargetableByAuras):
 		self._cost = value
 
 	@property
-	def deathrattles(self):
-		ret = []
-		if not self.has_deathrattle:
-			return ret
-		deathrattle = self.get_actions("deathrattle")
-		if deathrattle:
-			ret.append(deathrattle)
-		for buff in self.buffs:
-			if buff.has_deathrattle:
-				deathrattle = buff.get_actions("deathrattle")
-				if deathrattle:
-					ret.append(deathrattle)
-				else:
-					raise NotImplementedError("Missing deathrattle script for %r" % (buff))
-		return ret
-
-	@property
 	def powered_up(self):
 		"""
 		Returns True whether the card is "powered up".
 		"""
-		script = getattr(self.data.scripts, "powered_up", None)
-		if script:
-			return script.check(self)
+		for script in self.data.scripts.powered_up:
+			if not script.check(self):
+				break
+		else:
+			return True
 		return False
 
 	@property
@@ -197,10 +184,6 @@ class PlayableCard(BaseCard, TargetableByAuras):
 				self.choose_cards.append(card)
 
 	def action(self):
-		if self.cant_play:
-			self.log("%r play action cannot continue", self)
-			return
-
 		if self.has_target() and not self.target:
 			self.log("%r has no target, action exits early", self)
 			return
@@ -220,8 +203,11 @@ class PlayableCard(BaseCard, TargetableByAuras):
 			self.game.process_deaths()
 
 		if self.overload:
-			self.log("%r overloads %s for %i", self, self.controller, self.overload)
-			self.controller.overloaded += self.overload
+			if self.controller.cant_overload:
+				self.log("%r cannot overload %s", self, self.controller)
+			else:
+				self.log("%r overloads %s for %i", self, self.controller, self.overload)
+				self.controller.overloaded += self.overload
 
 	def destroy(self):
 		return self.game.queue_actions(self, [actions.Destroy(self), actions.Deaths()])
@@ -250,9 +236,12 @@ class PlayableCard(BaseCard, TargetableByAuras):
 			self.log("%s draws %r", self.controller, self)
 			self.zone = Zone.HAND
 			self.controller.cards_drawn_this_turn += 1
-			actions = self.get_actions("draw")
-			if actions:
-				self.game.queue_actions(self, actions)
+
+			if self.game.step > Step.BEGIN_MULLIGAN:
+				# Proc the draw script, but only if we are past mulligan
+				actions = self.get_actions("draw")
+				if actions:
+					self.game.queue_actions(self, actions)
 
 	def heal(self, target, amount):
 		return self.game.queue_actions(self, [actions.Heal(target, amount)])
@@ -286,7 +275,8 @@ class PlayableCard(BaseCard, TargetableByAuras):
 		if PlayReq.REQ_FRIENDLY_MINION_DIED_THIS_GAME in self.requirements:
 			if not self.controller.graveyard.filter(type=CardType.MINION):
 				return False
-		return True
+
+		return self.is_summonable()
 
 	def play(self, target=None, index=None, choose=None):
 		"""
@@ -296,17 +286,32 @@ class PlayableCard(BaseCard, TargetableByAuras):
 			# This is a helper so we can do keeper.play(choose=id)
 			# instead of having to mess with keeper.choose_cards.filter(...)
 			return self.choose_cards.filter(id=choose)[0].play(target=target, index=index)
+		if self.choose_cards:
+			raise InvalidAction("Do not play %r! Play one of its Choose Cards instead" % (self))
+		if not self.is_playable():
+			raise InvalidAction("%r isn't playable." % (self))
 		if self.has_target():
 			if not target:
 				raise InvalidAction("%r requires a target to play." % (self))
 			elif target not in self.targets:
 				raise InvalidAction("%r is not a valid target for %r." % (target, self))
-		if self.choose_cards:
-			raise InvalidAction("Do not play %r! Play one of its Choose Cards instead" % (self))
-		if not self.is_playable():
-			raise InvalidAction("%r isn't playable." % (self))
+		elif target:
+			self.logger.warning("%r does not require a target, ignoring target %r", self, target)
 		self.game.queue_actions(self.controller, [actions.Play(self, target, index)])
 		return self
+
+	def is_summonable(self) -> bool:
+		"""
+		Return whether the card can be summoned.
+		Do not confuse with is_playable()
+		"""
+		return True
+
+	def morph(self, into):
+		"""
+		Morph the card into another card
+		"""
+		return self.game.queue_actions(self, [actions.Morph(self, into)])
 
 	def shuffle_into_deck(self):
 		"""
@@ -334,28 +339,46 @@ class PlayableCard(BaseCard, TargetableByAuras):
 		return [card for card in self.game.characters if is_valid_target(self, card)]
 
 
-class LiveEntity(PlayableCard):
+class LiveEntity(PlayableCard, Entity):
+	has_deathrattle = boolean_property("has_deathrattle")
+	atk = int_property("atk")
+	cant_be_damaged = boolean_property("cant_be_damaged")
+	immune_while_attacking = slot_property("immune_while_attacking")
+	max_health = int_property("max_health")
+
 	def __init__(self, data):
 		super().__init__(data)
 		self._to_be_destroyed = False
-		self._damage = 0
+		self.damage = 0
 		self.predamage = 0
+		self.turns_in_play = 0
+
+	@property
+	def immune(self):
+		if self.immune_while_attacking and self.attacking:
+			return True
+		return self.cant_be_damaged
 
 	@property
 	def damaged(self):
 		return bool(self.damage)
 
 	@property
-	def damage(self):
-		return self._damage
-
-	@damage.setter
-	def damage(self, amount):
-		self._set_damage(amount)
-
-	def _set_damage(self, amount):
-		amount = max(0, amount)
-		self._damage = amount
+	def deathrattles(self):
+		ret = []
+		if not self.has_deathrattle:
+			return ret
+		deathrattle = self.get_actions("deathrattle")
+		if deathrattle:
+			ret.append(deathrattle)
+		for buff in self.buffs:
+			if buff.has_deathrattle:
+				deathrattle = buff.get_actions("deathrattle")
+				if deathrattle:
+					ret.append(deathrattle)
+				else:
+					raise NotImplementedError("Missing deathrattle script for %r" % (buff))
+		return ret
 
 	@property
 	def dead(self):
@@ -373,6 +396,13 @@ class LiveEntity(PlayableCard):
 	def killed_this_turn(self):
 		return self in self.game.minions_killed_this_turn
 
+	def _hit(self, source, amount):
+		if self.immune:
+			self.log("%r is immune to %i damage from %r", self, amount, source)
+			return 0
+		self.damage += amount
+		return amount
+
 	def hit(self, amount):
 		return self.game.queue_actions(self, [actions.Hit(self, amount)])
 
@@ -380,15 +410,15 @@ class LiveEntity(PlayableCard):
 class Character(LiveEntity):
 	health_attribute = "health"
 	cant_be_targeted_by_opponents = boolean_property("cant_be_targeted_by_opponents")
-	immune = boolean_property("immune")
+	cant_be_targeted_by_abilities = boolean_property("cant_be_targeted_by_abilities")
+	cant_be_targeted_by_hero_powers = boolean_property("cant_be_targeted_by_hero_powers")
 	min_health = boolean_property("min_health")
 
 	def __init__(self, data):
-		self.attacking = False
 		self.frozen = False
+		self.attack_target = None
 		self.cant_attack = False
-		self.cant_be_targeted_by_abilities = False
-		self.cant_be_targeted_by_hero_powers = False
+		self.cannot_attack_heroes = False
 		self.num_attacks = 0
 		self.race = Race.INVALID
 		super().__init__(data)
@@ -398,10 +428,13 @@ class Character(LiveEntity):
 		return not self.immune
 
 	@property
+	def attacking(self):
+		return bool(self.attack_target)
+
+	@property
 	def attack_targets(self):
-		script = getattr(self.data.scripts, "attack_targets", None)
-		if script:
-			targets = CardList(script.eval(self.game.characters, self))
+		if self.cannot_attack_heroes:
+			targets = self.controller.opponent.field
 		else:
 			targets = self.controller.opponent.characters
 
@@ -430,9 +463,7 @@ class Character(LiveEntity):
 
 	@property
 	def max_attacks(self):
-		if self.windfury:
-			return 2
-		return 1
+		return self.windfury + 1
 
 	@property
 	def exhausted(self):
@@ -455,13 +486,6 @@ class Character(LiveEntity):
 	@property
 	def health(self):
 		return max(0, self.max_health - self.damage)
-
-	def _hit(self, source, amount):
-		if self.immune:
-			self.log("%r is immune to %i damage from %r", self, amount, source)
-			return 0
-		self.damage += amount
-		return amount
 
 	@property
 	def targets(self):
@@ -510,13 +534,14 @@ class Hero(Character):
 				self.controller.summon(self.data.hero_power)
 		super()._set_zone(value)
 
-	def _set_damage(self, amount):
+	def _hit(self, source, amount):
+		amount = super()._hit(source, amount)
 		if self.armor:
-			new_amount = max(0, amount - self.armor)
-			self.armor -= min(self.armor, amount)
-			self.log("Damage on %r reduced to %r by armor", self, new_amount)
-			amount = new_amount
-		return super()._set_damage(amount)
+			reduced_damage = min(amount, self.armor)
+			self.log("%r loses %r armor instead of damage", self, reduced_damage)
+			self.damage -= reduced_damage
+			self.armor -= reduced_damage
+		return amount
 
 
 class Minion(Character):
@@ -529,7 +554,7 @@ class Minion(Character):
 		"always_wins_brawls", "aura", "cant_attack", "cant_be_targeted_by_abilities",
 		"cant_be_targeted_by_hero_powers", "charge", "divine_shield", "enrage",
 		"frozen", "has_deathrattle", "has_inspire", "poisonous", "stealthed",
-		"taunt", "windfury",
+		"taunt", "windfury", "cannot_attack_heroes",
 	)
 
 	def __init__(self, data):
@@ -540,13 +565,6 @@ class Minion(Character):
 		self.silenced = False
 		self._summon_index = None
 		super().__init__(data)
-
-	@property
-	def events(self):
-		ret = super().events
-		if self.poisonous:
-			ret += rules.Poisonous
-		return ret
 
 	@property
 	def ignore_scripts(self):
@@ -589,15 +607,8 @@ class Minion(Character):
 	def update_scripts(self):
 		ret = super().update_scripts
 		if self.enraged:
-			script = self.data.scripts.enrage
-			ret += (script, )
+			ret += self.data.scripts.enrage
 		return ret
-
-	def _set_damage(self, amount):
-		if self.min_health:
-			self.log("%r has HEALTH_MINIMUM of %i", self, self.min_health)
-			amount = min(amount, self.max_health - self.min_health)
-		super()._set_damage(amount)
 
 	def _set_zone(self, value):
 		if value == Zone.PLAY:
@@ -614,42 +625,31 @@ class Minion(Character):
 
 		super()._set_zone(value)
 
-	def bounce(self):
-		self.log("%r is bounced back to %s's hand", self, self.controller)
-		if len(self.controller.hand) >= self.controller.max_hand_size:
-			self.log("%s's hand is full and bounce fails", self.controller)
-			self.destroy()
-		else:
-			self.zone = Zone.HAND
-
 	def _hit(self, source, amount):
 		if self.divine_shield:
 			self.divine_shield = False
 			self.log("%r's divine shield prevents %i damage.", self, amount)
 			return
 
-		return super()._hit(source, amount)
+		amount = super()._hit(source, amount)
 
-	def morph(self, into):
-		return self.game.queue_actions(self, [actions.Morph(self, into)])
+		if self.health < self.min_health:
+			self.log("%r has HEALTH_MINIMUM of %i", self, self.min_health)
+			self.damage = self.max_health - self.min_health
 
-	def is_playable(self):
-		playable = super().is_playable()
+		return amount
+
+	def bounce(self):
+		return self.game.queue_actions(self, [actions.Bounce(self)])
+
+	def is_summonable(self):
+		summonable = super().is_summonable()
 		if len(self.controller.field) >= self.game.MAX_MINIONS_ON_FIELD:
 			return False
-		return playable
+		return summonable
 
 	def silence(self):
-		self.log("Silencing %r", self)
-		self.clear_buffs()
-
-		for attr in self.silenceable_attributes:
-			if getattr(self, attr):
-				setattr(self, attr, False)
-
-		# Wipe the event listeners
-		self._events = []
-		self.silenced = True
+		return self.game.queue_actions(self, [actions.Silence(self)])
 
 
 class Spell(PlayableCard):
@@ -668,8 +668,15 @@ class Spell(PlayableCard):
 
 class Secret(Spell):
 	@property
+	def events(self):
+		ret = super().events
+		if self.zone == Zone.SECRET and not self.exhausted:
+			ret += self.data.scripts.secret
+		return ret
+
+	@property
 	def exhausted(self):
-		return not self.controller.current_player
+		return self.zone == Zone.SECRET and self.controller.current_player
 
 	def _set_zone(self, value):
 		if value == Zone.PLAY:
@@ -681,24 +688,38 @@ class Secret(Spell):
 			self.controller.secrets.append(self)
 		super()._set_zone(value)
 
-	def is_playable(self):
+	def is_summonable(self):
 		# secrets are all unique
 		if self.controller.secrets.contains(self):
 			return False
-		return super().is_playable()
+		return super().is_summonable()
 
 
 class Enchantment(BaseCard):
+	atk = int_property("atk")
 	cost = int_property("cost")
+	has_deathrattle = boolean_property("has_deathrattle")
+	max_health = int_property("max_health")
+
+	buffs = []
+	slots = []
 
 	def __init__(self, data):
 		self.one_turn_effect = False
 		super().__init__(data)
 
+	def _getattr(self, attr, i):
+		i += getattr(self, "_" + attr, 0)
+		return getattr(self.data.scripts, attr, lambda s, x: x)(self, i)
+
 	def _set_zone(self, zone):
 		if zone == Zone.PLAY:
 			self.owner.buffs.append(self)
 		elif zone == Zone.REMOVEDFROMGAME:
+			if self.zone == zone:
+				# Can happen if a Destroy is queued after a bounce, for example
+				self.logger.warning("Trying to remove %r which is already gone", self)
+				return
 			self.owner.buffs.remove(self)
 			if self in self.game.active_aura_buffs:
 				self.game.active_aura_buffs.remove(self)
@@ -715,9 +736,6 @@ class Enchantment(BaseCard):
 		self.zone = Zone.PLAY
 
 	def destroy(self):
-		self.log("Destroying buff %r from %r", self, self.owner)
-		if hasattr(self.data.scripts, "destroy"):
-			self.data.scripts.destroy(self)
 		self.zone = Zone.REMOVEDFROMGAME
 	_destroy = destroy
 
@@ -746,10 +764,6 @@ class Weapon(rules.WeaponRules, LiveEntity):
 	@property
 	def exhausted(self):
 		return self.zone == Zone.PLAY and not self.controller.current_player
-
-	def _hit(self, source, amount):
-		self.damage += amount
-		return amount
 
 	def _set_zone(self, zone):
 		if zone == Zone.PLAY:
@@ -780,12 +794,6 @@ class HeroPower(PlayableCard):
 		amount *= (self.controller.hero_power_double + 1)
 		return amount
 
-	def is_playable(self):
-		return False
-
-	def play(self, target=None):
-		raise NotImplementedError
-
 	def use(self, target=None):
 		if not self.is_usable():
 			raise InvalidAction("%r can't be used." % (self))
@@ -796,6 +804,8 @@ class HeroPower(PlayableCard):
 			if not target:
 				raise InvalidAction("%r requires a target." % (self))
 			self.target = target
+		elif target:
+			self.logger.warning("%r does not require a target, ignoring target %r", self, target)
 
 		ret = self.activate()
 

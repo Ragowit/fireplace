@@ -25,12 +25,14 @@ class AT_106:
 
 # Armored Warhorse
 class AT_108:
-	play = JOUST & SetTag(SELF, {GameTag.CHARGE: True})
+	play = JOUST & GiveCharge(SELF)
 
 
 # Argent Watchman
 class AT_109:
 	inspire = Buff(SELF, "AT_109e")
+
+AT_109e = buff(cant_attack=False)
 
 
 # Coliseum Manager
@@ -40,7 +42,7 @@ class AT_110:
 
 # Master Jouster
 class AT_112:
-	play = JOUST & SetTag(SELF, {GameTag.TAUNT: True, GameTag.DIVINE_SHIELD: True})
+	play = JOUST & SetTag(SELF, (GameTag.TAUNT, GameTag.DIVINE_SHIELD))
 
 
 # Fencing Coach

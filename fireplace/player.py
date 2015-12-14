@@ -1,7 +1,7 @@
 import random
 from itertools import chain
 from hearthstone.enums import CardType, PlayState, Zone
-from .actions import Concede, Draw, Give, Steal, Summon
+from .actions import Concede, Draw, Fatigue, Give, Steal, Summon
 from .aura import TargetableByAuras
 from .card import Card
 from .deck import Deck
@@ -13,6 +13,7 @@ from .utils import CardList
 
 class Player(Entity, TargetableByAuras):
 	Manager = PlayerManager
+	cant_overload = slot_property("cant_overload")
 	extra_deathrattles = slot_property("extra_deathrattles")
 	healing_double = slot_property("healing_double", sum)
 	hero_power_double = slot_property("hero_power_double", sum)
@@ -23,8 +24,9 @@ class Player(Entity, TargetableByAuras):
 
 	def __init__(self, name):
 		self.data = None
-		super().__init__()
 		self.name = name
+		self.hero = None
+		super().__init__()
 		self.deck = Deck()
 		self.hand = CardList()
 		self.field = CardList()
@@ -37,7 +39,6 @@ class Player(Entity, TargetableByAuras):
 		self.cant_draw = False
 		self.cant_fatigue = False
 		self.fatigue_counter = 0
-		self.hero = None
 		self.last_card_played = None
 		self.overloaded = 0
 		self.overload_locked = 0
@@ -179,12 +180,7 @@ class Player(Entity, TargetableByAuras):
 			return ret
 
 	def fatigue(self):
-		if self.cant_fatigue:
-			self.log("%s can't fatigue and does not take damage", self)
-			return
-		self.fatigue_counter += 1
-		self.log("%s takes %i fatigue damage", self, self.fatigue_counter)
-		self.hero.hit(self.fatigue_counter)
+		return self.game.queue_actions(self, [Fatigue(self)])[0]
 
 	@property
 	def max_mana(self):

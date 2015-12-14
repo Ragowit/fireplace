@@ -8,10 +8,14 @@ from ..utils import *
 class AT_028:
 	combo = Buff(SELF, "AT_028e")
 
+AT_028e = buff(atk=3)
+
 
 # Buccaneer
 class AT_029:
-	events = Summon(FRIENDLY_WEAPON).on(Buff(Summon.Args.TARGETS, "AT_029e"))
+	events = Summon(FRIENDLY_WEAPON).on(Buff(Summon.TARGETS, "AT_029e"))
+
+AT_029e = buff(atk=1)
 
 
 # Undercity Valiant
@@ -28,6 +32,8 @@ class AT_031:
 class AT_032:
 	play = Find(FRIENDLY_MINIONS + PIRATE) & Buff(SELF, "AT_032e")
 
+AT_032e = buff(+1, +1)
+
 
 # Anub'arak
 class AT_036:
@@ -39,7 +45,7 @@ class AT_036:
 
 # Burgle
 class AT_033:
-	play = Give(CONTROLLER, RandomCollectible(card_class=Attr(ENEMY_HERO, GameTag.CLASS))) * 2
+	play = Give(CONTROLLER, RandomCollectible(card_class=ENEMY_CLASS)) * 2
 
 
 # Beneath the Grounds
@@ -47,7 +53,7 @@ class AT_035:
 	play = Shuffle(OPPONENT, "AT_035t") * 3
 
 class AT_035t:
-	draw = Summon(OPPONENT, "AT_036t"), Draw(CONTROLLER), Destroy(SELF)
+	draw = Destroy(SELF), Summon(OPPONENT, "AT_036t"), Draw(CONTROLLER)
 
 
 ##
@@ -56,3 +62,5 @@ class AT_035t:
 # Poisoned Blade
 class AT_034:
 	inspire = Buff(SELF, "AT_034e")
+
+AT_034e = buff(atk=1)

@@ -31,6 +31,7 @@ def test_auras():
 
 	webspinner = game.current_player.give("FP1_011")
 	webspinner.play()
+	assert webspinner.atk == 1
 	raidleader = game.current_player.give("CS2_122")
 	raidleader.play()
 	assert raidleader.aura
@@ -54,9 +55,12 @@ def test_auras():
 	timberwolf2.play()
 	assert timberwolf.atk == 3
 	assert timberwolf2.atk == 3
+	assert webspinner.atk == 4
 	game.current_player.give(MOONFIRE).play(target=timberwolf)
-	timberwolf2.atk == 2
+	assert timberwolf2.atk == 2
+	assert webspinner.atk == 3
 	game.current_player.give(MOONFIRE).play(target=timberwolf2)
+	assert webspinner.atk == 2
 
 
 def test_bounce():
@@ -80,7 +84,7 @@ def test_bounce():
 	assert brewmaster1.health == 2
 	assert brewmaster2.health == 2
 	brewmaster1.discard()
-	game.end_turn();
+	game.end_turn()
 
 	# fill the hand with some bananas
 	for i in range(10):
@@ -90,6 +94,7 @@ def test_bounce():
 	vanish.play()
 	assert len(game.player1.hand) == 10
 	assert brewmaster2 not in game.player1.hand
+	assert brewmaster2 not in game.player1.field
 	assert brewmaster2 in game.player1.graveyard
 	assert brewmaster2 in game.graveyard
 
@@ -110,16 +115,23 @@ def test_card_draw():
 	assert game.current_player.cards_drawn_this_turn == 2
 	game.end_turn()
 
+	assert game.current_player.cards_drawn_this_turn == 1
 	# succubus should discard 1 card
 	card = game.current_player.give("EX1_306")
 	handlength = len(game.current_player.hand)
 	card.play()
 	assert len(game.current_player.hand) == handlength - 2
+	# Discarding a card should not effect the number of cards drawn.
+	assert game.current_player.cards_drawn_this_turn == 1
 
 
 def test_cant_draw():
 	game = prepare_game()
+
+	assert len(game.player1.hand)
 	game.player1.discard_hand()
+
+	assert len(game.player1.hand) == 0
 	game.player1.cant_draw = True
 	game.end_turn(); game.end_turn()
 
@@ -139,12 +151,13 @@ def test_charge():
 	wisp.play()
 	assert not wisp.charge
 	assert not wisp.can_attack()
-	# play Charge on wisp
+	# Play Charge on Wisp
 	game.current_player.give("CS2_103").play(target=wisp)
 	assert wisp.buffs[0].tags[GameTag.CHARGE]
 	assert wisp.charge
 	assert wisp.can_attack()
 	wisp.attack(game.current_player.opponent.hero)
+	assert wisp.charge
 	assert not wisp.can_attack()
 	game.end_turn()
 
@@ -153,6 +166,7 @@ def test_charge():
 	assert stonetusk.charge
 	assert stonetusk.can_attack()
 	game.end_turn()
+	assert wisp.charge
 	assert wisp.can_attack()
 	wisp.attack(game.current_player.opponent.hero)
 	assert not wisp.can_attack()
@@ -161,7 +175,10 @@ def test_charge():
 	watcher = game.current_player.give("EX1_045")
 	watcher.play()
 	assert not watcher.can_attack()
+
+	# Play Charge on Ancient Watcher
 	game.current_player.give("CS2_103").play(target=watcher)
+	assert watcher.charge
 	assert not watcher.can_attack()
 	game.end_turn(); game.end_turn()
 
@@ -172,9 +189,9 @@ def test_charge():
 
 def test_combo():
 	game = prepare_game()
-	game.end_turn(); game.end_turn()
 	game.end_turn()
 
+	assert not game.current_player.combo
 	game.current_player.hand.filter(id=THE_COIN)[0].play()
 	# SI:7 with combo
 	assert game.current_player.combo
@@ -194,12 +211,15 @@ def test_deathrattle():
 	cardcount = len(game.current_player.hand)
 	game.end_turn()
 
+	assert loothoarder.damage == 0
+	assert not loothoarder.dead
 	archer = game.current_player.give("CS2_189")
 	archer.play(target=loothoarder)
-	assert loothoarder.dead
+	# Minions restore to full health when in graveyard.
+	assert loothoarder in game.player1.graveyard
 	assert loothoarder.damage == 0
+	assert loothoarder.dead
 	assert len(game.current_player.opponent.hand) == cardcount + 1
-	game.end_turn(); game.end_turn()
 	game.end_turn(); game.end_turn()
 
 	# test soul of the forest: deathrattle in slots
@@ -275,12 +295,36 @@ def test_divine_shield():
 	assert gurubashi.health == 7
 
 
+def test_fatigue():
+	game = prepare_game()
+	game.player1.fatigue()
+	assert game.player1.hero.health == 30 - 1
+	game.player1.fatigue()
+	assert game.player1.hero.health == 30 - 1 - 2
+	game.player1.fatigue()
+	assert game.player1.hero.health == 30 - 1 - 2 - 3
+	assert game.player2.hero.health == 30
+
+	# Draw the deck
+	game.player1.draw(26)
+	assert game.player1.hero.health == 30 - 1 - 2 - 3
+	game.player1.draw(1)
+	assert game.player1.hero.health == 30 - 1 - 2 - 3 - 4
+	game.end_turn(); game.end_turn()
+	assert game.player1.hero.health == 30 - 1 - 2 - 3 - 4 - 5
+
+
 def test_freeze():
 	game = prepare_game()
 	flameimp = game.current_player.give("EX1_319")
 	flameimp.play()
+	wisp = game.current_player.give(WISP)
+	wisp.play()
+	wisp2 = game.current_player.give(WISP)
+	wisp2.play()
 	game.end_turn()
 
+	# Unfreeze at end of owner's turn, if it could have attacked (but didn't).
 	frostshock = game.current_player.give("CS2_037")
 	frostshock.play(target=flameimp)
 	assert flameimp.frozen
@@ -289,15 +333,28 @@ def test_freeze():
 	assert flameimp.frozen
 	assert not flameimp.can_attack()
 	game.end_turn()
+
 	assert not flameimp.frozen
 	game.end_turn()
 
-	wisp = game.current_player.give(WISP)
-	wisp.play()
+	assert wisp.can_attack()
 	wisp.frozen = True
-	assert wisp.frozen
+	assert not wisp.can_attack()
+
+	assert wisp2.can_attack()
+	wisp2.attack(target=game.current_player.opponent.hero)
+	assert not wisp2.can_attack()
+	wisp2.frozen = True
+
+	wisp3 = game.current_player.give(WISP)
+	wisp3.play()
+	assert not wisp3.can_attack()
+	wisp3.frozen = True
+	assert wisp3.frozen
 	game.end_turn()
 	assert not wisp.frozen
+	assert wisp2.frozen
+	assert wisp3.frozen
 
 
 def test_graveyard_minions():
@@ -356,18 +413,30 @@ def test_graveyard_secrets():
 
 def test_joust():
 	game = prepare_empty_game()
+
+	# Jouster loses by default if she has no minions left.
+	game.queue_actions(game.player1, [JOUST & Give(game.player1, TARGET_DUMMY)])
+	assert not game.player1.hand.filter(id=TARGET_DUMMY)
+
 	wisp = game.player1.give(WISP)
 	wisp.shuffle_into_deck()
 	wisp2 = game.player1.give(WISP)
 	wisp2.shuffle_into_deck()
+
+	# Jouster wins by default if opponent has no minions left.
+	game.queue_actions(game.player1, [JOUST & Give(game.player1, TARGET_DUMMY)])
+	assert game.player1.hand.filter(id=TARGET_DUMMY)
+	game.player1.hand.filter(id=TARGET_DUMMY)[0].play()
 	game.end_turn()
 
+	# Joust succeeds: 1 > 0
 	goldshire = game.player2.give(GOLDSHIRE_FOOTMAN)
 	goldshire.shuffle_into_deck()
 	game.queue_actions(game.player2, [JOUST & Give(game.player2, TARGET_DUMMY)])
 	assert game.player2.hand.filter(id=TARGET_DUMMY)
 	game.end_turn()
 
+	# Joust fails: 0 <= 1
 	game.queue_actions(game.player1, [JOUST & Give(game.player1, TARGET_DUMMY)])
 	assert not game.player1.hand.filter(id=TARGET_DUMMY)
 
@@ -376,14 +445,28 @@ def test_mana():
 	game = prepare_game(game_class=Game)
 	footman = game.player1.give(GOLDSHIRE_FOOTMAN)
 	assert footman.cost == 1
+	assert game.player1.mana == 1
 	footman.play()
+	assert game.player1.mana == 0
 	assert footman.atk == 1
 	assert footman.health == 2
 	game.end_turn()
 
 	# Play the coin
 	coin = game.player2.hand.filter(id=THE_COIN)[0]
+	coin2 = game.player2.give(THE_COIN)
+	wisp = game.player2.give(WISP)
+	footman2 = game.player2.give(GOLDSHIRE_FOOTMAN)
+	assert game.player2.mana == 1
+	assert game.player2.temp_mana == 0
 	coin.play()
+	coin2.play()
+	assert game.player2.mana == 3
+	assert game.player2.temp_mana == 2
+	wisp.play()
+	assert game.player2.mana == 3
+	assert game.player2.temp_mana == 2
+	footman2.play()
 	assert game.player2.mana == 2
 	assert game.player2.temp_mana == 1
 	game.end_turn()
@@ -530,6 +613,20 @@ def test_silence_deathrattle():
 	assert len(game.player1.field) == 0
 
 
+def test_silence_multiple_buffs():
+	game = prepare_game()
+	wisp = game.player1.give(WISP)
+	wisp.play()
+	assert wisp.atk == 1
+	# Play Blessing of Might (+3 attack) twice
+	game.player1.give("CS2_087").play(target=wisp)
+	assert wisp.atk == 1 + 3
+	game.player1.give("CS2_087").play(target=wisp)
+	assert wisp.atk == 1 + 3 + 3
+	game.player1.give(SILENCE).play(target=wisp)
+	assert wisp.atk == 1
+
+
 def test_spell_power():
 	game = prepare_game(HUNTER, HUNTER)
 
@@ -576,31 +673,47 @@ def test_spell_power():
 
 def test_stealth_windfury():
 	game = prepare_game(MAGE, MAGE)
-	worgen = game.current_player.give("EX1_010")
+	worgen = game.player1.give("EX1_010")
 	worgen.play()
 	assert worgen.stealthed
-	assert not worgen.can_attack()
-	game.end_turn(); game.end_turn()
 	game.end_turn()
 
-	archer = game.current_player.give("CS2_189")
+	archer = game.player2.give("CS2_189")
+	assert worgen not in archer.targets
 	assert len(archer.targets) == 2  # Only the heroes
-	assert len(game.current_player.hero.power.targets) == 2
+	assert worgen not in game.player2.hero.power.targets
+	assert len(game.player2.hero.power.targets) == 2
 	game.end_turn()
 
-	worgen.attack(game.current_player.opponent.hero)
+	worgen.attack(game.player2.hero)
 	assert not worgen.stealthed
 	assert not worgen.can_attack()
-	windfury = game.current_player.give("CS2_039")
-	windfury.play(target=worgen)
-	assert worgen.windfury
-	assert worgen.num_attacks == 1
-	assert worgen.can_attack()
-	worgen.attack(game.current_player.opponent.hero)
-	assert not worgen.can_attack()
 	game.end_turn()
 
+	assert worgen in archer.targets
 	assert len(archer.targets) == 3
+	assert worgen in game.player2.hero.power.targets
+	assert len(game.player2.hero.power.targets) == 3
+
+
+def test_windfury():
+	game = prepare_game()
+	wisp = game.player1.give(WISP)
+	wisp.play()
+	assert not wisp.can_attack()
+	game.end_turn(); game.end_turn()
+
+	wisp.attack(game.player2.hero)
+	windfury = game.player1.give("CS2_039")
+	windfury.play(target=wisp)
+	assert wisp.windfury
+	assert wisp.num_attacks == 1
+	assert wisp.can_attack()
+	wisp.attack(game.player2.hero)
+	assert not wisp.can_attack()
+	assert wisp.windfury
+	game.player1.give(SILENCE).play(target=wisp)
+	assert not wisp.windfury
 
 
 def test_stealth_taunt():
@@ -618,12 +731,12 @@ def test_stealth_taunt():
 	assert goldshire not in wisp.targets
 	assert game.player1.hero in wisp.targets
 	game.end_turn()
-	
+
 	goldshire.attack(game.player2.hero)
 	assert goldshire.taunt
 	assert not goldshire.stealthed
 	game.end_turn()
-	
+
 	assert goldshire in wisp.targets
 	assert game.player1.hero not in wisp.targets
 
@@ -662,3 +775,27 @@ def test_taunt():
 	game.end_turn()
 
 	assert wisp2.targets == [goldshire1]
+
+
+def test_weapon_sheathing():
+	game = prepare_game()
+	weapon = game.player1.give(LIGHTS_JUSTICE)
+	weapon.play()
+	assert not weapon.exhausted
+	assert game.player1.hero.atk == 1
+	assert game.player1.hero.can_attack()
+	game.player1.hero.attack(target=game.player2.hero)
+	assert not weapon.exhausted
+	assert game.player1.hero.atk == 1
+	game.end_turn()
+
+	assert weapon.exhausted
+	assert game.player1.hero.atk == 0
+	assert game.player2.hero.health == 29
+	game.player2.give(LIGHTS_JUSTICE).play()
+	game.player2.hero.attack(target=game.player1.hero)
+	assert game.player1.hero.health == 29
+	assert game.player2.hero.health == 29
+	game.end_turn()
+
+	assert not weapon.exhausted

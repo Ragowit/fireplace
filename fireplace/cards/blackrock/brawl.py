@@ -8,7 +8,12 @@ from ..utils import *
 class TBA01_5:
 	activate = Buff(Give(CONTROLLER, RandomSpell()), "TBA01_5e")
 
+@custom_card
 class TBA01_5e:
+	tags = {
+		GameTag.CARDNAME: "Wild Magic Buff",
+		GameTag.CARDTYPE: CardType.ENCHANTMENT,
+	}
 	cost = SET(0)
 
 
@@ -34,6 +39,7 @@ class BRMC_85:
 class BRMC_86:
 	events = Play(OPPONENT).on(Buff(SELF, "BRMC_86e"))
 
+BRMC_86e = buff(atk=2)
 
 # Moira Bronzebeard
 class BRMC_87:
@@ -60,7 +66,7 @@ class BRMC_92:
 
 # Golemagg
 class BRMC_95:
-	cost_mod = -Attr(FRIENDLY_HERO, GameTag.DAMAGE)
+	cost_mod = -DAMAGE(FRIENDLY_HERO)
 
 
 # High Justice Grimstone
@@ -68,9 +74,20 @@ class BRMC_96:
 	events = OWN_TURN_BEGIN.on(Summon(CONTROLLER, RandomMinion(rarity=Rarity.LEGENDARY)))
 
 
+# Vaelastrasz
+class BRMC_97:
+	update = Refresh(FRIENDLY_HAND, {GameTag.COST: -3})
+
+
+# Burning Adrenaline (Unused)
+BRMC_97e = buff(cost=-2)
+
+
 # Razorgore
 class BRMC_98:
 	events = OWN_TURN_BEGIN.on(Buff(FRIENDLY_MINIONS, "BRMC_98e"))
+
+BRMC_98e = buff(atk=3)
 
 
 # Garr

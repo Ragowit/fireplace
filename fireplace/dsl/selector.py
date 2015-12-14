@@ -1,9 +1,10 @@
 import operator
 import random
 from enum import IntEnum
-from hearthstone.enums import CardType, GameTag, Race, Zone
+from hearthstone.enums import CardType, GameTag, Race, Rarity, Zone
 from .. import enums
 from ..utils import CardList
+from .lazynum import LazyValue
 
 
 class Selector:
@@ -32,6 +33,7 @@ class Selector:
 
 	def __init__(self, tag=None):
 		self.program = []
+		self.slice = None
 		if tag is not None:
 			self.program.append(tag)
 
@@ -71,6 +73,15 @@ class Selector:
 		result.program = self.program + other.program
 		result.program += [Selector._not, Selector._and]
 		return result
+
+	def __getitem__(self, val):
+		ret = Selector()
+		ret.program = self.program
+		if isinstance(val, int):
+			ret.slice = slice(val)
+		else:
+			ret.slice = val
+		return ret
 
 	def eval(self, entities, source):
 		if not entities:
@@ -114,6 +125,10 @@ class Selector:
 			if not combined:
 				# assume or
 				result += merge_output
+
+		if self.slice:
+			result = result[self.slice]
+
 		return result
 
 	def test(self, entity, source):
@@ -156,13 +171,26 @@ class AttrSelector(Selector):
 			self.op = op
 			self.value = value
 
+		def __repr__(self):
+			return "Attr(%s(%r, %r))" % (self.op.__name__, self.tag, self.value)
+
 		def test(self, entity, source):
-			return self.op(entity.tags.get(self.tag, 0), self.value)
+			value = self.value
+			if isinstance(value, Controller):
+				# Support AttrSelector(SELF, GameTag.CONTROLLER) == Controller(...)
+				# TODO: Should be a generic lazy value...
+				value = self.value.evaluate(source)
+			return self.op(entity.tags.get(self.tag, 0), value)
 
 	def __init__(self, tag):
 		super().__init__()
 		self.tag = tag
 		self.program = []
+
+	def __call__(self, selector):
+		from .lazynum import Attr
+
+		return Attr(selector, self.tag)
 
 	def _cmp(op):
 		def func(self, other):
@@ -177,8 +205,11 @@ class AttrSelector(Selector):
 	__le__ = _cmp("le")
 	__lt__ = _cmp("lt")
 
+ARMOR = AttrSelector(GameTag.ARMOR)
 ATK = AttrSelector(GameTag.ATK)
+CONTROLLER = AttrSelector(GameTag.CONTROLLER)
 COST = AttrSelector(GameTag.COST)
+DAMAGE = AttrSelector(GameTag.DAMAGE)
 
 
 class SelfSelector(Selector):
@@ -200,9 +231,6 @@ class SelfSelector(Selector):
 
 	def eval(self, entities, source):
 		return [source]
-
-	def test(self, entity, source):
-		return entity is source
 
 SELF = SelfSelector()
 
@@ -226,33 +254,30 @@ class OwnerSelector(Selector):
 			return [source.owner]
 		return []
 
-	def test(self, entity, source):
-		return entity is source.owner
-
 OWNER = OwnerSelector()
 
 
-class TargetSelector(Selector):
+class FuncSelector(Selector):
 	"""
-	Selects the source's target as target.
+	Selects cards after applying a filter function to them
 	"""
-	class IsTarget:
+	class MatchesFunc:
+		def __init__(self, func):
+			self.func = func
+
 		def test(self, entity, source):
-			return entity is source.target
+			return self.func(entity, source)
 
-	def __init__(self):
-		self.program = [self.IsTarget()]
+	def __init__(self, func):
+		self.program = [self.MatchesFunc(func)]
+		self.slice = None
 
-	def __repr__(self):
-		return "<TARGET>"
 
-	def eval(self, entities, source):
-		return [source.target]
+def ID(id):
+	return FuncSelector(lambda entity, source: getattr(entity, "id", None) == id)
 
-	def test(self, entity, source):
-		return entity is source.target
-
-TARGET = TargetSelector()
+TARGET = FuncSelector(lambda entity, source: entity is source.target)
+TARGET.eval = lambda entity, source: [source.target]
 
 
 class AdjacentSelector(Selector):
@@ -267,6 +292,7 @@ class AdjacentSelector(Selector):
 			return result
 
 	def __init__(self, selector):
+		self.slice = None
 		self.program = [Selector.MergeFilter]
 		self.program.extend(selector.program)
 		self.program.append(Selector.Merge)
@@ -276,8 +302,9 @@ class AdjacentSelector(Selector):
 	def __repr__(self):
 		return "<ADJACENT>"
 
-SELF_ADJACENT = AdjacentSelector(SELF)
-TARGET_ADJACENT = AdjacentSelector(TARGET)
+ADJACENT = AdjacentSelector
+SELF_ADJACENT = ADJACENT(SELF)
+TARGET_ADJACENT = ADJACENT(TARGET)
 
 
 class RandomSelector(Selector):
@@ -289,10 +316,14 @@ class RandomSelector(Selector):
 		def __init__(self, times):
 			self.times = times
 
+		def __repr__(self):
+			return "<RANDOM(%s)>" % (self.times)
+
 		def merge(self, selector, entities):
 			return random.sample(entities, min(len(entities), self.times))
 
 	def __init__(self, selector):
+		self.slice = None
 		self.random = self.SelectRandom(1)
 		self.selector = selector
 		self.program = [Selector.MergeFilter]
@@ -312,44 +343,45 @@ class RandomSelector(Selector):
 RANDOM = RandomSelector
 
 
-class IdSelector(Selector):
-	"""
-	Selects any card matching the given id
-	"""
-	class MatchesId:
-		def __init__(self, id):
-			super().__init__()
-			self.id = id
+class Controller(LazyValue):
+	def __init__(self, selector=None):
+		self.selector = selector
 
-		def test(self, entity, source):
-			return getattr(entity, "id", None) == self.id
+	def __repr__(self):
+		return "%s(%s)" % (self.__class__.__name__, self.selector or "<SELF>")
 
-	def __init__(self, id):
-		self.program = [self.MatchesId(id)]
+	def _get_entity_attr(self, entity):
+		return entity.controller
 
-ID = IdSelector
+	def evaluate(self, source):
+		if self.selector is None:
+			# If we don't have an argument, we default to SELF
+			# This allows us to skip selector evaluation altogether.
+			return self._get_entity_attr(source)
+		if isinstance(self.selector, LazyValue):
+			entities = [self.selector.evaluate(source)]
+		else:
+			entities = self.selector.eval(source.game, source)
+		assert len(entities) == 1
+		return self._get_entity_attr(entities[0])
 
 
-class Affiliation(IntEnum):
-	FRIENDLY = 1
-	HOSTILE = 2
-	TARGET = 3
+class Opponent(Controller):
+	def _get_entity_attr(self, entity):
+		return entity.controller.opponent
 
-	def test(self, target, source):
-		if target.type == CardType.GAME:
-			return False
-		if self == self.__class__.FRIENDLY:
-			return target.controller == source.controller
-		elif self == self.__class__.HOSTILE:
-			return target.controller != source.controller
-		elif self == self.__class__.TARGET:
-			return target.controller == source.target.controller
+FRIENDLY = CONTROLLER == Controller()
+ENEMY = CONTROLLER == Opponent()
+CONTROLLED_BY_OWNER = CONTROLLER == Controller(OWNER)
+CONTROLLED_BY_OWNER_OPPONENT = CONTROLLER == Opponent(OWNER)
+CONTROLLED_BY_TARGET = CONTROLLER == Controller(TARGET)
 
 
 # Enum tests
 GameTag.test = lambda self, entity, *args: entity is not None and bool(entity.tags.get(self))
 CardType.test = lambda self, entity, *args: entity is not None and self == entity.type
 Race.test = lambda self, entity, *args: entity is not None and self == getattr(entity, "race", Race.INVALID)
+Rarity.test = lambda self, entity, *args: entity is not None and self == getattr(entity, "rarity", Rarity.INVALID)
 Zone.test = lambda self, entity, *args: entity is not None and self == entity.zone
 
 
@@ -359,10 +391,12 @@ DAMAGED = Selector(GameTag.DAMAGE)
 DEATHRATTLE = Selector(GameTag.DEATHRATTLE)
 DIVINE_SHIELD = Selector(GameTag.DIVINE_SHIELD)
 FROZEN = Selector(GameTag.FROZEN)
-OVERLOAD = Selector(GameTag.RECALL)
+OVERLOAD = Selector(GameTag.OVERLOAD)
 SPELLPOWER = Selector(GameTag.SPELLPOWER)
 STEALTH = Selector(GameTag.STEALTH)
 TAUNT = Selector(GameTag.TAUNT)
+WINDFURY = Selector(GameTag.WINDFURY)
+CLASS_CARD = Selector(GameTag.CLASS)
 
 ALWAYS_WINS_BRAWLS = AttrSelector(enums.ALWAYS_WINS_BRAWLS) == True
 KILLED_THIS_TURN = AttrSelector(enums.KILLED_THIS_TURN) == True
@@ -373,10 +407,6 @@ IN_DECK = Selector(Zone.DECK)
 IN_HAND = Selector(Zone.HAND)
 HIDDEN = Selector(Zone.SECRET)
 KILLED = Selector(Zone.GRAVEYARD)
-
-FRIENDLY = Selector(Affiliation.FRIENDLY)
-ENEMY = Selector(Affiliation.HOSTILE)
-CONTROLLED_BY_TARGET = Selector(Affiliation.TARGET)
 
 GAME = Selector(CardType.GAME)
 PLAYER = Selector(CardType.PLAYER)
@@ -396,10 +426,10 @@ MURLOC = Selector(Race.MURLOC)
 PIRATE = Selector(Race.PIRATE)
 TOTEM = Selector(Race.TOTEM)
 
-CONTROLLER_HAND = IN_HAND + FRIENDLY
-CONTROLLER_DECK = IN_DECK + FRIENDLY
-OPPONENT_HAND = IN_HAND + ENEMY
-OPPONENT_DECK = IN_DECK + ENEMY
+COMMON = Selector(Rarity.COMMON)
+RARE = Selector(Rarity.RARE)
+EPIC = Selector(Rarity.EPIC)
+LEGENDARY = Selector(Rarity.LEGENDARY)
 
 ALL_PLAYERS = IN_PLAY + PLAYER
 ALL_HEROES = IN_PLAY + HERO
@@ -410,6 +440,8 @@ ALL_SECRETS = HIDDEN + SECRET
 ALL_HERO_POWERS = IN_PLAY + HERO_POWER
 
 CONTROLLER = ALL_PLAYERS + FRIENDLY
+FRIENDLY_HAND = IN_HAND + FRIENDLY
+FRIENDLY_DECK = IN_DECK + FRIENDLY
 FRIENDLY_HERO = IN_PLAY + FRIENDLY + HERO
 FRIENDLY_MINIONS = IN_PLAY + FRIENDLY + MINION
 FRIENDLY_CHARACTERS = IN_PLAY + FRIENDLY + CHARACTER
@@ -418,6 +450,8 @@ FRIENDLY_SECRETS = HIDDEN + FRIENDLY + SECRET
 FRIENDLY_HERO_POWER = IN_PLAY + FRIENDLY + HERO_POWER
 
 OPPONENT = ALL_PLAYERS + ENEMY
+ENEMY_HAND = IN_HAND + ENEMY
+ENEMY_DECK = IN_DECK + ENEMY
 ENEMY_HERO = IN_PLAY + ENEMY + HERO
 ENEMY_MINIONS = IN_PLAY + ENEMY + MINION
 ENEMY_CHARACTERS = IN_PLAY + ENEMY + CHARACTER
@@ -425,6 +459,8 @@ ENEMY_WEAPON = IN_PLAY + ENEMY + WEAPON
 ENEMY_SECRETS = HIDDEN + ENEMY + SECRET
 ENEMY_HERO_POWER = IN_PLAY + ENEMY + HERO_POWER
 
+OWNER_CONTROLLER = ALL_PLAYERS + CONTROLLED_BY_OWNER
+OWNER_OPPONENT = ALL_PLAYERS + CONTROLLED_BY_OWNER_OPPONENT
 TARGET_PLAYER = ALL_PLAYERS + CONTROLLED_BY_TARGET
 
 RANDOM_MINION = RANDOM(ALL_MINIONS)

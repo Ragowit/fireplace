@@ -23,7 +23,7 @@ class CS2_088:
 
 # Argent Protector
 class EX1_362:
-	play = SetTag(TARGET, {GameTag.DIVINE_SHIELD: True})
+	play = GiveDivineShield(TARGET)
 
 
 # Aldor Peacekeeper
@@ -46,6 +46,8 @@ class EX1_383:
 class CS2_087:
 	play = Buff(TARGET, "CS2_087e")
 
+CS2_087e = buff(atk=3)
+
 
 # Holy Light
 class CS2_089:
@@ -55,6 +57,8 @@ class CS2_089:
 # Blessing of Kings
 class CS2_092:
 	play = Buff(TARGET, "CS2_092e")
+
+CS2_092e = buff(+4, +4)
 
 
 # Consecration
@@ -71,7 +75,7 @@ class CS2_094:
 class EX1_349:
 	def play(self):
 		diff = len(self.controller.opponent.hand) - len(self.controller.hand)
-		return Draw(CONTROLLER) * max(0, diff)
+		yield Draw(CONTROLLER) * max(0, diff)
 
 
 # Lay on Hands
@@ -102,21 +106,26 @@ class EX1_363:
 class EX1_363e:
 	events = Attack(OWNER).on(Draw(CONTROLLER))
 
+# Blessing of Wisdom (Unused)
+class EX1_363e2:
+	events = Attack(OWNER).on(Draw(OWNER_OPPONENT))
+
 
 # Holy Wrath
 class EX1_365:
-	play = Hit(TARGET, Attr(Draw(CONTROLLER), GameTag.COST))
+	play = Hit(TARGET, COST(Draw(CONTROLLER)))
+
 
 # Hand of Protection
 class EX1_371:
-	play = SetTag(TARGET, {GameTag.DIVINE_SHIELD: True})
+	play = GiveDivineShield(TARGET)
 
 
 # Avenging Wrath
 class EX1_384:
 	def play(self):
 		count = self.controller.get_spell_damage(8)
-		return Hit(RANDOM_ENEMY_CHARACTER, 1) * count
+		yield Hit(RANDOM_ENEMY_CHARACTER, 1) * count
 
 
 # Equality
@@ -132,29 +141,29 @@ class EX1_619e:
 
 # Noble Sacrifice
 class EX1_130:
-	events = Attack(ENEMY_MINIONS).on(
-		Reveal(SELF), Retarget(Attack.Args.ATTACKER, Summon(CONTROLLER, "EX1_130a"))
-	)
+	secret = Attack(ENEMY_MINIONS).on(FULL_BOARD | (
+		Reveal(SELF), Retarget(Attack.ATTACKER, Summon(CONTROLLER, "EX1_130a"))
+	))
 
 
 # Eye for an Eye
 class EX1_132:
-	events = Damage(FRIENDLY_HERO).on(
-		Reveal(SELF), Hit(ENEMY_HERO, Damage.Args.AMOUNT)
+	secret = Damage(FRIENDLY_HERO).on(
+		Reveal(SELF), Hit(ENEMY_HERO, Damage.AMOUNT)
 	)
 
 
 # Redemption
 class EX1_136:
-	events = Death(FRIENDLY + MINION).on(
-		Reveal(SELF), SetCurrentHealth(Summon(CONTROLLER, Copy(Death.Args.ENTITY)), 1)
-	)
+	secret = Death(FRIENDLY + MINION).on(FULL_BOARD | (
+		Reveal(SELF), SetCurrentHealth(Summon(CONTROLLER, Copy(Death.ENTITY)), 1)
+	))
 
 
 # Repentance
 class EX1_379:
-	events = Play(OPPONENT, MINION).after(
-		Reveal(SELF), Buff(Play.Args.CARD, "EX1_379e")
+	secret = Play(OPPONENT, MINION | HERO).after(
+		Reveal(SELF), Buff(Play.CARD, "EX1_379e")
 	)
 
 class EX1_379e:
@@ -172,6 +181,8 @@ class CS2_097:
 # Sword of Justice
 class EX1_366:
 	events = Summon(CONTROLLER, MINION).after(
-		Buff(Summon.Args.CARDS, "EX1_366e"),
+		Buff(Summon.CARDS, "EX1_366e"),
 		Hit(SELF, 1)
 	)
+
+EX1_366e = buff(+1, +1)

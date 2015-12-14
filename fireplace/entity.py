@@ -1,11 +1,13 @@
 import uuid
-from .utils import fireplace_logger
+from hearthstone.enums import CardType
+from . import logging
 
 
 class BaseEntity(object):
 	base_events = []
-	logger = fireplace_logger
+	logger = logging.log
 	ignore_scripts = False
+	type = CardType.INVALID
 
 	def __init__(self):
 		self.manager = self.Manager(self)
@@ -13,15 +15,20 @@ class BaseEntity(object):
 		self.tags = self.manager
 		self.uuid = uuid.uuid4()
 
-		scripts = getattr(self.data, "scripts", None)
-		events = getattr(scripts, "events", [])
-		if not isinstance(events, list):
-			self._events = [events]
+		if self.data:
+			self._events = self.data.scripts.events[:]
 		else:
-			self._events = events[:]
+			self._events = []
 
 	def __int__(self):
 		return self.entity_id
+
+	@property
+	def is_card(self):
+		"""
+		True if the Entity is a real card (as opposed to a Player, Game, ...)
+		"""
+		return self.type > CardType.PLAYER
 
 	@property
 	def events(self):
@@ -31,23 +38,17 @@ class BaseEntity(object):
 	def update_scripts(self):
 		ret = []
 		if self.data and not self.ignore_scripts:
-			scripts = getattr(self.data.scripts, "update", ())
-			if not hasattr(scripts, "__iter__"):
-				ret.append(scripts)
-			else:
-				for s in scripts:
-					ret.append(s)
+			for script in self.data.scripts.update:
+				ret.append(script)
 		return ret
 
 	def log(self, message, *args):
 		self.logger.info(message, *args)
 
 	def get_actions(self, name):
-		actions = getattr(self.data.scripts, name, None)
+		actions = getattr(self.data.scripts, name)
 		if callable(actions):
 			actions = actions(self)
-		if actions and not hasattr(actions, "__iter__"):
-			actions = (actions, )
 		return actions
 
 	def trigger_event(self, source, event, args):
@@ -77,6 +78,14 @@ class BaseEntity(object):
 		if event.once:
 			self._events.remove(event)
 
+		return actions
+
+	def get_damage(self, amount: int, target) -> int:
+		"""
+		Override to modify the damage dealt to a target from the given amount.
+		"""
+		return amount
+
 
 class BuffableEntity(BaseEntity):
 	def __init__(self):
@@ -97,7 +106,7 @@ class BuffableEntity(BaseEntity):
 	def clear_buffs(self):
 		if self.buffs:
 			self.log("Clearing buffs from %r", self)
-			for buff in self.buffs:
+			for buff in self.buffs[:]:
 				buff.destroy()
 
 

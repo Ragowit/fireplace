@@ -24,11 +24,6 @@ class AT_123:
 	deathrattle = HOLDING_DRAGON & Hit(ALL_MINIONS, 3)
 
 
-# Icehowl
-class AT_125:
-	attack_targets = ENEMY_MINIONS
-
-
 # Nexus-Champion Saraad
 class AT_127:
 	inspire = Give(CONTROLLER, RandomSpell())
@@ -41,7 +36,7 @@ class AT_128:
 
 # Fjola Lightbane
 class AT_129:
-	events = Play(CONTROLLER, SPELL, SELF).on(SetTag(SELF, {GameTag.DIVINE_SHIELD: True}))
+	events = Play(CONTROLLER, SPELL, SELF).on(GiveDivineShield(SELF))
 
 
 # Eydis Darkbane
@@ -68,4 +63,4 @@ class AT_132:
 	def play(self):
 		upgrade = AT_132.HERO_POWER_MAP.get(self.controller.hero.power.id)
 		if upgrade:
-			return Summon(CONTROLLER, upgrade)
+			yield Summon(CONTROLLER, upgrade)

@@ -10,10 +10,12 @@ class CS2_181:
 class EX1_004:
 	events = OWN_TURN_END.on(Buff(RANDOM_OTHER_FRIENDLY_MINION, "EX1_004e"))
 
+EX1_004e = buff(health=1)
+
 
 # Alarm-o-Bot
 class EX1_006:
-	events = OWN_TURN_BEGIN.on(Swap(SELF, RANDOM(CONTROLLER_HAND + MINION)))
+	events = OWN_TURN_BEGIN.on(Swap(SELF, RANDOM(FRIENDLY_HAND + MINION)))
 
 
 # Angry Chicken
@@ -23,13 +25,16 @@ class EX1_009:
 
 # Twilight Drake
 class EX1_043:
-	play = Buff(SELF, "EX1_043e") * Count(CONTROLLER_HAND)
+	play = Buff(SELF, "EX1_043e") * Count(FRIENDLY_HAND)
+
+EX1_043e = buff(health=1)
 
 
 # Questing Adventurer
 class EX1_044:
 	events = OWN_CARD_PLAY.on(Buff(SELF, "EX1_044e"))
 
+EX1_044e = buff(+1, +1)
 
 # Coldlight Oracle
 class EX1_050:
@@ -39,6 +44,8 @@ class EX1_050:
 # Mana Addict
 class EX1_055:
 	events = OWN_SPELL_PLAY.on(Buff(SELF, "EX1_055o"))
+
+EX1_055o = buff(atk=2)
 
 
 # Sunfury Protector
@@ -55,13 +62,15 @@ class EX1_059:
 class EX1_076:
 	update = (
 		(Attr(CONTROLLER, GameTag.NUM_MINIONS_PLAYED_THIS_TURN) == 0) &
-		Refresh(FRIENDLY + MINION + IN_HAND, {GameTag.COST: -1})
+		Refresh(FRIENDLY_HAND + MINION, {GameTag.COST: -1})
 	)
 
 
 # Secretkeeper
 class EX1_080:
 	events = OWN_SECRET_PLAY.on(Buff(SELF, "EX1_080o"))
+
+EX1_080o = buff(+1, +1)
 
 
 # Mind Control Tech
@@ -78,6 +87,8 @@ class EX1_089:
 class EX1_093:
 	play = Buff(SELF_ADJACENT, "EX1_093e")
 
+EX1_093e = buff(+2, +2, taunt=True)
+
 
 # Gadgetzan Auctioneer
 class EX1_095:
@@ -93,6 +104,8 @@ class EX1_097:
 class EX1_103:
 	play = Buff(ALL_MINIONS + MURLOC - SELF, "EX1_103e")
 
+EX1_103e = buff(health=2)
+
 
 # Azure Drake
 class EX1_284:
@@ -102,6 +115,8 @@ class EX1_284:
 # Murloc Tidecaller
 class EX1_509:
 	events = Summon(ALL_PLAYERS, MURLOC).on(Buff(SELF, "EX1_509e"))
+
+EX1_509e = buff(atk=1)
 
 
 # Ancient Mage
@@ -116,7 +131,7 @@ class EX1_597:
 
 # Mana Wraith
 class EX1_616:
-	update = Refresh(MINION + IN_HAND, {GameTag.COST: +1})
+	update = Refresh(IN_HAND + MINION, {GameTag.COST: +1})
 
 
 # Knife Juggler
@@ -142,6 +157,8 @@ class NEW1_026:
 # Master Swordsmith
 class NEW1_037:
 	events = OWN_TURN_END.on(Buff(RANDOM_OTHER_FRIENDLY_MINION, "NEW1_037e"))
+
+NEW1_037e = buff(atk=1)
 
 
 # Stampeding Kodo

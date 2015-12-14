@@ -2,22 +2,10 @@
 
 import os
 import re
-import sys; sys.path.append(os.path.join(os.path.dirname(__file__), "../../.."))
+import sys; sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from xml.dom import minidom
 from xml.etree import ElementTree
 from hearthstone.enums import GameTag
-import buffs
-import chooseone
-import missing_cards
-
-
-italicize = [
-	"EX1_345t",  # Shadow of Nothing
-	"TU4c_005",  # Hidden Gnome
-	"TU4c_007",  # Mukla's Big Brother
-	"GAME_006",  # NOOOOOOOOOOOO
-	"PlaceholderCard",  # Placeholder Card
-]
 
 
 def add_chooseone_tags(card, ids):
@@ -33,16 +21,6 @@ def add_hero_power(card, id):
 	e.attrib["cardID"] = id
 	card.xml.append(e)
 	print("%s: Adding hero power %r" % (card, id))
-
-
-def fix_entourage(card, guids):
-	for entourage in card.xml.findall("EntourageCard"):
-		guid = entourage.attrib["cardID"]
-		if len(guid) < 34:
-			# Still using mini guids, don't need to convert anything
-			return
-		entourage.attrib["cardID"] = guids[guid]
-	print("%s: Converting long guid to mini guids" % (card))
 
 
 def guess_spellpower(card):
@@ -68,10 +46,11 @@ def guess_overload(card):
 	print("%s: Setting Overload to %i" % (card.name, amount))
 
 
-def create_card(id, card):
+def create_card(id, tags):
+	print("%s: Creating card with %r" % (id, tags))
 	e = ElementTree.Element("Entity")
 	e.attrib["CardID"] = id
-	for tag, value in card.items():
+	for tag, value in tags.items():
 		e.append(_create_tag(tag, value))
 	return e
 
@@ -141,6 +120,7 @@ def load_dbf(path):
 
 def main():
 	from hearthstone.cardxml import load
+	from fireplace.utils import _custom_cards, get_script_definition
 
 	if len(sys.argv) < 3:
 		print("Usage: %s <in> <out/CardDefs.xml>" % (sys.argv[0]))
@@ -149,12 +129,14 @@ def main():
 	db, xml = load(os.path.join(sys.argv[1], "CardDefs.xml"))
 	guids, hero_powers = load_dbf(os.path.join(sys.argv[1], "DBF", "CARD.xml"))
 	for id, card in db.items():
-		if hasattr(buffs, id):
-			for tag, value in getattr(buffs, id).items():
-				set_tag(card, tag, value)
+		carddef = get_script_definition(id)
+		if carddef:
+			if hasattr(carddef, "tags"):
+				for tag, value in carddef.tags.items():
+					set_tag(card, tag, value)
 
-		if hasattr(chooseone, id):
-			add_chooseone_tags(card, getattr(chooseone, id))
+			if hasattr(carddef, "choose"):
+				add_chooseone_tags(card, carddef.choose)
 
 		if id in hero_powers:
 			add_hero_power(card, hero_powers[id])
@@ -163,9 +145,6 @@ def main():
 			# Hearthstone uses entourage data to identify Spare Parts
 			# We're better than that.
 			set_tag(card, GameTag.SPARE_PART, True)
-
-		if card.xml.findall("EntourageCard"):
-			fix_entourage(card, guids)
 
 		if card.tags.get(GameTag.SPELLPOWER):
 			guess_spellpower(card)
@@ -176,23 +155,19 @@ def main():
 		if "Can't attack." in card.description:
 			set_tag(card, GameTag.CANT_ATTACK, True)
 
+		if "Can't attack heroes." in card.description:
+			set_tag(card, GameTag.CANNOT_ATTACK_HEROES, True)
+
 		if "Can't be targeted by spells or Hero Powers." in card.description:
 			set_tag(card, GameTag.CANT_BE_TARGETED_BY_ABILITIES, True)
 			set_tag(card, GameTag.CANT_BE_TARGETED_BY_HERO_POWERS, True)
 
-		if id in italicize:
-			description = card.description
-			assert description and not description.startswith("<i>")
-			print("%s: Italicizing description %r" % (id, description))
-			e = card._find_tag(GameTag.CARDTEXT_INHAND)
-			if e is not None:
-				for desc in e:
-					desc.text = "<i>%s</i>" % (desc.text)
-			else:
-				print("WARNING: No CARDTEXT_INHAND tag found on %r" % (card))
+		if "<b>Mega-Windfury</b>" in card.description:
+			set_tag(card, GameTag.WINDFURY, 3)
 
 	# xml = db[next(db.__iter__())].xml
-	with open(sys.argv[2], "w", encoding="utf8") as f:
+	path = os.path.realpath(sys.argv[2])
+	with open(path, "w", encoding="utf8") as f:
 		root = ElementTree.Element("CardDefs")
 		for e in xml.findall("Entity"):
 			# We want to retain the order so we can't just use db.keys()
@@ -200,11 +175,9 @@ def main():
 			card = db[id]
 			root.append(card.xml)
 
-		for id, obj in missing_cards.__dict__.items():
-			if id.startswith("_") or not isinstance(obj, dict):
-				# skip the imports
-				continue
-			e = create_card(id, obj)
+		# Create all registered custom cards
+		for id, cls in _custom_cards.items():
+			e = create_card(id, cls.tags)
 			root.append(e)
 
 		outstr = ElementTree.tostring(root)
@@ -212,7 +185,7 @@ def main():
 		outstr = minidom.parseString(outstr).toprettyxml(indent="\t")
 		outstr = "\n".join(line for line in outstr.split("\n") if line.strip())
 		f.write(outstr)
-		print("Written to", f.name)
+		print("Written to", path)
 
 
 if __name__ == "__main__":

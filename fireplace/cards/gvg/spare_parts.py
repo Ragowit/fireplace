@@ -9,6 +9,8 @@ from ..utils import *
 class PART_001:
 	play = Buff(TARGET, "PART_001e")
 
+PART_001e = buff(health=1)
+
 
 # Time Rewinder
 class PART_002:
@@ -22,7 +24,7 @@ class PART_003:
 
 # Finicky Cloakfield
 class PART_004:
-	play = Buff(TARGET + STEALTH, "PART_004e")
+	play = Buff(TARGET - STEALTH, "PART_004e")
 
 
 class PART_004e:
@@ -42,3 +44,5 @@ class PART_006:
 # Whirling Blades
 class PART_007:
 	play = Buff(TARGET, "PART_007e")
+
+PART_007e = buff(atk=1)

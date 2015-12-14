@@ -18,8 +18,8 @@ class BaseGame(Entity):
 
 	def __init__(self, players):
 		self.data = None
-		super().__init__()
 		self.players = players
+		super().__init__()
 		for player in players:
 			player.game = self
 		self.state = State.INVALID
@@ -80,30 +80,6 @@ class BaseGame(Entity):
 	def attack(self, source, target):
 		return self.queue_actions(source, [Attack(source, target)])
 
-	def _attack(self):
-		"""
-		See https://github.com/jleclanche/fireplace/wiki/Combat
-		for information on how attacking works
-		"""
-		attacker = self.proposed_attacker
-		defender = self.proposed_defender
-		self.proposed_attacker = None
-		self.proposed_defender = None
-		if attacker.should_exit_combat:
-			self.log("Attack has been interrupted.")
-			attacker.attacking = False
-			defender.defending = False
-			return
-		# Save the attacker/defender atk values in case they change during the attack
-		# (eg. in case of Enrage)
-		def_atk = defender.atk
-		self.queue_actions(attacker, [Hit(defender, attacker.atk)])
-		if def_atk:
-			self.queue_actions(defender, [Hit(attacker, def_atk)])
-		attacker.attacking = False
-		defender.defending = False
-		attacker.num_attacks += 1
-
 	def _play(self, card):
 		"""
 		Plays \a card from a Player's hand
@@ -113,8 +89,9 @@ class BaseGame(Entity):
 		cost = card.cost
 		if player.temp_mana:
 			# The coin, Innervate etc
-			cost -= player.temp_mana
-			player.temp_mana = max(0, player.temp_mana - card.cost)
+			used_temp = min(player.temp_mana, cost)
+			cost -= used_temp
+			player.temp_mana -= used_temp
 		player.used_mana += cost
 		player.last_card_played = card
 		card.play_counter = self.play_counter
@@ -188,9 +165,6 @@ class BaseGame(Entity):
 		Performs a list of `actions` from `source`.
 		This should seldom be called directly - use `queue_actions` instead.
 		"""
-		if not hasattr(actions, "__iter__"):
-			actions = (actions, )
-
 		ret = []
 		for action in actions:
 			if isinstance(action, EventListener):
@@ -223,6 +197,10 @@ class BaseGame(Entity):
 		refresh_queue = []
 		for entity in self.entities:
 			for script in entity.update_scripts:
+				refresh_queue.append((entity, script))
+
+		for entity in self.hands:
+			for script in entity.data.scripts.Hand.update:
 				refresh_queue.append((entity, script))
 
 		# Sort the refresh queue by refresh priority (used by eg. Lightspawn)
@@ -280,10 +258,10 @@ class BaseGame(Entity):
 	def end_turn_cleanup(self):
 		self.manager.step(self.next_step, Step.MAIN_NEXT)
 		for character in self.current_player.characters.filter(frozen=True):
-			if not character.num_attacks:
+			if not character.num_attacks and not character.exhausted:
 				self.log("Freeze fades from %r", character)
 				character.frozen = False
-		for buff in self.current_player.entities.filter(one_turn_effect=True):
+		for buff in self.entities.filter(one_turn_effect=True):
 			self.log("Ending One-Turn effect: %r", buff)
 			buff.destroy()
 		self.begin_turn(self.current_player.opponent)
@@ -311,11 +289,12 @@ class BaseGame(Entity):
 		player.used_mana = 0
 		player.overload_locked = player.overloaded
 		player.overloaded = 0
-		for entity in player.entities:
+		for entity in self.live_entities:
 			if entity.type != CardType.PLAYER:
 				entity.turns_in_play += 1
-				if entity.type == CardType.HERO_POWER:
-					entity.exhausted = False
+
+		if player.hero.power:
+			player.hero.power.exhausted = False
 
 		for character in self.characters:
 			character.num_attacks = 0
@@ -356,7 +335,7 @@ class MulliganRules:
 		self.step, self.next_step = self.next_step, Step.MAIN_READY
 
 		for player in self.players:
-			self.queue_actions(self, MulliganChoice(player))
+			self.queue_actions(self, [MulliganChoice(player)])
 
 
 class Game(MulliganRules, CoinRules, BaseGame):

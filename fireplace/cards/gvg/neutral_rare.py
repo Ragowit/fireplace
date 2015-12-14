@@ -18,13 +18,15 @@ class GVG_094:
 
 # Goblin Sapper
 class GVG_095:
-	update = (Count(OPPONENT_HAND) >= 6) & Refresh(SELF, {GameTag.ATK: +4})
+	update = (Count(ENEMY_HAND) >= 6) & Refresh(SELF, {GameTag.ATK: +4})
 
 
 # Lil' Exorcist
 class GVG_097:
 	# The Enchantment ID is correct
 	play = Buff(SELF, "GVG_101e") * Count(ENEMY_MINIONS + DEATHRATTLE)
+
+GVG_101e = buff(+1, +1)
 
 
 # Bomb Lobber

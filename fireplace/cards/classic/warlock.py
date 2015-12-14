@@ -14,7 +14,9 @@ class CS2_056:
 
 # Blood Imp
 class CS2_059:
-	events = OWN_TURN_END.on(Buff(FRIENDLY_MINIONS - SELF, "CS2_059o"))
+	events = OWN_TURN_END.on(Buff(RANDOM_OTHER_FRIENDLY_MINION, "CS2_059o"))
+
+CS2_059o = buff(health=1)
 
 
 # Dread Infernal
@@ -30,19 +32,19 @@ class EX1_301:
 # Void Terror
 class EX1_304:
 	play = (
-		Buff(SELF, "EX1_304e", atk=Attr(SELF_ADJACENT, GameTag.ATK), max_health=Attr(SELF_ADJACENT, "health")),
+		Buff(SELF, "EX1_304e", atk=ATK(SELF_ADJACENT), max_health=Attr(SELF_ADJACENT, "health")),
 		Destroy(SELF_ADJACENT)
 	)
 
 
 # Succubus
 class EX1_306:
-	play = Discard(RANDOM(CONTROLLER_HAND))
+	play = Discard(RANDOM(FRIENDLY_HAND))
 
 
 # Doomguard
 class EX1_310:
-	play = Discard(RANDOM(CONTROLLER_HAND) * 2)
+	play = Discard(RANDOM(FRIENDLY_HAND) * 2)
 
 
 # Pit Lord
@@ -52,7 +54,7 @@ class EX1_313:
 
 # Summoning Portal
 class EX1_315:
-	update = Refresh(FRIENDLY + MINION + IN_HAND, {
+	update = Refresh(FRIENDLY_HAND + MINION, {
 		GameTag.COST: lambda self, i: min(i, max(1, i - 2))
 	})
 
@@ -65,8 +67,7 @@ class EX1_319:
 # Lord Jaraxxus
 class EX1_323:
 	play = (
-		Destroy(SELF),
-		Summon(CONTROLLER, "EX1_323h"),
+		Morph(SELF, Summon(CONTROLLER, "EX1_323h")),
 		Summon(CONTROLLER, "EX1_323w")
 	)
 
@@ -108,12 +109,12 @@ class EX1_302:
 
 # Shadowflame
 class EX1_303:
-	play = Hit(ENEMY_MINIONS, Attr(TARGET, GameTag.ATK)), Destroy(TARGET)
+	play = Hit(ENEMY_MINIONS, ATK(TARGET)), Destroy(TARGET)
 
 
 # Soulfire
 class EX1_308:
-	play = Hit(TARGET, 4), Discard(RANDOM(CONTROLLER_HAND))
+	play = Hit(TARGET, 4), Discard(RANDOM(FRIENDLY_HAND))
 
 
 # Siphon Soul
@@ -132,13 +133,17 @@ class EX1_316:
 
 class EX1_316e:
 	events = TURN_END.on(Destroy(OWNER))
+	tags = {
+		GameTag.ATK: +4,
+		GameTag.HEALTH: +4,
+	}
 
 
 # Sense Demons
 class EX1_317:
 	play = (
-		Find(CONTROLLER_DECK + DEMON) &
-		ForceDraw(RANDOM(CONTROLLER_DECK + DEMON)) |
+		Find(FRIENDLY_DECK + DEMON) &
+		ForceDraw(RANDOM(FRIENDLY_DECK + DEMON)) |
 		Give(CONTROLLER, "EX1_317t"),
 	) * 2
 
@@ -151,6 +156,8 @@ class EX1_320:
 # Demonfire
 class EX1_596:
 	play = Find(TARGET + FRIENDLY + DEMON) & Buff(TARGET, "EX1_596e") | Hit(TARGET, 2)
+
+EX1_596e = buff(+2, +2)
 
 
 # Sacrificial Pact

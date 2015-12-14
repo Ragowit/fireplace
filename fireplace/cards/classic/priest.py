@@ -21,6 +21,8 @@ class CS2_235:
 class EX1_001:
 	events = Heal().on(Buff(SELF, "EX1_001e"))
 
+EX1_001e = buff(atk=2)
+
 
 # Cabal Shadow Priest
 class EX1_091:
@@ -57,6 +59,8 @@ class EX1_591:
 class EX1_623:
 	play = Buff(TARGET, "EX1_623e")
 
+EX1_623e = buff(health=3)
+
 
 ##
 # Spells
@@ -64,6 +68,8 @@ class EX1_623:
 # Power Word: Shield
 class CS2_004:
 	play = Buff(TARGET, "CS2_004e"), Draw(CONTROLLER)
+
+CS2_004e = buff(health=2)
 
 
 # Holy Nova
@@ -94,7 +100,7 @@ class CS1_130:
 
 # Mind Vision
 class CS2_003:
-	play = Give(CONTROLLER, Copy(RANDOM(OPPONENT_HAND)))
+	play = Give(CONTROLLER, Copy(RANDOM(ENEMY_HAND)))
 
 
 # Shadow Word: Pain
@@ -126,22 +132,23 @@ class EX1_334:
 	play = Steal(TARGET), Buff(TARGET, "EX1_334e")
 
 class EX1_334e:
-	events = TURN_END.on(Destroy(SELF))
-
-	def destroy(self):
-		self.controller.opponent.steal(self.owner)
+	events = [
+		TURN_END.on(Destroy(SELF), Steal(OWNER, OPPONENT)),
+		Silence(OWNER).on(Steal(OWNER, OPPONENT))
+	]
+	tags = {GameTag.CHARGE: True}
 
 
 # Thoughtsteal
 class EX1_339:
-	play = Give(CONTROLLER, Copy(RANDOM(OPPONENT_DECK) * 2))
+	play = Give(CONTROLLER, Copy(RANDOM(ENEMY_DECK) * 2))
 
 
 # Mindgames
 class EX1_345:
 	play = (
-		Find(OPPONENT_DECK + MINION) &
-		Summon(CONTROLLER, Copy(RANDOM(OPPONENT_DECK + MINION))) |
+		Find(ENEMY_DECK + MINION) &
+		Summon(CONTROLLER, Copy(RANDOM(ENEMY_DECK + MINION))) |
 		Summon(CONTROLLER, "EX1_345t")
 	)
 
@@ -165,11 +172,11 @@ class EX1_624:
 class EX1_625:
 	def play(self):
 		if self.controller.hero.power.id == "EX1_625t":
-			return Summon(CONTROLLER, "EX1_625t2")
+			yield Summon(CONTROLLER, "EX1_625t2")
 		elif self.controller.hero.power.id == "EX1_625t2":
 			pass
 		else:
-			return Summon(CONTROLLER, "EX1_625t")
+			yield Summon(CONTROLLER, "EX1_625t")
 
 # Mind Spike
 class EX1_625t:

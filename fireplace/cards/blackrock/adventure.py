@@ -7,14 +7,14 @@ from ..utils import *
 # Pile On!
 class BRMA01_2:
 	activate = (
-		Summon(CONTROLLER, RANDOM(CONTROLLER_DECK + MINION)),
-		Summon(OPPONENT, RANDOM(OPPONENT_DECK + MINION))
+		Summon(CONTROLLER, RANDOM(FRIENDLY_DECK + MINION)),
+		Summon(OPPONENT, RANDOM(ENEMY_DECK + MINION))
 	)
 
 class BRMA01_2H:
 	activate = (
-		Summon(CONTROLLER, RANDOM(CONTROLLER_DECK + MINION) * 2),
-		Summon(OPPONENT, RANDOM(OPPONENT_DECK + MINION))
+		Summon(CONTROLLER, RANDOM(FRIENDLY_DECK + MINION) * 2),
+		Summon(OPPONENT, RANDOM(ENEMY_DECK + MINION))
 	)
 
 
@@ -96,6 +96,8 @@ class BRMA10_3:
 class BRMA10_3H:
 	activate = Buff(ALL_MINIONS + ID("BRMA10_4"), "BRMA10_3e"), Summon(CONTROLLER, "BRMA10_4")
 
+BRMA10_3e = buff(health=1)
+
 
 # Essence of the Red
 class BRMA11_2:
@@ -105,12 +107,29 @@ class BRMA11_2H:
 	activate = Draw(ALL_PLAYERS) * 3, GainMana(CONTROLLER, 1)
 
 
+# Brood Affliction
+class BRMA12_2:
+	activate = Give(OPPONENT, RandomEntourage())
+
+class BRMA12_2H:
+	activate = Give(OPPONENT, RandomEntourage())
+
+
+# Mutation (Unused)
+class BRMA12_10:
+	activate = Discard(RANDOM(FRIENDLY_HAND))
+
+
 # Wild Magic
 class BRMA13_4:
-	activate = Give(CONTROLLER, RandomSpell(card_class=Attr(TARGET, GameTag.CLASS)))
+	activate = Give(CONTROLLER, RandomSpell(card_class=ENEMY_CLASS))
 
 class BRMA13_4H:
-	activate = Give(CONTROLLER, RandomSpell(card_class=Attr(TARGET, GameTag.CLASS)))
+	activate = Give(CONTROLLER, RandomSpell(card_class=ENEMY_CLASS))
+
+
+# Potion of Might (The Alchemist)
+BRMA15_2He = buff(+2, +2)
 
 
 # Echolocate
@@ -119,11 +138,6 @@ class BRMA16_2:
 
 class BRMA16_2H:
 	activate = Summon(CONTROLLER, "BRMA16_5")
-
-
-# Mutation (Unused)
-class BRMA12_10:
-	activate = Discard(RANDOM(CONTROLLER_HAND))
 
 
 # Bone Minions
@@ -140,8 +154,6 @@ class BRMA17_5H:
 # Moira Bronzebeard
 class BRMA03_3:
 	update = Refresh(ALL_HERO_POWERS + ID("BRMA03_2"), {GameTag.CANT_PLAY: True})
-	# The attack targeting is done at the AI level. But we could do this:
-	# attack_targets = ENEMY_HERO | TAUNT
 
 class BRMA03_3H:
 	update = Refresh(ALL_HERO_POWERS + ID("BRMA03_2"), {GameTag.CANT_PLAY: True})
@@ -248,6 +260,8 @@ class BRMA15_3:
 class BRMA16_3:
 	play = Hit(TARGET, 3), Buff(FRIENDLY_WEAPON, "BRMA16_3e")
 
+BRMA16_3e = buff(atk=3)
+
 
 # Reverberating Gong
 class BRMA16_4:
@@ -266,7 +280,64 @@ class BRMA17_4:
 class BRMA10_6:
 	events = Death(MINION + ID("BRMA10_4")).on(Buff(SELF, "BRMA10_6e"))
 
+BRMA10_6e = buff(atk=1)
+
 
 # Dragonteeth
 class BRMA16_5:
 	events = Play(OPPONENT).on(Buff(SELF, "BRMA16_5e"))
+
+BRMA16_5e = buff(atk=1)
+
+
+##
+# Brood Afflictions (Chromaggus)
+
+# Brood Affliction: Red
+class BRMA12_3:
+	class Hand:
+		events = OWN_TURN_BEGIN.on(Hit(FRIENDLY_HERO, 1))
+
+class BRMA12_3H:
+	class Hand:
+		events = OWN_TURN_BEGIN.on(Hit(FRIENDLY_HERO, 3))
+
+
+# Brood Affliction: Green
+class BRMA12_4:
+	class Hand:
+		events = OWN_TURN_BEGIN.on(Heal(ENEMY_HERO, 2))
+
+class BRMA12_4H:
+	class Hand:
+		events = OWN_TURN_BEGIN.on(Heal(ENEMY_HERO, 6))
+
+
+# Brood Affliction: Blue
+class BRMA12_5:
+	class Hand:
+		update = Refresh(ENEMY_HAND + SPELL, {GameTag.COST: -1})
+
+class BRMA12_5H:
+	class Hand:
+		update = Refresh(ENEMY_HAND + SPELL, {GameTag.COST: -3})
+
+
+# Brood Affliction: Black
+class BRMA12_6:
+	class Hand:
+		events = Draw(OPPONENT).on(Give(OPPONENT, Copy(Draw.CARD)))
+
+class BRMA12_6H:
+	class Hand:
+		events = Draw(OPPONENT).on(Give(OPPONENT, Copy(Draw.CARD)))
+
+
+# Brood Affliction: Bronze
+class BRMA12_7:
+	class Hand:
+		update = Refresh(ENEMY_HAND + MINION, {GameTag.COST: -1})
+
+class BRMA12_7H:
+	class Hand:
+		update = Refresh(ENEMY_HAND + MINION, {GameTag.COST: -3})

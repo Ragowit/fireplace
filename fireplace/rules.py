@@ -5,12 +5,10 @@ from .actions import Attack, Damage, Destroy, Hit
 from .dsl.selector import FRIENDLY_HERO, MINION, SELF
 
 
-Poisonous = [
-	Damage(MINION, None, SELF).on(Destroy(Damage.Args.TARGETS))
-]
+POISONOUS = Damage(MINION, None, SELF).on(Destroy(Damage.TARGETS))
 
 
 class WeaponRules:
 	base_events = [
-		Attack(FRIENDLY_HERO).on(Hit(SELF, 1))
+		Attack(FRIENDLY_HERO).after(Hit(SELF, 1))
 	]

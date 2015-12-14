@@ -2,10 +2,13 @@ import copy
 import operator
 import random
 from .evaluator import Evaluator
-from .selector import Selector
 
 
-class LazyNum:
+class LazyValue:
+	pass
+
+
+class LazyNum(LazyValue):
 	def __init__(self):
 		self._neg = False
 
@@ -36,13 +39,11 @@ class LazyNum:
 		return -n if self._neg else n
 
 	def get_entities(self, source):
-		from ..actions import Action
+		from .selector import Selector
 		if isinstance(self.selector, Selector):
 			entities = self.selector.eval(source.game, source)
-		elif isinstance(self.selector, Action.Args):
-			# TODO cleanup DRY with actions.py
-			assert source.event_args
-			entities = [source.event_args[self.selector]]
+		elif isinstance(self.selector, LazyValue):
+			entities = [self.selector.evaluate(source)]
 		else:
 			# TODO assert that self.selector is a TargetedAction
 			entities = sum(self.selector.trigger(source), [])
@@ -55,6 +56,9 @@ class LazyNumEvaluator(Evaluator):
 		self.num = num
 		self.other = other
 		self.cmp = cmp
+
+	def __repr__(self):
+		return "%s(%r, %r)" % (self.cmp.__name__, self.num, self.other)
 
 	def check(self, source):
 		num = self.num.evaluate(source)

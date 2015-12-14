@@ -37,10 +37,10 @@ def test_paladin():
 	game = prepare_game(PALADIN, PALADIN)
 	assert game.player1.hero.id == PALADIN
 	assert game.player2.hero.id == PALADIN
-	game.current_player.hero.power.use()
+	game.player1.hero.power.use()
 	assert len(game.board) == 1
-	assert len(game.current_player.field) == 1
-	assert game.current_player.field[0].id == "CS2_101t"
+	assert len(game.player1.field) == 1
+	assert game.player1.field[0].id == "CS2_101t"
 
 	# ensure that hero power cannot be used on full board
 	game.end_turn(); game.end_turn()
@@ -94,6 +94,22 @@ def test_shaman():
 	assert not game.player1.hero.power.is_usable()
 
 
+def test_healing_totem():
+	game = prepare_game()
+	footman = game.player1.give(GOLDSHIRE_FOOTMAN)
+	footman.play()
+	game.player1.give(MOONFIRE).play(target=footman)
+	healtotem = game.player1.give("NEW1_009")
+	healtotem.play()
+	assert footman.health == 1
+	game.end_turn()
+
+	assert footman.health == 2
+	game.end_turn()
+
+	assert footman.health == 2
+
+
 def test_warlock():
 	game = prepare_game(WARLOCK, WARLOCK)
 	assert game.player1.hero.id == WARLOCK
@@ -104,12 +120,3 @@ def test_warlock():
 	game.player1.hero.power.use()
 	assert len(game.player1.hand) == 1
 	assert game.player1.hero.health == 28
-
-	sacpact = game.current_player.give("NEW1_003")
-	assert not sacpact.is_playable()
-	flameimp = game.current_player.give("EX1_319")
-	flameimp.play()
-	assert game.current_player.hero.health == 25
-	assert sacpact.is_playable()
-	sacpact.play(target=flameimp)
-	assert game.current_player.hero.health == 30

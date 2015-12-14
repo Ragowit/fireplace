@@ -1,13 +1,11 @@
 #!/usr/bin/env python
 import argparse
-import importlib
 import re
 import string
-import sys; sys.path.append(".."); sys.path.append("../fireplace/cards/data")
+import sys; sys.path.append("..")
 from fireplace import cards
-from hearthstone.enums import CardType, CardSet
-
-import buffs
+from fireplace.utils import get_script_definition
+from hearthstone.enums import CardSet
 
 
 GREEN = "\033[92m"
@@ -20,32 +18,28 @@ PREFIXES = {
 
 SOLVED_KEYWORDS = [
 	"Windfury", "Charge", "Divine Shield", "Taunt", "Stealth",
+	"Mega-Windfury",
 	"Can't be targeted by spells or Hero Powers",
 	"Destroy any minion damaged by this minion.",
 	"50% chance to attack the wrong enemy",
-	"Can't attack",
+	r"Can't attack heroes\.",
+	r"Can't attack\.",
 	r"Your Hero Power deals \d+ extra damage.",
 	r"Spell Damage \+\d+",
 	r"Overload: \(\d+\)",
 ]
 
-CARD_SETS = {
-	"debug": None,
-	"game": None,
-	"tutorial": None,
-	"classic": None,
-	"naxxramas": None,
-	"gvg": None,
-	"blackrock": None,
-	"tgt": None,
-}
-
 DUMMY_CARDS = (
+	"PlaceholderCard",  # Placeholder Card
 	"CS1_113e",  # Mind Control
 	"CS2_022e",  # Polymorph
 	"EX1_246e",  # Hexxed
+	"EX1_345t",  # Shadow of Nothing
+	"GAME_006",  # NOOOOOOOOOOOO
 	"Mekka4e",  # Transformed
 	"NEW1_025e",  # Bolstered (Unused)
+	"TU4c_005",  # Hidden Gnome
+	"TU4c_007",  # Mukla's Big Brother
 	"XXX_009e",  # Empty Enchant
 	"XXX_058e",  # Weapon Nerf Enchant
 
@@ -53,10 +47,6 @@ DUMMY_CARDS = (
 	"EX1_304e",  # Consume (Void Terror)
 	"NEW1_018e",  # Treasure Crazed (Bloodsail Raider)
 )
-
-
-for cardset in CARD_SETS:
-	CARD_SETS[cardset] = importlib.import_module("fireplace.cards.%s" % (cardset))
 
 
 def cleanup_description(description):
@@ -101,24 +91,15 @@ def main():
 		if not description:
 			# Minions without card text or with basic abilities are implemented
 			implemented = True
-		elif card.type == CardType.ENCHANTMENT:
-			if id in buffs.__dict__:
-				implemented = True
-			else:
-				implemented = False
 		elif card.card_set == CardSet.CREDITS:
 			implemented = True
 
 		if id in DUMMY_CARDS:
 			implemented = True
 
-		for set in CARD_SETS.values():
-			if hasattr(set, id):
-				implemented = True
-				break
-		else:
-			if "Enrage" in card.description or card.choose_cards:
-				implemented = True
+		carddef = get_script_definition(id)
+		if carddef:
+			implemented = True
 
 		color = GREEN if implemented else RED
 		name = color + "%s: %s" % (PREFIXES[color], card.name) + ENDC

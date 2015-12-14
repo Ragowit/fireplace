@@ -19,6 +19,8 @@ class EX1_014:
 class EX1_014t:
 	play = Buff(TARGET, "EX1_014te")
 
+EX1_014te = buff(+1, +1)
+
 
 # Sylvanas Windrunner
 class EX1_016:
@@ -32,16 +34,12 @@ class EX1_062:
 
 # Tinkmaster Overspark
 class EX1_083:
-	def play(self):
-		choice = random.choice(("EX1_tk28", "EX1_tk29"))
-		return Morph(RANDOM_MINION, choice)
+	play = Morph(RANDOM(ALL_MINIONS - SELF), RandomID("EX1_tk28", "EX1_tk29"))
 
 
 # Lorewalker Cho
 class EX1_100:
-	events = Play(ALL_PLAYERS, SPELL).on(
-		lambda self, player, card, *args: Give(player.opponent, card.id)
-	)
+	events = Play(ALL_PLAYERS, SPELL).on(Give(Opponent(Play.PLAYER), Copy(Play.CARD)))
 
 
 # Cairne Bloodhoof
@@ -64,6 +62,8 @@ class Mekka2:
 # Emboldener 3000
 class Mekka3:
 	events = OWN_TURN_END.on(Buff(RANDOM_MINION, "Mekka3e"))
+
+Mekka3e = buff(+1, +1)
 
 # Poultryizer
 class Mekka4:
@@ -155,24 +155,27 @@ class EX1_614:
 class NEW1_024:
 	play = Buff(FRIENDLY_WEAPON, "NEW1_024o")
 
+NEW1_024o = buff(+1, +1)
 
 # Millhouse Manastorm
 class NEW1_029:
 	play = Buff(ENEMY_HERO, "NEW1_029t")
 
 class NEW1_029t:
-	update = Refresh(ENEMY + SPELL + IN_HAND, {GameTag.COST: lambda self, i: 0})
+	update = Refresh(ENEMY_HAND + SPELL, {GameTag.COST: lambda self, i: 0})
 	events = OWN_TURN_BEGIN.on(Destroy(SELF))
 
 
 # Deathwing
 class NEW1_030:
-	play = Destroy(ALL_MINIONS - SELF), Discard(CONTROLLER_HAND)
+	play = Destroy(ALL_MINIONS - SELF), Discard(FRIENDLY_HAND)
 
 
 # Gruul
 class NEW1_038:
 	events = TURN_END.on(Buff(SELF, "NEW1_038o"))
+
+NEW1_038o = buff(+1, +1)
 
 
 # Hogger

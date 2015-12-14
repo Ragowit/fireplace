@@ -33,7 +33,7 @@ class XXX_006:
 
 # Enable for Attack
 class XXX_007:
-	play = SetTag(TARGET, {GameTag.CHARGE: True})
+	play = GiveCharge(TARGET)
 
 
 # Freeze
@@ -53,7 +53,7 @@ class XXX_010:
 
 # Summon a random Secret
 class XXX_011:
-	play = Summon(CONTROLLER, RANDOM(CONTROLLER_DECK + SECRET))
+	play = Summon(CONTROLLER, RANDOM(FRIENDLY_DECK + SECRET))
 
 
 # Bounce
@@ -63,7 +63,7 @@ class XXX_012:
 
 # Discard
 class XXX_013:
-	play = Discard(CONTROLLER_HAND)
+	play = Discard(FRIENDLY_HAND)
 
 
 # Mill 10
@@ -94,7 +94,7 @@ class XXX_018:
 
 # Molasses
 class XXX_019:
-	play = SetTag(CONTROLLER, {GameTag.TIMEOUT: 0})
+	play = UnsetTag(CONTROLLER, (GameTag.TIMEOUT, ))
 
 
 # Damage all but 1
@@ -112,7 +112,7 @@ class XXX_022:
 	play = Buff(FRIENDLY_HERO, "XXX_022e")
 
 class XXX_022e:
-	update = Refresh(FRIENDLY + IN_HAND, {GameTag.COST: SET(0)})
+	update = Refresh(FRIENDLY_HAND, {GameTag.COST: SET(0)})
 
 
 # Destroy All Heroes
@@ -163,17 +163,17 @@ class XXX_043:
 
 # Hand Swapper Minion
 class XXX_044:
-	play = Discard(RANDOM(CONTROLLER_HAND) * 3), Draw(CONTROLLER) * 3
+	play = Discard(RANDOM(FRIENDLY_HAND) * 3), Draw(CONTROLLER) * 3
 
 
 # Steal Card
 class XXX_045:
-	play = Steal(RANDOM(OPPONENT_HAND))
+	play = Steal(RANDOM(ENEMY_HAND))
 
 
 # Force AI to Use Hero Power
 class XXX_046:
-	play = SetTag(ENEMY_HERO, {GameTag.TAG_AI_MUST_PLAY: True})
+	play = SetTag(ENEMY_HERO_POWER, (GameTag.TAG_AI_MUST_PLAY, ))
 
 
 # Destroy Deck
@@ -189,7 +189,7 @@ class XXX_048:
 # Destroy All Mana
 class XXX_049:
 	def play(self):
-		return GainMana(-self.target.controller.max_mana)
+		yield GainMana(-self.target.controller.max_mana)
 
 
 # Destroy a Mana Crystal
@@ -199,7 +199,12 @@ class XXX_050:
 
 # Make Immune
 class XXX_051:
-	play = SetTag(TARGET, {GameTag.CANT_BE_DAMAGED: True})
+	play = SetTag(TARGET, (GameTag.CANT_BE_DAMAGED, ))
+
+
+# Grant Mega-Windfury
+class XXX_052:
+	play = SetTag(TARGET, {GameTag.WINDFURY: 3})
 
 
 # Armor 100
@@ -211,10 +216,14 @@ class XXX_053:
 class XXX_054:
 	play = Buff(FRIENDLY_WEAPON, "XXX_054e")
 
+XXX_054e = buff(+100, +100)
+
 
 # 1000 Stats
 class XXX_055:
 	play = Buff(TARGET, "XXX_055e")
+
+XXX_055e = buff(+1000, +1000)
 
 
 # Silence Destroy
@@ -236,7 +245,7 @@ class XXX_058:
 class XXX_059:
 	play = (
 		Destroy(CONTROLLED_BY_TARGET + (HERO_POWER | IN_DECK)),
-		Discard(CONTROLLED_BY_TARGET + IN_HAND),
+		Discard(IN_HAND + CONTROLLED_BY_TARGET),
 	)
 
 
@@ -258,3 +267,8 @@ class XXX_062:
 # Destroy ALL Secrets
 class XXX_063:
 	play = Destroy(ALL_SECRETS)
+
+
+# Remove All Immune
+class XXX_065:
+	play = UnsetTag(TARGET, (GameTag.CANT_BE_DAMAGED, ))

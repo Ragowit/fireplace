@@ -6,9 +6,7 @@ from ..utils import *
 
 # Snowchugger
 class GVG_002:
-	events = Damage().on(
-		lambda self, target, amount, source: source is self and Freeze(target)
-	)
+	events = Damage(CHARACTER, None, SELF).on(Freeze(Damage.TARGETS))
 
 
 # Goblin Blastmage
@@ -38,6 +36,14 @@ class GVG_001:
 # Unstable Portal
 class GVG_003:
 	play = Buff(Give(CONTROLLER, RandomMinion()), "GVG_003e")
+
+@custom_card
+class GVG_003e:
+	tags = {
+		GameTag.CARDNAME: "Unstable Portal Buff",
+		GameTag.CARDTYPE: CardType.ENCHANTMENT,
+		GameTag.COST: -3,
+	}
 
 
 # Echo of Medivh

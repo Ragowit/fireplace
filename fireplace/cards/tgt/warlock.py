@@ -13,6 +13,8 @@ class AT_019:
 class AT_021:
 	events = Discard(FRIENDLY).on(Buff(SELF, "AT_021e"))
 
+AT_021e = buff(+1, +1)
+
 
 # Void Crusher
 class AT_023:
@@ -21,14 +23,12 @@ class AT_023:
 
 # Wrathguard
 class AT_026:
-	events = Damage(SELF).on(Hit(FRIENDLY_HERO, Damage.Args.AMOUNT))
+	events = Damage(SELF).on(Hit(FRIENDLY_HERO, Damage.AMOUNT))
 
 
 # Wilfred Fizzlebang
 class AT_027:
-	events = Draw(CONTROLLER).on(
-		lambda self, target, card, source: source is self.controller.hero.power and Buff(card, "AT_027e")
-	)
+	events = Draw(CONTROLLER, None, FRIENDLY_HERO_POWER).on(Buff(Draw.CARD, "AT_027e"))
 
 class AT_027e:
 	cost = SET(0)
@@ -40,14 +40,18 @@ class AT_027e:
 # Fist of Jaraxxus
 class AT_022:
 	play = Hit(RANDOM_ENEMY_CHARACTER, 4)
-	in_hand = Discard(SELF).on(play)
+
+	class Hand:
+		events = Discard(SELF).on(Hit(RANDOM_ENEMY_CHARACTER, 4))
 
 
 # Demonfuse
 class AT_024:
 	play = Buff(TARGET, "AT_024e"), GainMana(OPPONENT, 1)
 
+AT_024e = buff(+3, +3)
+
 
 # Dark Bargain
 class AT_025:
-	play = Destroy(RANDOM(ENEMY_MINIONS) * 2), Discard(RANDOM(CONTROLLER_HAND) * 2)
+	play = Destroy(RANDOM(ENEMY_MINIONS) * 2), Discard(RANDOM(FRIENDLY_HAND) * 2)

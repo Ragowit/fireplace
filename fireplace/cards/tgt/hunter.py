@@ -13,6 +13,8 @@ class AT_010:
 class AT_057:
 	play = Buff(TARGET, "AT_057o")
 
+AT_057o = buff(immune=True)
+
 
 # Brave Archer
 class AT_059:
@@ -21,7 +23,7 @@ class AT_059:
 
 # Acidmaw
 class AT_063:
-	events = Damage(MINION - SELF).on(Destroy(Damage.Args.TARGETS))
+	events = Damage(MINION - SELF).on(Destroy(Damage.TARGETS))
 
 
 # Dreadscale
@@ -57,4 +59,6 @@ class AT_062:
 
 # Bear Trap
 class AT_060:
-	events = Attack(CHARACTER, FRIENDLY_HERO).after(Summon(CONTROLLER, "CS2_125"))
+	secret = Attack(CHARACTER, FRIENDLY_HERO).after(FULL_BOARD | (
+		Reveal(SELF), Summon(CONTROLLER, "CS2_125")
+	))

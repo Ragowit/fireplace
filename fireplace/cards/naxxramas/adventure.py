@@ -14,10 +14,10 @@ class NAX1h_04:
 
 # Rain of Fire
 class NAX2_03:
-	activate = Hit(RANDOM_ENEMY_MINION, 1) * Count(OPPONENT_HAND)
+	activate = Hit(RANDOM_ENEMY_MINION, 1) * Count(ENEMY_HAND)
 
 class NAX2_03H:
-	activate = Hit(RANDOM_ENEMY_MINION, 1) * Count(OPPONENT_HAND)
+	activate = Hit(RANDOM_ENEMY_MINION, 1) * Count(ENEMY_HAND)
 
 
 # Worshipper
@@ -44,6 +44,14 @@ class NAX4_04:
 
 class NAX4_04H:
 	events = Death(ENEMY + MINION).on(Summon(CONTROLLER, "NAX4_03H"))
+
+
+# Eruption
+class NAX5_02:
+	activate = Hit(ENEMY_MINIONS[0], 2)
+
+class NAX5_02H:
+	activate = Hit(ENEMY_MINIONS[0], 3)
 
 
 # Necrotic Aura
@@ -101,7 +109,7 @@ class NAX13_02:
 
 # Frost Breath
 class NAX14_02:
-	activate = Destroy(ENEMY_MINIONS - FROZEN)
+	activate = Destroy(ENEMY_MINIONS - FROZEN - ADJACENT(ID("NAX14_03")))
 
 
 # Frost Blast
@@ -185,6 +193,11 @@ class NAX9_04H:
 	update = Refresh(FRIENDLY_HERO, {GameTag.CANT_BE_DAMAGED: True})
 
 
+# Frozen Champion
+class NAX14_03:
+	update = Refresh(SELF, {GameTag.FROZEN: True})
+
+
 # Necroknight
 class NAXM_001:
 	deathrattle = Destroy(SELF_ADJACENT)
@@ -225,6 +238,8 @@ class NAX6_03:
 class NAX6_03t:
 	deathrattle = Buff(ENEMY_MINIONS, "NAX6_03te")
 
+NAX6_03te = buff(atk=8)
+
 
 # Sporeburst
 class NAX6_04:
@@ -240,20 +255,28 @@ class NAX7_05:
 class NAX9_07:
 	play = Buff(FRIENDLY + (WEAPON | MINION), "NAX9_07e")
 
+NAX9_07e = buff(+1, +1)
+
 
 # Mutating Injection
 class NAX11_04:
 	play = Buff(TARGET, "NAX11_04e")
+
+NAX11_04e = buff(+4, +4, taunt=True)
 
 
 # Enrage
 class NAX12_04:
 	play = Buff(SELF, "NAX12_04e")
 
+NAX12_04e = buff(atk=6)
 
-# Polarity Shift
+
+# Supercharge
 class NAX13_03:
 	play = Buff(FRIENDLY_MINIONS, "NAX13_03e")
+
+NAX13_03e = buff(health=2)
 
 
 # Pure Cold
@@ -292,3 +315,5 @@ class NAX12_03:
 
 class NAX12_03H:
 	events = Death(MINION + DEATHRATTLE).on(Buff(SELF, "NAX12_03e"))
+
+NAX12_03e = buff(atk=2)

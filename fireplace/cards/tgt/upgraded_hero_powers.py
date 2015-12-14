@@ -11,6 +11,8 @@ from ..utils import *
 class AT_132_DRUID:
 	activate = Buff(FRIENDLY_HERO, "AT_132_DRUIDe"), GainArmor(FRIENDLY_HERO, 2)
 
+AT_132_DRUIDe = buff(atk=2)
+
 
 # Ballista Shot
 class AT_132_HUNTER:
@@ -59,8 +61,10 @@ class AT_132_WARLOCK:
 	activate = Draw(CONTROLLER)
 
 
-##
-# Totemic Slam choices
+# Totemic Slam
+class AT_132_SHAMAN:
+	choose = ("AT_132_SHAMANa", "AT_132_SHAMANb", "AT_132_SHAMANc", "AT_132_SHAMANd")
+
 
 # Healing Totem
 class AT_132_SHAMANa:

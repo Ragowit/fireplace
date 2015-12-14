@@ -8,6 +8,8 @@ from ..utils import *
 class AT_066:
 	inspire = Buff(FRIENDLY_WEAPON, "AT_066e")
 
+AT_066e = buff(atk=1)
+
 
 # Magnataur Alpha
 class AT_067:
@@ -23,10 +25,12 @@ class AT_069:
 class AT_071:
 	play = HOLDING_DRAGON & Buff(SELF, "AT_071e")
 
+AT_071e = buff(atk=1, charge=True)
+
 
 # Sea Reaver
 class AT_130:
-	in_hand = Draw(CONTROLLER, SELF).on(Hit(FRIENDLY_MINIONS, 1))
+	draw = Hit(FRIENDLY_MINIONS, 1)
 
 
 ##
@@ -41,6 +45,8 @@ class AT_064:
 class AT_068:
 	play = Buff(FRIENDLY_MINIONS + TAUNT, "AT_068e")
 
+AT_068e = buff(+2, +2)
+
 
 ##
 # Weapons
@@ -48,3 +54,5 @@ class AT_068:
 # King's Defender
 class AT_065:
 	play = Find(FRIENDLY_MINIONS + TAUNT) & Buff(SELF, "AT_065e")
+
+AT_065e = buff(health=1)

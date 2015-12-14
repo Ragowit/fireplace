@@ -8,6 +8,8 @@ from ..utils import *
 class AT_006:
 	inspire = Buff(SELF, "AT_006e")
 
+AT_006e = buff(spellpower=1)
+
 
 # Spellslinger
 class AT_007:
@@ -42,7 +44,7 @@ class AT_005:
 
 # Effigy
 class AT_002:
-	events = Death(FRIENDLY + MINION).on(
+	secret = Death(FRIENDLY + MINION).on(FULL_BOARD | (
 		Reveal(SELF),
-		Summon(CONTROLLER, RandomMinion(cost=Attr(Death.Args.ENTITY, GameTag.COST)))
-	)
+		Summon(CONTROLLER, RandomMinion(cost=COST(Death.ENTITY)))
+	))

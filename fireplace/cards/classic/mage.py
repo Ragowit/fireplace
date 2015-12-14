@@ -18,14 +18,14 @@ class CS2_034_H1:
 
 # Water Elemental
 class CS2_033:
-	events = Damage().on(
-		lambda self, target, amount, source: source is self and Freeze(target)
-	)
+	events = Damage(CHARACTER, None, SELF).on(Freeze(Damage.TARGETS))
 
 
 # Ethereal Arcanist
 class EX1_274:
 	events = OWN_TURN_END.on(Find(FRIENDLY_SECRETS) & Buff(SELF, "EX1_274e"))
+
+EX1_274e = buff(+2, +2)
 
 
 # Archmage Antonidas
@@ -35,7 +35,7 @@ class EX1_559:
 
 # Sorcerer's Apprentice
 class EX1_608:
-	update = Refresh(FRIENDLY + SPELL + IN_HAND, {GameTag.COST: -1})
+	update = Refresh(FRIENDLY_HAND + SPELL, {GameTag.COST: -1})
 
 
 # Kirin Tor Mage
@@ -43,13 +43,15 @@ class EX1_612:
 	play = Buff(FRIENDLY_HERO, "EX1_612o")
 
 class EX1_612o:
-	update = Refresh(FRIENDLY + SECRET + IN_HAND, {GameTag.COST: SET(0)})
-	events = Play(FRIENDLY + SECRET).on(Destroy(SELF))
+	update = Refresh(FRIENDLY_HAND + SECRET, {GameTag.COST: SET(0)})
+	events = Play(CONTROLLER, SECRET).on(Destroy(SELF))
 
 
 # Mana Wyrm
 class NEW1_012:
 	events = OWN_SPELL_PLAY.on(Buff(SELF, "NEW1_012o"))
+
+NEW1_012o = buff(atk=1)
 
 
 ##
@@ -114,7 +116,7 @@ class EX1_275:
 class EX1_277:
 	def play(self):
 		count = self.controller.get_spell_damage(3)
-		return Hit(RANDOM_ENEMY_CHARACTER, 1) * count
+		yield Hit(RANDOM_ENEMY_CHARACTER, 1) * count
 
 
 # Pyroblast
@@ -127,34 +129,50 @@ class EX1_279:
 
 # Spellbender
 class tt_010:
-	events = Play(OPPONENT, SPELL, MINION).on(
-		Reveal(SELF), Retarget(Play.Args.CARD, Summon(CONTROLLER, "tt_010a"))
-	)
+	secret = Play(OPPONENT, SPELL, MINION).on(FULL_BOARD | (
+		Reveal(SELF), Retarget(Play.CARD, Summon(CONTROLLER, "tt_010a"))
+	))
 
 
 # Counterspell
 class EX1_287:
-	events = Play(OPPONENT, SPELL).on(
-		Reveal(SELF), Counter(Play.Args.CARD)
+	secret = Play(OPPONENT, SPELL).on(
+		Reveal(SELF), Counter(Play.CARD)
 	)
 
 
 # Ice Barrier
 class EX1_289:
-	events = Attack(CHARACTER, FRIENDLY_HERO).on(
+	secret = Attack(CHARACTER, FRIENDLY_HERO).on(
 		Reveal(SELF), GainArmor(FRIENDLY_HERO, 8)
 	)
 
 
 # Mirror Entity
 class EX1_294:
-	events = Play(OPPONENT, MINION).after(
-		Reveal(SELF), Summon(CONTROLLER, ExactCopy(Play.Args.CARD))
+	secret = [
+		Play(OPPONENT, MINION).after(
+			Reveal(SELF), Summon(CONTROLLER, ExactCopy(Play.CARD))
+		),
+		Play(OPPONENT, ID("EX1_323h")).after(
+			Reveal(SELF), Summon(CONTROLLER, "EX1_323")
+		)  # :-)
+	]
+
+
+# Ice Block
+class EX1_295:
+	secret = Predamage(FRIENDLY_HERO).on(
+		Lethal(FRIENDLY_HERO, Predamage.AMOUNT) & (
+			Reveal(SELF), Buff(FRIENDLY_HERO, "EX1_295o")
+		)
 	)
+
+EX1_295o = buff(immune=True)
 
 
 # Vaporize
 class EX1_594:
-	events = Attack(MINION, FRIENDLY_HERO).on(
-		Reveal(SELF), Destroy(Attack.Args.ATTACKER)
+	secret = Attack(MINION, FRIENDLY_HERO).on(
+		Reveal(SELF), Destroy(Attack.ATTACKER)
 	)

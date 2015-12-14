@@ -1,6 +1,6 @@
 import random
-from ..utils import fireplace_logger as logger
-from .lazynum import LazyNum
+from ..logging import log
+from .lazynum import LazyNum, LazyValue
 
 
 class Picker:
@@ -12,7 +12,8 @@ class RandomCardPicker(Picker):
 	"""
 	Store filters and generate a random card matching the filters on pick()
 	"""
-	def __init__(self, **filters):
+	def __init__(self, *args, **filters):
+		self.args = args
 		self.filters = filters
 		self._cards = None
 		self.lazy_filters = False
@@ -65,15 +66,12 @@ class Copy(Picker):
 		"""
 		Return a copy of \a entity
 		"""
-		logger.info("Creating a copy of %r", entity)
+		log.info("Creating a copy of %r", entity)
 		return source.controller.card(entity.id, source)
 
 	def pick(self, source) -> [str]:
-		from ..actions import Action
-		if isinstance(self.selector, Action.Args):
-			# TODO cleanup DRY with actions.py
-			assert source.event_args
-			entities = [source.event_args[self.selector]]
+		if isinstance(self.selector, LazyValue):
+			entities = [self.selector.evaluate(source)]
 		else:
 			entities = self.selector.eval(source.game, source)
 

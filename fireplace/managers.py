@@ -1,5 +1,5 @@
 from hearthstone.enums import GameTag
-from .enums import ALWAYS_WINS_BRAWLS, KILLED_THIS_TURN
+from .enums import ALWAYS_WINS_BRAWLS, CANT_OVERLOAD, KILLED_THIS_TURN
 
 
 class Manager(object):
@@ -85,6 +85,7 @@ class PlayerManager(Manager):
 		GameTag.CANT_DRAW: "cant_draw",
 		GameTag.CARDTYPE: "type",
 		GameTag.COMBO_ACTIVE: "combo",
+		GameTag.CONTROLLER: "controller",
 		GameTag.CURRENT_PLAYER: "current_player",
 		GameTag.CURRENT_SPELLPOWER: "spellpower",
 		GameTag.FATIGUE: "fatigue_counter",
@@ -101,8 +102,8 @@ class PlayerManager(Manager):
 		GameTag.NUM_TIMES_HERO_POWER_USED_THIS_GAME: "times_hero_power_used_this_game",
 		GameTag.OUTGOING_HEALING_ADJUSTMENT: "outgoing_healing_adjustment",
 		GameTag.OVERLOAD_LOCKED: "overload_locked",
+		GameTag.OVERLOAD_OWED: "overloaded",
 		GameTag.PLAYSTATE: "playstate",
-		GameTag.RECALL_OWED: "overloaded",
 		GameTag.RESOURCES: "max_mana",
 		GameTag.RESOURCES_USED: "used_mana",
 		GameTag.SPELLPOWER_DOUBLE: "spellpower_double",
@@ -111,6 +112,7 @@ class PlayerManager(Manager):
 		GameTag.TEMP_RESOURCES: "temp_mana",
 		GameTag.TIMEOUT: "timeout",
 		GameTag.TURN_START: "turn_start",
+		CANT_OVERLOAD: "cant_overload",
 	}
 
 
@@ -122,9 +124,10 @@ CARD_ATTRIBUTE_MAP = {
 	GameTag.ATTACHED: "owner",
 	GameTag.AURA: "aura",
 	GameTag.BATTLECRY: "has_battlecry",
+	GameTag.CANNOT_ATTACK_HEROES: "cannot_attack_heroes",
 	GameTag.CANT_ATTACK: "cant_attack",
 	GameTag.CANT_BE_ATTACKED: "cant_be_attacked",
-	GameTag.CANT_BE_DAMAGED: "immune",
+	GameTag.CANT_BE_DAMAGED: "cant_be_damaged",
 	GameTag.CANT_BE_TARGETED_BY_ABILITIES: "cant_be_targeted_by_abilities",
 	GameTag.CANT_BE_TARGETED_BY_HERO_POWERS: "cant_be_targeted_by_hero_powers",
 	GameTag.CANT_BE_TARGETED_BY_OPPONENTS: "cant_be_targeted_by_opponents",
@@ -155,14 +158,15 @@ CARD_ATTRIBUTE_MAP = {
 	GameTag.HEALTH_MINIMUM: "min_health",
 	GameTag.HEROPOWER_DAMAGE: "heropower_damage",
 	GameTag.ImmuneToSpellpower: "immune_to_spellpower",
+	GameTag.IMMUNE_WHILE_ATTACKING: "immune_while_attacking",
 	GameTag.INSPIRE: "has_inspire",
 	GameTag.NUM_ATTACKS_THIS_TURN: "num_attacks",
 	GameTag.NUM_TURNS_IN_PLAY: "turns_in_play",
 	GameTag.TAG_ONE_TURN_EFFECT: "one_turn_effect",
 	GameTag.OUTGOING_HEALING_ADJUSTMENT: "outgoing_healing_adjustment",
+	GameTag.OVERLOAD: "overload",
 	GameTag.POISONOUS: "poisonous",
 	GameTag.RARITY: "rarity",
-	GameTag.RECALL: "overload",
 	GameTag.RECEIVES_DOUBLE_SPELLDAMAGE_BONUS: "receives_double_spelldamage_bonus",
 	GameTag.SECRET: "secret",
 	GameTag.SHADOWFORM: "shadowform",

@@ -1,4 +1,14 @@
-import logging
+import os.path
+from importlib import import_module
+from pkgutil import iter_modules
+
+
+# Autogenerate the list of cardset modules
+_cards_module = os.path.join(os.path.dirname(__file__), "cards")
+CARD_SETS = [cs for _, cs, ispkg in iter_modules([_cards_module]) if ispkg]
+
+# Dict of registered custom cards, by id. for @custom_card
+_custom_cards = {}
 
 
 class CardList(list):
@@ -59,12 +69,12 @@ def random_draft(hero, exclude=[]):
 
 	deck = []
 	collection = []
-	hero = getattr(cards, hero)
+	hero = cards.db[hero]
 
-	for card in cards.cardlist:
+	for card in cards.db.keys():
 		if card in exclude:
 			continue
-		cls = getattr(cards, card)
+		cls = cards.db[card]
 		if not cls.collectible:
 			continue
 		if cls.type == CardType.HERO:
@@ -84,23 +94,16 @@ def random_draft(hero, exclude=[]):
 	return deck
 
 
-def get_logger(name, level=logging.DEBUG):
-	logger = logging.getLogger(name)
-	logger.setLevel(level)
-
-	if not logger.handlers:
-		ch = logging.StreamHandler()
-		ch.setLevel(level)
-
-		formatter = logging.Formatter(
-			"[%(name)s.%(module)s]: %(message)s",
-			datefmt="%H:%M:%S"
-		)
-		ch.setFormatter(formatter)
-
-		logger.addHandler(ch)
-
-	return logger
+def custom_card(cls):
+	_custom_cards[cls.__name__] = cls
+	return cls
 
 
-fireplace_logger = get_logger("fireplace")
+def get_script_definition(id):
+	"""
+	Find and return the script definition for card \a id
+	"""
+	for cardset in CARD_SETS:
+		module = import_module("fireplace.cards.%s" % (cardset))
+		if hasattr(module, id):
+			return getattr(module, id)
