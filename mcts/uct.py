@@ -86,8 +86,8 @@ class HearthState:
         #self.player2.prepare_deck(self.deck2, self.hero2)
         #self.game = Game(players=(self.player1, self.player2))
         #self.game.start()
-        #self.game.players[0].hero.hit(self.game.players[0].hero, 24)
-        #self.game.players[1].hero.hit(self.game.players[1].hero, 24)
+        #self.game.players[0].hero.hit(24)
+        #self.game.players[1].hero.hit(24)
 
 
     def Clone(self):
@@ -182,9 +182,7 @@ class HearthState:
             valid_moves.append([MOVE.PICK_CLASS, WARRIOR])
         elif self.game is None and len(self.deck1) < 30 or len(self.deck2) < 30:
             collection = []
-            # Exclude cards that isn't implemented yet
-            # Ice Block
-            exclude = ["EX1_295"]
+            exclude = []
 
             if len(self.deck1) < 30:
                 hero = cards.db[self.hero1]
