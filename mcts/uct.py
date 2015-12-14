@@ -187,16 +187,16 @@ class HearthState:
             exclude = ["EX1_295"]
 
             if len(self.deck1) < 30:
-                hero = getattr(cards, self.hero1)
+                hero = cards.db[self.hero1]
                 deck = self.deck1
             else:
-                hero = getattr(cards, self.hero2)
+                hero = cards.db[self.hero2]
                 deck = self.deck2
 
-            for card in cards.cardlist:
+            for card in cards.db.keys():
                 if card in exclude:
                     continue
-                cls = getattr(cards, card)
+                cls = cards.db[card]
                 if not cls.collectible:
                     continue
                 if cls.type == CardType.HERO:
