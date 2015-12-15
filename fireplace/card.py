@@ -40,7 +40,6 @@ class BaseCard(BaseEntity):
 		self.parent_card = None
 		self.aura = False
 		self.heropower_damage = 0
-		self.spellpower = 0
 		self._zone = Zone.INVALID
 		self.tags.update(data.tags)
 
@@ -350,6 +349,7 @@ class LiveEntity(PlayableCard, Entity):
 		super().__init__(data)
 		self._to_be_destroyed = False
 		self.damage = 0
+		self.forgetful = False
 		self.predamage = 0
 		self.turns_in_play = 0
 
@@ -547,14 +547,15 @@ class Hero(Character):
 class Minion(Character):
 	charge = boolean_property("charge")
 	has_inspire = boolean_property("has_inspire")
+	spellpower = int_property("spellpower")
 	stealthed = boolean_property("stealthed")
 	taunt = boolean_property("taunt")
 
 	silenceable_attributes = (
 		"always_wins_brawls", "aura", "cant_attack", "cant_be_targeted_by_abilities",
 		"cant_be_targeted_by_hero_powers", "charge", "divine_shield", "enrage",
-		"frozen", "has_deathrattle", "has_inspire", "poisonous", "stealthed",
-		"taunt", "windfury", "cannot_attack_heroes",
+		"forgetful", "frozen", "has_deathrattle", "has_inspire", "poisonous",
+		"stealthed", "taunt", "windfury", "cannot_attack_heroes",
 	)
 
 	def __init__(self, data):
@@ -700,6 +701,7 @@ class Enchantment(BaseCard):
 	cost = int_property("cost")
 	has_deathrattle = boolean_property("has_deathrattle")
 	max_health = int_property("max_health")
+	spellpower = int_property("spellpower")
 
 	buffs = []
 	slots = []

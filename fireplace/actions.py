@@ -16,6 +16,9 @@ def _eval_card(source, card):
 	if isinstance(card, Picker):
 		card = card.pick(source)
 
+	if isinstance(card, LazyValue):
+		card = card.evaluate(source)
+
 	if isinstance(card, Action):
 		card = card.trigger(source)[0]
 
@@ -54,6 +57,7 @@ class Action:  # Lawsuit
 	def __init__(self, *args, **kwargs):
 		self._args = args
 		self._kwargs = kwargs
+		self.callback = ()
 
 	def __repr__(self):
 		args = ["%s=%r" % (k, v) for k, v in zip(self.ARGS, self._args)]
@@ -151,6 +155,8 @@ class Attack(GameAction):
 			attacker.attack_target = None
 			defender.defending = False
 			return
+
+		assert attacker is not defender, "Why are you hitting yourself %r?" % (attacker)
 
 		# Save the attacker/defender atk values in case they change during the attack
 		# (eg. in case of Enrage)
@@ -368,6 +374,15 @@ class TargetedAction(Action):
 		self.times = value
 		return self
 
+	def then(self, *args):
+		"""
+		Create a callback containing an action queue, called upon the
+		action's trigger with the action's arguments available.
+		"""
+		ret = self.__class__(*self._args, **self._kwargs)
+		ret.callback = args
+		return ret
+
 	def eval(self, selector, source):
 		if isinstance(selector, Entity):
 			return [selector]
@@ -414,8 +429,10 @@ class TargetedAction(Action):
 			source = source[0]
 
 		times = self.times
-		if isinstance(times, LazyNum):
+		if isinstance(times, LazyValue):
 			times = times.evaluate(source)
+		elif isinstance(times, Action):
+			times = times.trigger(source)[0]
 
 		for i in range(times):
 			args = self.get_args(source)
@@ -426,6 +443,11 @@ class TargetedAction(Action):
 			for target in targets:
 				target_args = self.get_target_args(source, target)
 				ret.append(self.do(source, target, *target_args))
+
+				for action in self.callback:
+					log.info("%r queues up callback %r", self, action)
+					ret += source.game.queue_actions(source, [action], event_args=[target] + target_args)
+
 			source.game.manager.action_end(self, source, targets, *self._args)
 
 		for args in self.event_queue:
@@ -492,7 +514,7 @@ class Predamage(TargetedAction):
 		if amount:
 			self.broadcast(source, EventListener.ON, target, amount)
 			target.predamage += amount
-			return source.game.trigger_actions(source, [Damage(target, amount)])
+			return source.game.trigger_actions(source, [Damage(target, amount)])[0][0]
 
 
 class Damage(TargetedAction):
@@ -509,6 +531,7 @@ class Damage(TargetedAction):
 			source.stealthed = False
 		if amount:
 			self.broadcast(source, EventListener.ON, target, amount, source)
+		return amount
 
 
 class Deathrattle(TargetedAction):
@@ -551,11 +574,17 @@ class Draw(TargetedAction):
 	"""
 	ARGS = ("TARGETS", "CARD")
 
-	def do(self, source, target):
-		if not target.deck:
+	def get_target_args(self, source, target):
+		if target.deck:
+			card = target.deck[-1]
+		else:
+			card = None
+		return [card]
+
+	def do(self, source, target, card):
+		if card is None:
 			target.fatigue()
 			return []
-		card = target.deck[-1]
 		card.draw()
 		self.broadcast(source, EventListener.ON, target, card, source)
 
@@ -656,7 +685,7 @@ class Hit(TargetedAction):
 	def do(self, source, target, amount):
 		amount = source.get_damage(amount, target)
 		if amount:
-			return source.game.queue_actions(source, [Predamage(target, amount)])
+			return source.game.queue_actions(source, [Predamage(target, amount)])[0][0]
 
 
 class Heal(TargetedAction):
@@ -710,7 +739,7 @@ class Morph(TargetedAction):
 		assert len(card) == 1
 		card = card[0]
 		card.controller = target.controller
-		return (card, )
+		return [card]
 
 	def do(self, source, target, card):
 		log.info("Morphing %r into %r", target, card)
@@ -878,7 +907,7 @@ class Swap(TargetedAction):
 		if not other:
 			return (None, )
 		assert len(other) == 1
-		return (other[0], )
+		return [other[0]]
 
 	def do(self, source, target, other):
 		if other is not None:
@@ -903,7 +932,7 @@ class Steal(TargetedAction):
 		else:
 			# Default to the source's controller
 			controller = source.controller
-		return (controller, )
+		return [controller]
 
 	def do(self, source, target, controller):
 		log.info("%s takes control of %r", controller, target)

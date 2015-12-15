@@ -366,6 +366,22 @@ def test_gazlowe_preparation():
 	assert game.player1.hand[0].race == Race.MECHANICAL
 
 
+def test_gnomish_experimenter():
+	game = prepare_empty_game()
+	wisp = game.player1.give(WISP)
+	wisp.shuffle_into_deck()
+	gnomish = game.player1.give("GVG_092")
+	gnomish.play()
+	assert len(game.player1.hand) == 1
+	assert wisp.morphed
+	assert wisp.morphed.id == "GVG_092t"
+	assert wisp.morphed in game.player1.hand
+
+	gnomish2 = game.player1.give("GVG_092")
+	gnomish2.play()
+	assert len(game.player1.hand) == 1
+
+
 def test_goblin_blastmage():
 	game = prepare_game()
 	blastmage1 = game.player1.give("GVG_004")
@@ -444,6 +460,31 @@ def test_hobgoblin():
 	# assert not faceless.buffs
 	# assert faceless.atk == 1
 	# assert faceless.health == 1
+
+
+def test_implosion():
+	game = prepare_game()
+	statue = game.player1.give(ANIMATED_STATUE)
+	statue.play()
+	game.end_turn()
+
+	implosion = game.player2.give("GVG_045")
+	implosion.play(target=statue)
+	statue.damage in (2, 3, 4)
+	assert len(game.player2.field) == statue.damage
+	assert game.player2.field.contains("GVG_045t")
+
+
+def test_implosion_commanding_shout():
+	game = prepare_game()
+	wisp = game.player1.give(WISP)
+	wisp.play()
+	shout = game.player1.give("NEW1_036")
+	shout.play()
+	implosion = game.player1.give("GVG_045")
+	implosion.play(target=wisp)
+	assert not wisp.dead
+	assert len(game.player1.field) in (3, 4, 5)
 
 
 def test_iron_juggernaut():
@@ -896,6 +937,32 @@ def test_unstable_portal():
 	assert minion.type == CardType.MINION
 	assert minion.creator is portal
 	assert minion.buffs
+
+
+def test_velens_chosen():
+	game = prepare_game()
+	wisp = game.player1.give(WISP)
+	wisp.play()
+	game.player1.give("GVG_010").play(target=wisp)
+	assert wisp.atk == 1 + 2
+	assert wisp.health == 1 + 4
+	assert wisp.spellpower == 0 + 1
+	assert game.player1.spellpower == 1
+	game.player1.give("GVG_010").play(target=wisp)
+	assert wisp.atk == 1 + 2 + 2
+	assert wisp.health == 1 + 4 + 4
+	assert wisp.spellpower == 0 + 1 + 1
+	assert game.player1.spellpower == 2
+	game.end_turn()
+
+	assert game.player2.spellpower == 0
+	kobold = game.player2.give(KOBOLD_GEOMANCER)
+	kobold.play()
+	assert game.player2.spellpower == 1
+	game.player2.give("GVG_010").play(target=kobold)
+	assert kobold.spellpower == 2
+	assert game.player2.spellpower == 2
+	assert game.player1.spellpower == 2
 
 
 def test_voljin():
