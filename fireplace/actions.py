@@ -381,6 +381,7 @@ class TargetedAction(Action):
 		"""
 		ret = self.__class__(*self._args, **self._kwargs)
 		ret.callback = args
+		ret.times = self.times
 		return ret
 
 	def eval(self, selector, source):
@@ -511,9 +512,9 @@ class Predamage(TargetedAction):
 	ARGS = ("TARGETS", "AMOUNT")
 
 	def do(self, source, target, amount):
+		target.predamage = amount
 		if amount:
 			self.broadcast(source, EventListener.ON, target, amount)
-			target.predamage += amount
 			return source.game.trigger_actions(source, [Damage(target, amount)])[0][0]
 
 

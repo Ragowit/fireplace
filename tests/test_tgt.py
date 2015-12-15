@@ -17,6 +17,21 @@ def test_beneath_the_grounds():
 		assert minion.id == "AT_036t"
 
 
+def test_bolf_ramshield():
+	game = prepare_game()
+	bolf = game.player1.give("AT_124")
+	bolf.play()
+	game.player1.give(MOONFIRE).play(target=game.player1.hero)
+	assert game.player1.hero.health == 30
+	assert bolf.damage == 1
+	game.player1.give(DAMAGE_5).play(target=game.player1.hero)
+	assert game.player1.hero.health == 30
+	assert bolf.damage == 1 + 5
+	game.player1.give(DAMAGE_5).play(target=game.player1.hero)
+	assert bolf.dead
+	assert game.player1.hero.health == 30
+
+
 def test_burgle():
 	game = prepare_empty_game()
 	burgle = game.player1.give("AT_033")
@@ -381,6 +396,23 @@ def test_tiny_knight_of_evil():
 	assert knight.buffs
 	assert knight.atk == 3 + 1
 	assert knight.health == 2 + 1
+
+
+def test_varian_wrynn():
+	game = prepare_empty_game()
+	wisp1 = game.player1.give(WISP)
+	wisp1.shuffle_into_deck()
+	wisp2 = game.player1.give(WISP)
+	wisp2.shuffle_into_deck()
+	moonfire = game.player1.give(MOONFIRE)
+	moonfire.shuffle_into_deck()
+	wrynn = game.player1.give("AT_072")
+	wrynn.play()
+	assert len(game.player1.hand) == 1
+	assert moonfire in game.player1.hand
+	assert wrynn in game.player1.field
+	assert wisp1 in game.player1.field
+	assert wisp2 in game.player1.field
 
 
 def test_void_crusher():
