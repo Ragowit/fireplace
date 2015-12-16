@@ -47,6 +47,11 @@ class TB_011:
 	play = ManaThisTurn(CONTROLLER, 1)
 
 
+# Hello! Hello! Hello!
+class TB_MechWar_Boss1_HeroPower:
+	activate = SetTag(LOWEST_ATK(FRIENDLY_MINIONS), (GameTag.TAUNT, GameTag.DIVINE_SHIELD))
+
+
 # Boom Bot Jr.
 class TB_MechWar_Boss2_HeroPower:
 	activate = Hit(RANDOM_ENEMY_CHARACTER, 1) * 2
@@ -115,6 +120,13 @@ class NAX3_02_TB:
 # Harvest
 class NAX8_02H_TB:
 	activate = Draw(CONTROLLER), GainMana(CONTROLLER, 1)
+
+
+# Poison Cloud
+class NAX11_02H_2_TB:
+	activate = Hit(ENEMY_MINIONS, 1).then(
+		Dead(Hit.TARGETS) & Summon(CONTROLLER, "NAX11_03")
+	)
 
 
 # Decimate

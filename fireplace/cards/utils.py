@@ -18,6 +18,7 @@ RandomCard = lambda **kw: RandomCardPicker(**kw)
 RandomCollectible = lambda **kw: RandomCardPicker(collectible=True, **kw)
 RandomMinion = lambda **kw: RandomCollectible(type=CardType.MINION, **kw)
 RandomBeast = lambda **kw: RandomMinion(race=Race.BEAST)
+RandomMech = lambda **kw: RandomMinion(race=Race.MECHANICAL)
 RandomMurloc = lambda **kw: RandomMinion(race=Race.MURLOC)
 RandomSpell = lambda **kw: RandomCollectible(type=CardType.SPELL, **kw)
 RandomTotem = lambda **kw: RandomCardPicker(race=Race.TOTEM)
@@ -53,7 +54,28 @@ EMPTY_HAND = Count(FRIENDLY_HAND) == 0
 FULL_BOARD = Count(FRIENDLY_MINIONS) == 7
 FULL_HAND = Count(FRIENDLY_HAND) == 10
 HOLDING_DRAGON = Find(FRIENDLY_HAND + DRAGON)
-JOUST = Joust(RANDOM(FRIENDLY_DECK + MINION), RANDOM(ENEMY_DECK + MINION))
+
+
+class JoustHelper(Evaluator):
+	"""
+	A helper evaluator class for jousts to allow JOUST & ... syntax.
+	"""
+	def __init__(self, challenger, defender):
+		self.challenger = challenger
+		self.defender = defender
+		super().__init__()
+
+	def trigger(self, source):
+		action = Joust(self.challenger, self.defender).then(
+			JoustEvaluator(Joust.CHALLENGER, Joust.DEFENDER) & self._if | self._else
+		)
+
+		return action.trigger(source)
+
+JOUST = JoustHelper(
+	RANDOM(FRIENDLY_DECK + MINION),
+	RANDOM(ENEMY_DECK + MINION)
+)
 
 
 def SET(amt):

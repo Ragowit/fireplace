@@ -1,6 +1,6 @@
 from inspect import isclass
 from hearthstone.enums import CardType, Mulligan, PlayState, Zone
-from .dsl import LazyNum, LazyValue, Picker, Selector
+from .dsl import LazyValue, Picker, Selector
 from .entity import Entity
 from .logging import log
 
@@ -58,6 +58,7 @@ class Action:  # Lawsuit
 		self._args = args
 		self._kwargs = kwargs
 		self.callback = ()
+		self.times = 1
 
 	def __repr__(self):
 		args = ["%s=%r" % (k, v) for k, v in zip(self.ARGS, self._args)]
@@ -68,6 +69,16 @@ class Action:  # Lawsuit
 
 	def on(self, *actions):
 		return EventListener(self, actions, EventListener.ON)
+
+	def then(self, *args):
+		"""
+		Create a callback containing an action queue, called upon the
+		action's trigger with the action's arguments available.
+		"""
+		ret = self.__class__(*self._args, **self._kwargs)
+		ret.callback = args
+		ret.times = self.times
+		return ret
 
 	def _broadcast(self, entity, source, at, *args):
 		for event in entity.events:
@@ -226,14 +237,39 @@ class EndTurn(GameAction):
 		source.game._end_turn()
 
 
+class Joust(GameAction):
+	"""
+	Perform a joust between \a challenger and \a defender.
+	Note that this does not evaluate the results of the joust. For that,
+	see dsl.evaluators.JoustEvaluator.
+	"""
+	ARGS = ("CHALLENGER", "DEFENDER")
+
+	def get_args(self, source):
+		challenger = self._args[0].eval(source.game, source)
+		defender = self._args[1].eval(source.game, source)
+		return challenger and challenger[0], defender and defender[0]
+
+	def do(self, source, challenger, defender):
+		log.info("Jousting %r vs %r", challenger, defender)
+		for action in self.callback:
+			log.debug("%r joust callback: %r", self, action)
+			source.game.queue_actions(source, [action], event_args=[challenger, defender])
+
+
 class GenericChoice(GameAction):
 	ARGS = ("PLAYER", "CARDS")
 
 	def get_args(self, source):
-		player = self._args[0].eval(source.game.players, source)
-		assert len(player) == 1
-		cards = self._args[1].eval(source.game, source)
-		return player[0], cards
+		player = self._args[0]
+		if isinstance(player, Selector):
+			player = player.eval(source.game.players, source)
+			assert len(player) == 1
+			player = player[0]
+		cards = self._args[1]
+		if isinstance(cards, Selector):
+			cards = cards.eval(source.game, source)
+		return player, cards
 
 	def do(self, source, player, cards):
 		player.choice = self
@@ -354,6 +390,8 @@ class Activate(GameAction):
 			if actions:
 				ret += source.game.queue_actions(minion, actions)
 
+		heropower.activations_this_turn += 1
+
 		return ret
 
 
@@ -363,7 +401,6 @@ class TargetedAction(Action):
 	def __init__(self, *args, **kwargs):
 		self.source = kwargs.pop("source", None)
 		super().__init__(*args, **kwargs)
-		self.times = 1
 		self.event_queue = []
 
 	def __repr__(self):
@@ -373,16 +410,6 @@ class TargetedAction(Action):
 	def __mul__(self, value):
 		self.times = value
 		return self
-
-	def then(self, *args):
-		"""
-		Create a callback containing an action queue, called upon the
-		action's trigger with the action's arguments available.
-		"""
-		ret = self.__class__(*self._args, **self._kwargs)
-		ret.callback = args
-		ret.times = self.times
-		return ret
 
 	def eval(self, selector, source):
 		if isinstance(selector, Entity):
@@ -411,9 +438,6 @@ class TargetedAction(Action):
 			ret = t
 		elif isinstance(t, LazyValue):
 			ret = t.evaluate(source)
-		elif isinstance(t, Action):
-			# eg. Unstable Portal: Buff(Give(...), ...)
-			ret = t.trigger(source)[0]
 		else:
 			ret = t.eval(source.game, source)
 		if not hasattr(ret, "__iter__"):
@@ -467,7 +491,7 @@ class Buff(TargetedAction):
 	def do(self, source, target, buff):
 		kwargs = self._kwargs.copy()
 		for k, v in kwargs.items():
-			if isinstance(v, LazyNum):
+			if isinstance(v, LazyValue):
 				kwargs[k] = v.evaluate(source)
 		return source.buff(target, buff, **kwargs)
 
@@ -567,6 +591,22 @@ class Discard(TargetedAction):
 	def do(self, source, target):
 		self.broadcast(source, EventListener.ON, target)
 		target.discard()
+
+
+class Discover(TargetedAction):
+	"""
+	Opens a generic choice for three random cards matching a filter.
+	"""
+	ARGS = ("TARGETS", "CARDS")
+
+	def get_target_args(self, source, target):
+		picker = self._args[1]
+		cards = picker.pick(source, count=3)
+		return [[target.card(card) for card in cards]]
+
+	def do(self, source, target, cards):
+		log.info("%r discovers %r for %s", source, cards, target)
+		source.game.queue_actions(source, [GenericChoice(target, cards)])
 
 
 class Draw(TargetedAction):
@@ -700,7 +740,7 @@ class Heal(TargetedAction):
 			# "healing as damage" (hack-ish)
 			return source.game.queue_actions(source, [Hit(target, amount)])
 
-		amount *= (source.controller.healing_double + 1)
+		amount <<= source.controller.healing_double
 		amount = min(amount, target.damage)
 		if amount:
 			# Undamaged targets do not receive heals

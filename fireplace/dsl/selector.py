@@ -182,9 +182,8 @@ class AttrSelector(Selector):
 
 		def test(self, entity, source):
 			value = self.value
-			if isinstance(value, Controller):
+			if isinstance(value, LazyValue):
 				# Support AttrSelector(SELF, GameTag.CONTROLLER) == Controller(...)
-				# TODO: Should be a generic lazy value...
 				value = self.value.evaluate(source)
 			return self.op(entity.tags.get(self.tag, 0), value)
 
@@ -295,6 +294,42 @@ TARGET = FuncSelector(lambda entity, source: entity is source.target)
 TARGET.eval = lambda entity, source: [source.target]
 
 
+class MinMaxSelector(Selector):
+	"""
+	Selects the entities in \a selector whose \a tag match \a func comparison
+	"""
+	class SelectFunc:
+		def __init__(self, tag, func):
+			self.tag = tag
+			self.func = func
+
+		def __repr__(self):
+			return "<%s(%s)>" % (self.func.__name__, self.tag)
+
+		def merge(self, selector, entities):
+			key = lambda x: x.tags.get(self.tag, 0)
+			highest = self.func(entities, key=key).tags.get(self.tag, 0)
+			ret = [e for e in entities if e.tags.get(self.tag) == highest]
+			return random.sample(ret, min(len(ret), 1))
+
+	def __init__(self, selector, tag, func):
+		self.slice = None
+		self.select = self.SelectFunc(tag, func)
+		self.selector = selector
+		self.program = [Selector.MergeFilter]
+		self.program.extend(selector.program)
+		self.program.append(Selector.Merge)
+		self.program.append(self.select)
+		self.program.append(Selector.Unmerge)
+
+	def __repr__(self):
+		return "%s(%r)" % (self.__class__.__name__, self.selector)
+
+
+HIGHEST_ATK = lambda sel: MinMaxSelector(sel, GameTag.ATK, max)
+LOWEST_ATK = lambda sel: MinMaxSelector(sel, GameTag.ATK, min)
+
+
 class AdjacentSelector(Selector):
 	"""
 	Selects the minions adjacent to the targets.
@@ -387,9 +422,11 @@ class Opponent(Controller):
 
 FRIENDLY = CONTROLLER == Controller()
 ENEMY = CONTROLLER == Opponent()
-CONTROLLED_BY_OWNER = CONTROLLER == Controller(OWNER)
+
+def CONTROLLED_BY(selector):
+	return AttrSelector(GameTag.CONTROLLER) == Controller(selector)
+
 CONTROLLED_BY_OWNER_OPPONENT = CONTROLLER == Opponent(OWNER)
-CONTROLLED_BY_TARGET = CONTROLLER == Controller(TARGET)
 
 
 # Enum tests
@@ -454,6 +491,10 @@ ALL_WEAPONS = IN_PLAY + WEAPON
 ALL_SECRETS = HIDDEN + SECRET
 ALL_HERO_POWERS = IN_PLAY + HERO_POWER
 
+OWNER_CONTROLLER = ALL_PLAYERS + CONTROLLED_BY(OWNER)
+OWNER_OPPONENT = ALL_PLAYERS + CONTROLLED_BY_OWNER_OPPONENT
+TARGET_PLAYER = ALL_PLAYERS + CONTROLLED_BY(TARGET)
+
 CONTROLLER = ALL_PLAYERS + FRIENDLY
 FRIENDLY_HAND = IN_HAND + FRIENDLY
 FRIENDLY_DECK = IN_DECK + FRIENDLY
@@ -473,10 +514,6 @@ ENEMY_CHARACTERS = IN_PLAY + ENEMY + CHARACTER
 ENEMY_WEAPON = IN_PLAY + ENEMY + WEAPON
 ENEMY_SECRETS = HIDDEN + ENEMY + SECRET
 ENEMY_HERO_POWER = IN_PLAY + ENEMY + HERO_POWER
-
-OWNER_CONTROLLER = ALL_PLAYERS + CONTROLLED_BY_OWNER
-OWNER_OPPONENT = ALL_PLAYERS + CONTROLLED_BY_OWNER_OPPONENT
-TARGET_PLAYER = ALL_PLAYERS + CONTROLLED_BY_TARGET
 
 RANDOM_MINION = RANDOM(ALL_MINIONS)
 RANDOM_CHARACTER = RANDOM(ALL_CHARACTERS)
