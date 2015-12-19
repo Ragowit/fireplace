@@ -88,6 +88,38 @@ class BRMA08_2H:
 	)
 
 
+# Open the Gates
+class BRMA09_2:
+	activate = Summon(CONTROLLER, "BRMA09_2t") * 3, Summon(CONTROLLER, RandomEntourage())
+
+class BRMA09_2H:
+	activate = Summon(CONTROLLER, "BRMA09_2Ht") * 3, Summon(CONTROLLER, RandomEntourage())
+
+
+# Old Horde
+class BRMA09_3:
+	activate = Summon(CONTROLLER, "BRMA09_3t") * 2, Summon(CONTROLLER, RandomEntourage())
+
+class BRMA09_3H:
+	activate = Summon(CONTROLLER, "BRMA09_3Ht") * 2, Summon(CONTROLLER, RandomEntourage())
+
+
+# Blackwing
+class BRMA09_4:
+	activate = Summon(CONTROLLER, "BRMA09_4t"), Summon(CONTROLLER, RandomEntourage())
+
+class BRMA09_4H:
+	activate = Summon(CONTROLLER, "BRMA09_4Ht"), Summon(CONTROLLER, RandomEntourage())
+
+
+# Dismount
+class BRMA09_5:
+	activate = Summon(CONTROLLER, "BRMA09_5t"), Summon(CONTROLLER, RandomEntourage())
+
+class BRMA09_5H:
+	activate = Summon(CONTROLLER, "BRMA09_5Ht"), Summon(CONTROLLER, RandomEntourage())
+
+
 # The Rookery
 class BRMA10_3:
 	activate = Buff(ALL_MINIONS + ID("BRMA10_4"), "BRMA10_3e"), Summon(CONTROLLER, "BRMA10_4")
@@ -130,34 +162,42 @@ class BRMA13_4H:
 
 # Activate Arcanotron
 class BRMA14_2:
-	activate = Summon(CONTROLLER, "BRMA14_3")
+	activate = Summon(CONTROLLER, "BRMA14_3"), Summon(CONTROLLER, "BRMA14_4")
 
 class BRMA14_2H:
-	activate = Summon(CONTROLLER, "BRMA14_3")
+	activate = Summon(CONTROLLER, "BRMA14_3"), Summon(CONTROLLER, "BRMA14_4H")
 
 
 # Activate Toxitron
 class BRMA14_4:
-	activate = Summon(CONTROLLER, "BRMA14_5")
+	activate = Summon(CONTROLLER, "BRMA14_5"), Summon(CONTROLLER, "BRMA14_6")
 
 class BRMA14_4H:
-	activate = Summon(CONTROLLER, "BRMA14_5H")
+	activate = Summon(CONTROLLER, "BRMA14_5H"), Summon(CONTROLLER, "BRMA14_6H")
 
 
 # Activate Electron
 class BRMA14_6:
-	activate = Summon(CONTROLLER, "BRMA14_7")
+	activate = Summon(CONTROLLER, "BRMA14_7"), Summon(CONTROLLER, "BRMA14_8")
 
 class BRMA14_6H:
-	activate = Summon(CONTROLLER, "BRMA14_7H")
+	activate = Summon(CONTROLLER, "BRMA14_7H"), Summon(CONTROLLER, "BRMA14_8H")
 
 
 # Activate Magmatron
 class BRMA14_8:
-	activate = Summon(CONTROLLER, "BRMA14_9")
+	activate = Summon(CONTROLLER, "BRMA14_9"), Summon(CONTROLLER, "BRMA14_10")
 
 class BRMA14_8H:
-	activate = Summon(CONTROLLER, "BRMA14_9H")
+	activate = Summon(CONTROLLER, "BRMA14_9H"), Summon(CONTROLLER, "BRMA14_10H")
+
+
+# Activate!
+class BRMA14_10:
+	activate = Summon(CONTROLLER, RandomEntourage())
+
+class BRMA14_10H:
+	activate = Summon(CONTROLLER, RandomEntourage())
 
 
 # Potion of Might (The Alchemist)
@@ -193,10 +233,10 @@ class BRMA03_3H:
 
 # Corrupted Egg
 class BRMA10_4:
-	update = (Attr(SELF, "health") >= 4) & (Destroy(SELF), Summon(CONTROLLER, "BRMA10_5"))
+	update = (CURRENT_HEALTH(SELF) >= 4) & (Destroy(SELF), Summon(CONTROLLER, "BRMA10_5"))
 
 class BRMA10_4H:
-	update = (Attr(SELF, "health") >= 5) & (Destroy(SELF), Summon(CONTROLLER, "BRMA10_5H"))
+	update = (CURRENT_HEALTH(SELF) >= 5) & (Destroy(SELF), Summon(CONTROLLER, "BRMA10_5H"))
 
 
 # Firesworn
