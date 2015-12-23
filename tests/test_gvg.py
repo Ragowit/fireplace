@@ -508,6 +508,19 @@ def test_implosion_commanding_shout():
 	assert len(game.player1.field) in (3, 4, 5)
 
 
+def test_implosion_divine_shield():
+	game = prepare_game()
+	wisp = game.player1.give(WISP)
+	wisp.play()
+	game.player1.give(HAND_OF_PROTECTION).play(target=wisp)
+	assert wisp.divine_shield
+	implosion = game.player1.give("GVG_045")
+	implosion.play(target=wisp)
+	assert not wisp.dead
+	assert not wisp.divine_shield
+	assert len(game.player1.field) == 1
+
+
 def test_iron_juggernaut():
 	game = prepare_empty_game()
 	game.player2.discard_hand()
@@ -522,6 +535,17 @@ def test_iron_juggernaut():
 	assert game.player2.hero.health == 20
 	assert len(game.player2.deck) == 0
 	assert len(game.player2.hand) == 0
+
+
+def test_jeeves():
+	game = prepare_game()
+	game.player1.discard_hand()
+	jeeves = game.player1.give("GVG_094")
+	jeeves.play()
+	assert len(game.player1.hand) == 0
+	game.end_turn()
+
+	assert len(game.player1.hand) == 3
 
 
 def test_light_of_the_naaru():

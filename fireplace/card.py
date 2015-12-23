@@ -138,7 +138,7 @@ class PlayableCard(BaseCard, Entity, TargetableByAuras):
 
 	@property
 	def cost(self):
-		ret = self._getattr("cost", 0)
+		ret = 0
 		if self.zone == Zone.HAND:
 			mod = self.data.scripts.cost_mod
 			if mod is not None:
@@ -146,6 +146,7 @@ class PlayableCard(BaseCard, Entity, TargetableByAuras):
 				# evaluate() can return None if it's an Evaluator (Crush)
 				if r:
 					ret += r
+		ret = self._getattr("cost", ret)
 		return max(0, ret)
 
 	@cost.setter
@@ -181,32 +182,6 @@ class PlayableCard(BaseCard, Entity, TargetableByAuras):
 				card = self.controller.card(id)
 				card.parent_card = self
 				self.choose_cards.append(card)
-
-	def action(self):
-		if self.has_target() and not self.target:
-			self.log("%r has no target, action exits early", self)
-			return
-
-		if self.has_combo and self.controller.combo:
-			self.log("Activating %r combo targeting %r", self, self.target)
-			actions = self.get_actions("combo")
-		else:
-			self.log("Activating %r action targeting %r", self, self.target)
-			actions = self.get_actions("play")
-
-		if actions:
-			source = self.parent_card or self
-			self.game.queue_actions(source, actions)
-			# Hard-process deaths after a battlecry.
-			# cf. test_knife_juggler()
-			self.game.process_deaths()
-
-		if self.overload:
-			if self.controller.cant_overload:
-				self.log("%r cannot overload %s", self, self.controller)
-			else:
-				self.log("%r overloads %s for %i", self, self.controller, self.overload)
-				self.controller.overloaded += self.overload
 
 	def destroy(self):
 		return self.game.queue_actions(self, [actions.Destroy(self), actions.Deaths()])
@@ -630,7 +605,7 @@ class Minion(Character):
 		if self.divine_shield:
 			self.divine_shield = False
 			self.log("%r's divine shield prevents %i damage.", self, amount)
-			return
+			return 0
 
 		amount = super()._hit(source, amount)
 

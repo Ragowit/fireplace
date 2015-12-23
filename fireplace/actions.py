@@ -324,7 +324,6 @@ class Play(GameAction):
 
 	def do(self, source, player, card, target, index):
 		source_card = card
-		play_action = card.action
 
 		if card.parent_card:
 			# Get the "main" card from the Choose One
@@ -347,8 +346,7 @@ class Play(GameAction):
 
 		# "Can't Play" (aka Counter) means triggers don't happen either
 		if not card.cant_play:
-			# Battlecry etc
-			play_action()
+			source.game.queue_actions(source_card, [Battlecry(card)])
 
 			# If the play action transforms the card (eg. Druid of the Claw), we
 			# have to broadcast the morph result as minion instead.
@@ -396,6 +394,18 @@ class Activate(GameAction):
 		return ret
 
 
+class Overload(GameAction):
+	ARGS = ("PLAYER", "AMOUNT")
+
+	def do(self, source, player, amount):
+		if player.cant_overload:
+			log.info("%r cannot overload %s", source, player)
+			return
+		log.info("%r overloads %s for %i", source, player, amount)
+		self.broadcast(source, EventListener.ON, player, amount)
+		player.overloaded += amount
+
+
 class TargetedAction(Action):
 	ARGS = ("TARGETS", )
 
@@ -403,6 +413,7 @@ class TargetedAction(Action):
 		self.source = kwargs.pop("source", None)
 		super().__init__(*args, **kwargs)
 		self.event_queue = []
+		self.trigger_index = 0
 
 	def __repr__(self):
 		args = ["%s=%r" % (k, v) for k, v in zip(self.ARGS[1:], self._args[1:])]
@@ -461,6 +472,7 @@ class TargetedAction(Action):
 			times = times.trigger(source)[0]
 
 		for i in range(times):
+			self.trigger_index = i
 			args = self.get_args(source)
 			targets = self.get_targets(source, args[0])
 			args = args[1:]
@@ -497,18 +509,6 @@ class Buff(TargetedAction):
 		return source.buff(target, buff, **kwargs)
 
 
-class SwapAttackAndHealth(Buff):
-	def do(self, source, target, buff):
-		log.info("%r swaps attack and health for %r", source, target)
-		buff = super().do(source, target, buff)
-		atk = target.health - target.atk
-		health = target.atk - target.health
-		buff._atk = atk
-		buff._max_health = health
-		target.damage = 0
-		return buff
-
-
 class Bounce(TargetedAction):
 	"""
 	Bounce minion targets on the field back into the hand.
@@ -541,6 +541,7 @@ class Predamage(TargetedAction):
 		if amount:
 			self.broadcast(source, EventListener.ON, target, amount)
 			return source.game.trigger_actions(source, [Damage(target, amount)])[0][0]
+		return 0
 
 
 class Damage(TargetedAction):
@@ -575,6 +576,33 @@ class Deathrattle(TargetedAction):
 			if target.controller.extra_deathrattles:
 				log.info("Triggering deathrattles for %r again", target)
 				source.game.queue_actions(target, actions)
+
+
+class Battlecry(TargetedAction):
+	"""
+	Trigger Battlecry on card targets
+	"""
+	def do(self, source, card):
+		player = card.controller
+
+		if source.has_target() and not source.target:
+			log.info("%r has no target, action exits early", card)
+			return
+
+		if source.has_combo and player.combo:
+			log.info("Activating %r combo targeting %r", source, source.target)
+			actions = source.get_actions("combo")
+		else:
+			log.info("Activating %r action targeting %r", source, source.target)
+			actions = source.get_actions("play")
+
+		if actions:
+			source.game.queue_actions(card, actions)
+
+		source.game.process_deaths()
+
+		if card.overload:
+			source.game.queue_actions(card, [Overload(player, card.overload)])
 
 
 class Destroy(TargetedAction):
@@ -656,6 +684,18 @@ class ForceDraw(TargetedAction):
 		target.draw()
 
 
+class DrawUntil(TargetedAction):
+	"""
+	Make target player target draw up to \a amount cards minus their hand count.
+	"""
+	ARGS = ("TARGETS", "AMOUNT")
+
+	def do(self, source, target, amount):
+		difference = max(0, amount - len(target.hand))
+		if difference > 0:
+			return source.game.queue_actions(source, [Draw(target) * difference])
+
+
 class FullHeal(TargetedAction):
 	"""
 	Fully heal character targets.
@@ -728,6 +768,7 @@ class Hit(TargetedAction):
 		amount = source.get_damage(amount, target)
 		if amount:
 			return source.game.queue_actions(source, [Predamage(target, amount)])[0][0]
+		return 0
 
 
 class Heal(TargetedAction):
@@ -812,7 +853,7 @@ class Retarget(TargetedAction):
 		assert len(new_target) == 1
 		new_target = new_target[0]
 		if target.type in (CardType.HERO, CardType.MINION) and target.attacking:
-			log.info("Retargeting %r's attack to %r", source, new_target)
+			log.info("Retargeting %r's attack to %r", target, new_target)
 			source.game.proposed_defender.defending = False
 			source.game.proposed_defender = new_target
 		else:
@@ -913,6 +954,9 @@ class Summon(TargetedAction):
 				card.controller = target
 			self.broadcast(source, EventListener.ON, target, card)
 			if card.zone != Zone.PLAY:
+				if source.type == CardType.MINION and source.zone == Zone.PLAY:
+					source_index = source.controller.field.index(source)
+					card._summon_index = source_index + ((self.trigger_index + 1) % 2)
 				card.zone = Zone.PLAY
 			self.broadcast(source, EventListener.AFTER, target, card)
 

@@ -19,6 +19,45 @@ class LOE_009:
 	events = OWN_TURN_END.on(Summon(CONTROLLER, "LOE_009t"))
 
 
+# Reno Jackson
+class LOE_011:
+	play = FindDuplicates(FRIENDLY_DECK) | FullHeal(FRIENDLY_HERO)
+
+
+# Tomb Pillager
+class LOE_012:
+	deathrattle = Give(CONTROLLER, "GAME_005")
+
+
+# Rumbling Elemental
+class LOE_016:
+	events = Play(CONTROLLER, MINION + BATTLECRY).after(Hit(RANDOM_ENEMY_CHARACTER, 2))
+
+
+# Keeper of Uldaman
+class LOE_017:
+	play = Buff(TARGET, "LOE_017e")
+
+class LOE_017e:
+	atk = SET(3)
+	max_health = SET(3)
+
+
+# Tunnel Trogg
+class LOE_018:
+	events = Overload(CONTROLLER).on(Buff(SELF, "LOE_018e") * Overload.AMOUNT)
+
+LOE_018e = buff(atk=1)
+
+
+# Desert Camel
+class LOE_020:
+	play = (
+		Summon(CONTROLLER, RANDOM(FRIENDLY_DECK + (COST == 1))),
+		Summon(OPPONENT, RANDOM(ENEMY_DECK + (COST == 1)))
+	)
+
+
 # Dark Peddler
 class LOE_023:
 	play = Discover(CONTROLLER, RandomCollectible(cost=1))
@@ -27,6 +66,11 @@ class LOE_023:
 # Jeweled Scarab
 class LOE_029:
 	play = Discover(CONTROLLER, RandomCollectible(cost=3))
+
+
+# Naga Sea Witch
+class LOE_038:
+	update = Refresh(FRIENDLY_HAND, {GameTag.COST: SET(5)})
 
 
 # Gorillabot A-3
@@ -45,9 +89,66 @@ class LOE_047:
 	play = Discover(CONTROLLER, RandomBeast())
 
 
+# Mounted Raptor
+class LOE_050:
+	deathrattle = Summon(CONTROLLER, RandomMinion(cost=1))
+
+
+# Anubisath Sentinel
+class LOE_061:
+	deathrattle = Buff(RANDOM_OTHER_FRIENDLY_MINION, "LOE_061e")
+
+LOE_061e = buff(+3, +3)
+
+
 # Fossilized Devilsaur
 class LOE_073:
-	play = Find(FRIENDLY_MINIONS + BEAST) & Taunt(SELF)
+	powered_up = Find(FRIENDLY_MINIONS + BEAST)
+	play = powered_up & Taunt(SELF)
+
+
+# Fossilized (Unused)
+LOE_073e = buff(taunt=True)
+
+
+# Summoning Stone
+class LOE_086:
+	events = OWN_SPELL_PLAY.on(
+		Summon(CONTROLLER, RandomMinion(cost=Attr(Play.CARD, GameTag.COST)))
+	)
+
+
+# Wobbling Runts
+class LOE_089:
+	deathrattle = (
+		Summon(CONTROLLER, "LOE_089t"),
+		Summon(CONTROLLER, "LOE_089t2"),
+		Summon(CONTROLLER, "LOE_089t3")
+	)
+
+
+# Arch-Thief Rafaam
+class LOE_092:
+	play = Discover(CONTROLLER, RandomID("LOEA16_3", "LOEA16_5", "LOEA16_4"))
+
+
+# Lantern of Power
+class LOEA16_3:
+	play = Buff(TARGET, "LOEA16_3e")
+
+LOEA16_3e = buff(+10, +10)
+
+
+# Timepiece of Horror
+class LOEA16_4:
+	def play(self):
+		count = self.controller.get_spell_damage(10)
+		yield Hit(RANDOM_ENEMY_CHARACTER, 1) * count
+
+
+# Mirror of Doom
+class LOEA16_5:
+	play = Summon(CONTROLLER, "LOEA16_5t")
 
 
 # Ancient Shade
@@ -83,6 +184,16 @@ class LOE_007t:
 # Anyfin Can Happen
 class LOE_026:
 	play = Summon(CONTROLLER, Copy(RANDOM(KILLED + MURLOC) * 7))
+
+
+# Entomb
+class LOE_104:
+	play = Steal(TARGET), Shuffle(CONTROLLER, TARGET)
+
+
+# Excavated Evil
+class LOE_111:
+	play = Hit(ALL_MINIONS, 5), Shuffle(OPPONENT, Copy(SELF))
 
 
 # Everyfin is Awesome

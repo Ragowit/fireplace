@@ -76,6 +76,14 @@ class LOEA01_11h:
 LOEA01_11he = buff(+3, +3)
 
 
+# Tol'vir Hoplite
+class LOEA01_12:
+	deathrattle = Hit(ALL_HEROES, 5)
+
+class LOEA01_12h:
+	deathrattle = Hit(ALL_HEROES, 5)
+
+
 ##
 # Temple Escape
 
@@ -188,6 +196,76 @@ class LOEA07_28:
 
 
 ##
+# Lord Slitherspear
+
+# Enraged!
+class LOEA09_2:
+	activate = Buff(FRIENDLY_HERO, "LOEA09_2e")
+
+LOEA09_2e = buff(atk=2)
+
+class LOEA09_2H:
+	activate = Buff(FRIENDLY_HERO, "LOEA09_2e")
+
+LOEA09_2eH = buff(atk=5)
+
+
+# Slithering Archer
+class LOEA09_6:
+	play = Hit(TARGET, 1)
+
+class LOEA09_6H:
+	play = Hit(ENEMY_MINIONS, 2)
+
+
+# Cauldron
+class LOEA09_7:
+	deathrattle = Give(OPPONENT, "LOE_076"), Summon(CONTROLLER, "LOEA09_2")
+
+# Cauldron (Unused)
+class LOEA09_7H:
+	deathrattle = Give(OPPONENT, "LOE_076"), Summon(CONTROLLER, "LOEA09_2H")
+
+
+##
+# Giantfin
+
+# Mrglmrgl MRGL!
+class LOEA16_2:
+	activate = DrawUntil(CONTROLLER, Count(ENEMY_HAND))
+
+class LOEA16_2H:
+	activate = Draw(CONTROLLER) * 2
+
+
+# Mrgl Mrgl Nyah Nyah
+class LOEA10_5:
+	play = Summon(CONTROLLER, Copy(RANDOM(KILLED + MURLOC) * 5))
+
+class LOEA10_5H:
+	play = Summon(CONTROLLER, Copy(RANDOM(KILLED + MURLOC) * 5))
+
+
+##
+# Arch-Thief Rafaam
+
+# Unstable Portal
+class LOEA15_2:
+	activate = Give(CONTROLLER, RandomMinion()).then(Buff(Give.CARD, "GVG_003e"))
+
+class LOEA15_2H:
+	activate = Give(CONTROLLER, RandomMinion()).then(Buff(Give.CARD, "GVG_003e"))
+
+
+# Rare Spear
+class LOEA09_4:
+	events = Play(OPPONENT, RARE).on(Buff(SELF, "EX1_409e"))
+
+class LOEA09_4H:
+	events = Play(OPPONENT, RARE).on(Buff(SELF, "EX1_409e"))
+
+
+##
 # Rafaam Unleashed
 
 # Rummage
@@ -252,6 +330,61 @@ class LOEA16_14e:
 # Ysera's Tear
 class LOEA16_15:
 	play = ManaThisTurn(CONTROLLER, 4)
+
+
+# Zinaar
+class LOEA16_18:
+	events = OWN_TURN_END.on(Give(CONTROLLER, RandomWish))
+
+class LOEA16_18H:
+	events = OWN_TURN_END.on(Give(CONTROLLER, RandomWish))
+
+
+# Sun Raider Phaerix
+class LOEA16_19:
+	events = OWN_TURN_END.on(Give(CONTROLLER, "LOEA16_20"))
+
+class LOEA16_19H:
+	update = Refresh(FRIENDLY_MINIONS - SELF, {GameTag.CANT_BE_DAMAGED: True})
+
+
+# Chieftain Scarvash
+class LOEA16_21:
+	update = Refresh(ENEMY_HAND, {GameTag.COST: +1})
+
+class LOEA16_21H:
+	update = Refresh(ENEMY_HAND, {GameTag.COST: +2})
+
+
+# Archaedas
+class LOEA16_22:
+	events = OWN_TURN_END.on(Morph(RANDOM_ENEMY_MINION, "LOEA06_02t"))
+
+class LOEA16_22H:
+	events = OWN_TURN_END.on(Morph(RANDOM_ENEMY_MINION, "LOEA06_02t"))
+
+
+# Lord Slitherspear
+class LOEA16_23:
+	events = OWN_TURN_END.on(Summon(CONTROLLER, "LOEA09_5") * Count(ENEMY_MINIONS))
+
+class LOEA16_23H:
+	events = OWN_TURN_END.on(Summon(CONTROLLER, "LOEA09_5") * Count(ENEMY_MINIONS))
+
+
+# Giantfin
+class LOEA16_24:
+	events = OWN_TURN_END.on(DrawUntil(CONTROLLER, Count(ENEMY_HAND)))
+
+class LOEA16_24H:
+	events = OWN_TURN_END.on(Draw(CONTROLLER) * 2)
+
+
+# Blessing of the Sun
+class LOEA16_20:
+	play = Buff(TARGET, "LOEA16_20e")
+
+LOEA16_20e = buff(immune=True)
 
 
 ##

@@ -16,6 +16,23 @@ def test_ancient_shade():
 	assert game.player1.hero.health == 30 - 7
 
 
+def test_anubisath_sentinel():
+	game = prepare_game()
+	wisp = game.player2.summon(WISP)
+	sentinel1 = game.player1.give("LOE_061")
+	sentinel1.play()
+	sentinel2 = game.player1.give("LOE_061")
+	sentinel2.play()
+	game.end_turn(); game.end_turn()
+
+	assert sentinel2.atk == sentinel2.health == 4
+	game.player1.give("CS2_029").play(target=sentinel1)
+	assert sentinel2.atk == sentinel2.health == 4 + 3
+	assert wisp.atk == wisp.health == 1
+	game.player1.give("CS2_029").play(target=sentinel2)
+	assert wisp.atk == wisp.health == 1
+
+
 def test_anyfin_can_happen():
 	game = prepare_game()
 
@@ -83,6 +100,45 @@ def test_curse_of_rafaam():
 	assert game.player2.hero.health == 30 - 2 - 2
 
 
+def test_desert_camel():
+	game = prepare_empty_game()
+	goldshire1 = game.player1.give(GOLDSHIRE_FOOTMAN)
+	assert goldshire1.cost == 1
+	goldshire1.shuffle_into_deck()
+	game.player1.give(WISP).shuffle_into_deck()
+	game.player2.give(WISP).shuffle_into_deck()
+	camel1 = game.player1.give("LOE_020")
+	camel1.play()
+	assert len(game.player1.field) == 2
+	assert camel1 in game.player1.field
+	assert goldshire1 in game.player1.field
+	assert len(game.player2.field) == 0
+	game.end_turn(); game.end_turn()
+
+	goldshire2 = game.player2.give(GOLDSHIRE_FOOTMAN)
+	goldshire2.shuffle_into_deck()
+	camel2 = game.player1.give("LOE_020")
+	camel2.play()
+	assert len(game.player2.field) == 1
+	assert goldshire2 in game.player2.field
+
+
+def test_entomb():
+	game = prepare_empty_game()
+	wisp = game.player1.give(WISP)
+	wisp.play()
+	game.end_turn()
+
+	entomb = game.player2.give("LOE_104")
+	assert wisp in game.player1.field
+	assert len(game.player1.field) == 1
+	assert len(game.player2.deck) == 0
+	entomb.play(target=wisp)
+	assert len(game.player1.field) == 0
+	assert len(game.player2.deck) == 1
+	assert wisp in game.player2.deck
+
+
 def test_ethereal_conjurer():
 	game = prepare_game(MAGE, MAGE)
 	conjurer = game.player1.give("LOE_003")
@@ -110,6 +166,19 @@ def test_everyfin_is_awesome():
 	assert murloc1.buffs
 	assert murloc1.atk == murloc1.health == 1 + 2
 	assert not murloc2.buffs
+
+
+def test_excavated_evil():
+	game = prepare_empty_game()
+	evil = game.player1.give("LOE_111")
+	wisp1 = game.player1.summon(WISP)
+	wisp2 = game.player2.summon(WISP)
+	assert len(game.player2.deck) == 0
+	evil.play()
+	assert wisp1.dead and wisp2.dead
+	assert game.player1.hero.health == game.player2.hero.health == 30
+	assert len(game.player2.deck) == 1
+	assert game.player2.deck[0].id == "LOE_111"
 
 
 def test_fossilized_devilsaur():
@@ -141,6 +210,169 @@ def test_huge_toad():
 	for i in range(2):
 		game.player2.give(MOONFIRE).play(target=toad)
 	assert game.player1.hero.health + dummy.health == 30 + 2 - 1
+
+
+def test_keeper_of_uldaman():
+	game = prepare_game()
+	wisp = game.player1.give(WISP)
+	wisp.play()
+	goldshire = game.player1.give(GOLDSHIRE_FOOTMAN)
+	goldshire.play()
+	game.player1.give(MOONFIRE).play(target=goldshire)
+	statue = game.player1.give(ANIMATED_STATUE)
+	statue.play()
+	game.end_turn(); game.end_turn()
+
+	for minion in (wisp, goldshire, statue):
+		keeper = game.player1.give("LOE_017")
+		keeper.play(target=minion)
+		assert minion.atk == minion.health == 3
+		assert not minion.damaged
+		game.end_turn(); game.end_turn()
+
+
+def test_naga_sea_witch():
+	game = prepare_game()
+	game.player1.give(MOONFIRE)
+	game.player1.give(WISP)
+	game.player1.give(GOLDSHIRE_FOOTMAN)
+	game.player1.give("EX1_586")  # Sea Giant
+	naga = game.player1.give("LOE_038")
+	naga.play()
+	for card in game.player1.hand:
+		assert card.cost == 5
+	naga.destroy()
+	for card in game.player1.hand:
+		assert card.cost == card.data.cost
+
+
+def test_obsidian_destroyer():
+	game = prepare_game()
+	destroy = game.player1.give("LOE_009")
+	destroy.play()
+	assert len(game.player1.field) == 1
+	game.end_turn()
+
+	assert len(game.player1.field) == 2
+	scarab = game.player1.field[1]
+	assert scarab.id == "LOE_009t"
+	assert scarab.taunt
+
+
+def test_reno_jackson():
+	game = prepare_empty_game()
+
+	game.player1.hero.set_current_health(10)
+	assert game.player1.hero.health == 10
+	game.player1.give(WISP).shuffle_into_deck()
+	game.player1.give(WISP).shuffle_into_deck()
+	game.player1.give("LOE_011").play()
+	assert game.player1.hero.health == 10
+	game.end_turn(); game.end_turn()
+
+	assert len(game.player1.deck) == 1
+	game.player1.give("LOE_011").play()
+	assert game.player1.hero.health == 30
+	game.end_turn(); game.end_turn()
+
+	assert len(game.player1.deck) == 0
+	game.player1.hero.set_current_health(10)
+	assert game.player1.hero.health == 10
+	game.player1.give("LOE_011").play()
+	assert game.player1.hero.health == 30
+
+
+def test_rumbling_elemental():
+	game = prepare_game()
+
+	elemental = game.player1.give("LOE_016")
+	wisp1 = game.player2.summon(WISP)
+
+	# Rumbling Elemental should not trigger in hand
+	vodoo1 = game.player1.give("EX1_011")
+	vodoo1.play(target=game.player1.hero)
+	assert not wisp1.dead and game.player2.hero.health == 30
+	vodoo1.destroy()
+
+	elemental.play()
+
+	# vanilla minions should not trigger
+	wisp2 = game.player1.give(WISP)
+	wisp2.play()
+	wisp2.destroy()
+	assert not wisp1.dead and game.player2.hero.health == 30
+	game.end_turn()
+
+	# opponent's battlecries should not trigger
+	vodoo2 = game.player2.give("EX1_011")
+	vodoo2.play(target=game.player2.hero)
+	assert not wisp1.dead and game.player2.hero.health == 30
+	vodoo2.destroy()
+	game.end_turn()
+
+	# Elemental should not trigger on battlecry weapon
+	perditionsblade = game.player1.give("EX1_133")
+	perditionsblade.play(target=game.player1.hero)
+	assert not wisp1.dead and game.player2.hero.health == 30
+
+	vodoo3 = game.player1.give("EX1_011")
+	vodoo3.play(target=game.player1.hero)
+	assert wisp1.dead ^ (game.player2.hero.health == 28)
+
+
+def test_summoning_stone():
+	game = prepare_game()
+	stone = game.player1.give("LOE_086")
+	stone.play()
+	game.end_turn()
+
+	game.player2.give(MOONFIRE).play(target=game.player1.hero)
+	assert len(game.player1.field) == 1
+	assert len(game.player2.field) == 0
+	game.end_turn()
+
+	moonfire = game.player1.give(MOONFIRE)
+	assert moonfire.cost == 0
+	moonfire.play(target=game.player2.hero)
+	assert len(game.player1.field) == 2
+	assert stone is game.player1.field[0]
+	assert game.player1.field[1].cost == 0
+
+
+def test_tomb_pillager():
+	game = prepare_game()
+	game.player1.discard_hand()
+	pillager = game.player1.give("LOE_012")
+	pillager.play()
+	fireball = game.player1.give("CS2_029")
+	fireball.play(target=pillager)
+	assert pillager.dead
+	assert len(game.player1.hand) == 1
+	assert game.player1.hand[0].id == "GAME_005"
+
+
+def test_tunnel_trogg():
+	game = prepare_game()
+	trogg = game.player1.give("LOE_018")
+	dustdevil = game.player1.give("EX1_243")
+	dustdevil.play()
+	assert trogg.atk == 1
+	trogg.play()
+	assert trogg.atk == 1
+	dustdevil = game.player1.give("EX1_243")
+	assert dustdevil.overload == 2
+	dustdevil.play()
+	assert trogg.atk == 3
+
+
+def test_wobbling_runts():
+	game = prepare_game()
+	runts = game.player1.give("LOE_089")
+	runts.play()
+	assert len(game.player1.field) == 1
+	runts.destroy()
+	assert len(game.player1.field) == 3
+	assert game.player1.field == ["LOE_089t", "LOE_089t2", "LOE_089t3"]
 
 
 ##
