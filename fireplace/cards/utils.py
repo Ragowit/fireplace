@@ -23,19 +23,20 @@ RandomMurloc = lambda *a, **kw: RandomMinion(*a, race=Race.MURLOC)
 RandomSpell = lambda *a, **kw: RandomCollectible(*a, type=CardType.SPELL, **kw)
 RandomTotem = lambda *a, **kw: RandomCardPicker(*a, race=Race.TOTEM)
 RandomWeapon = lambda *a, **kw: RandomCollectible(*a, type=CardType.WEAPON, **kw)
+RandomLegendaryMinion = lambda *a, **kw: RandomMinion(*a, rarity=Rarity.LEGENDARY, **kw)
 RandomSparePart = lambda: RandomCardPicker(spare_part=True)
 
 
 class RandomEntourage(RandomCardPicker):
-	def pick(self, source):
+	def pick(self, source, **kwargs):
 		self._cards = source.entourage
-		return super().pick(source)
+		return super().pick(source, **kwargs)
 
 
 class RandomID(RandomCardPicker):
-	def pick(self, source):
+	def pick(self, source, **kwargs):
 		self._cards = self.args
-		return super().pick(source)
+		return super().pick(source, **kwargs)
 
 
 Freeze = lambda target: SetTag(target, (GameTag.FROZEN, ))

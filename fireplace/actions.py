@@ -59,6 +59,7 @@ class Action:  # Lawsuit
 		self._kwargs = kwargs
 		self.callback = ()
 		self.times = 1
+		self.event_queue = []
 
 	def __repr__(self):
 		args = ["%s=%r" % (k, v) for k, v in zip(self.ARGS, self._args)]
@@ -94,6 +95,14 @@ class Action:  # Lawsuit
 
 		for entity in source.game.hands:
 			self._broadcast(entity, source, at, *args)
+
+	def queue_broadcast(self, obj, args):
+		self.event_queue.append((obj, args))
+
+	def resolve_broadcasts(self):
+		for obj, args in self.event_queue:
+			obj.broadcast(*args)
+		self.event_queue = []
 
 	def get_args(self, source):
 		return self._args
@@ -311,7 +320,7 @@ class Play(GameAction):
 	Make the source player play \a card, on \a target or None.
 	Choose play action from \a choose or None.
 	"""
-	ARGS = ("PLAYER", "CARD", "TARGET", "CHOOSE")
+	ARGS = ("PLAYER", "CARD", "TARGET", "INDEX", "CHOOSE")
 
 	def _broadcast(self, entity, source, at, *args):
 		# Prevent cards from triggering off their own play
@@ -322,31 +331,31 @@ class Play(GameAction):
 	def get_args(self, source):
 		return (source, ) + super().get_args(source)
 
-	def do(self, source, player, card, target, index):
-		source_card = card
+	def do(self, source, player, card, target, index, choose):
+		log.info("%s plays %r (target=%r, index=%r)", player, card, target, index)
 
-		if card.parent_card:
-			# Get the "main" card from the Choose One
-			card.parent_card.choose = card
-			card = card.parent_card
+		player.pay_mana(card.cost)
 
 		card.target = target
 		card._summon_index = index
-		source_card.target = target
-		player.game.no_aura_refresh = True
-		player.game._play(card)
 
-		self.broadcast(player, EventListener.ON, player, card, target)
+		player.game.no_aura_refresh = True
+		card.zone = Zone.PLAY
+
 		# NOTE: A Play is not a summon! But it sure looks like one.
 		# We need to fake a Summon broadcast.
 		summon_action = Summon(player, card)
-		summon_action.broadcast(player, EventListener.ON, player, card)
+
+		self.queue_broadcast(summon_action, (player, EventListener.ON, player, card))
+		self.broadcast(player, EventListener.ON, player, card, target)
+		self.resolve_broadcasts()
 		player.game.no_aura_refresh = False
 		player.game.refresh_auras()
 
 		# "Can't Play" (aka Counter) means triggers don't happen either
 		if not card.cant_play:
-			source.game.queue_actions(source_card, [Battlecry(card)])
+			battlecry_card = choose or card
+			source.game.queue_actions(card, [Battlecry(battlecry_card, card.target)])
 
 			# If the play action transforms the card (eg. Druid of the Claw), we
 			# have to broadcast the morph result as minion instead.
@@ -358,12 +367,12 @@ class Play(GameAction):
 			self.broadcast(player, EventListener.AFTER, player, played_minion, target)
 
 		player.combo = True
+		player.last_card_played = card
 		player.cards_played_this_turn += 1
-		if source_card.type == CardType.MINION:
+		if card.type == CardType.MINION:
 			player.minions_played_this_turn += 1
 
 		card.target = None
-		source_card.target = None
 		card.choose = None
 
 
@@ -407,12 +416,11 @@ class Overload(GameAction):
 
 
 class TargetedAction(Action):
-	ARGS = ("TARGETS", )
+	ARGS = ("TARGET", )
 
 	def __init__(self, *args, **kwargs):
 		self.source = kwargs.pop("source", None)
 		super().__init__(*args, **kwargs)
-		self.event_queue = []
 		self.trigger_index = 0
 
 	def __repr__(self):
@@ -431,10 +439,8 @@ class TargetedAction(Action):
 
 	def get_target_args(self, source, target):
 		ret = []
-		for k, v in zip(self.ARGS, self._args):
-			if k == "TARGETS":
-				continue
-			elif isinstance(v, Selector):
+		for k, v in zip(self.ARGS[1:], self._args[1:]):
+			if isinstance(v, Selector):
 				# evaluate Selector arguments
 				v = v.eval(source.game, source)
 			elif isinstance(v, LazyValue):
@@ -452,6 +458,8 @@ class TargetedAction(Action):
 			ret = t.evaluate(source)
 		else:
 			ret = t.eval(source.game, source)
+		if not ret:
+			return []
 		if not hasattr(ret, "__iter__"):
 			# Bit of a hack to ensure we always get a list back
 			ret = [ret]
@@ -488,9 +496,7 @@ class TargetedAction(Action):
 
 			source.game.manager.action_end(self, source, targets, *self._args)
 
-		for args in self.event_queue:
-			self.broadcast(*args)
-		self.event_queue = []
+		self.resolve_broadcasts()
 
 		return ret
 
@@ -499,7 +505,7 @@ class Buff(TargetedAction):
 	"""
 	Buff character targets with Enchantment \a id
 	"""
-	ARGS = ("TARGETS", "BUFF")
+	ARGS = ("TARGET", "BUFF")
 
 	def do(self, source, target, buff):
 		kwargs = self._kwargs.copy()
@@ -534,7 +540,7 @@ class Predamage(TargetedAction):
 	"""
 	Predamage target by \a amount.
 	"""
-	ARGS = ("TARGETS", "AMOUNT")
+	ARGS = ("TARGET", "AMOUNT")
 
 	def do(self, source, target, amount):
 		target.predamage = amount
@@ -548,7 +554,7 @@ class Damage(TargetedAction):
 	"""
 	Damage target by \a amount.
 	"""
-	ARGS = ("TARGETS", "AMOUNT")
+	ARGS = ("TARGET", "AMOUNT")
 
 	def do(self, source, target, amount):
 		amount = target._hit(source, target.predamage)
@@ -582,22 +588,37 @@ class Battlecry(TargetedAction):
 	"""
 	Trigger Battlecry on card targets
 	"""
-	def do(self, source, card):
+
+	ARGS = ("CARD", "TARGET")
+
+	def get_target_args(self, source, target):
+		arg = self._args[1]
+		if isinstance(arg, Selector):
+			arg = arg.eval(source.game, source)
+			assert len(arg) == 1
+			arg = arg[0]
+		return [arg]
+
+	def do(self, source, card, target):
 		player = card.controller
 
-		if source.has_target() and not source.target:
+		if card.has_target() and not target:
 			log.info("%r has no target, action exits early", card)
 			return
 
-		if source.has_combo and player.combo:
-			log.info("Activating %r combo targeting %r", source, source.target)
-			actions = source.get_actions("combo")
+		if card.has_combo and player.combo:
+			log.info("Activating %r combo targeting %r", card, target)
+			actions = card.get_actions("combo")
 		else:
-			log.info("Activating %r action targeting %r", source, source.target)
-			actions = source.get_actions("play")
+			log.info("Activating %r action targeting %r", card, target)
+			actions = card.get_actions("play")
 
 		if actions:
-			source.game.queue_actions(card, actions)
+			source.target = target
+			source.game.queue_actions(source, actions)
+
+			if player.extra_battlecries and card.has_battlecry:
+				source.game.queue_actions(source, actions)
 
 		source.game.process_deaths()
 
@@ -626,7 +647,7 @@ class Discover(TargetedAction):
 	"""
 	Opens a generic choice for three random cards matching a filter.
 	"""
-	ARGS = ("TARGETS", "CARDS")
+	ARGS = ("TARGET", "CARDS")
 
 	def get_target_args(self, source, target):
 		picker = self._args[1]
@@ -642,7 +663,7 @@ class Draw(TargetedAction):
 	"""
 	Make player targets draw a card from their deck.
 	"""
-	ARGS = ("TARGETS", "CARD")
+	ARGS = ("TARGET", "CARD")
 
 	def get_target_args(self, source, target):
 		if target.deck:
@@ -665,7 +686,7 @@ class Fatigue(TargetedAction):
 	"""
 	Hit a player with a tick of fatigue
 	"""
-	ARGS = ("TARGETS", )
+	ARGS = ("TARGET", )
 
 	def do(self, source, target):
 		if target.cant_fatigue:
@@ -688,7 +709,7 @@ class DrawUntil(TargetedAction):
 	"""
 	Make target player target draw up to \a amount cards minus their hand count.
 	"""
-	ARGS = ("TARGETS", "AMOUNT")
+	ARGS = ("TARGET", "AMOUNT")
 
 	def do(self, source, target, amount):
 		difference = max(0, amount - len(target.hand))
@@ -708,7 +729,7 @@ class GainArmor(TargetedAction):
 	"""
 	Make hero targets gain \a amount armor.
 	"""
-	ARGS = ("TARGETS", "AMOUNT")
+	ARGS = ("TARGET", "AMOUNT")
 
 	def do(self, source, target, amount):
 		target.armor += amount
@@ -719,7 +740,7 @@ class GainMana(TargetedAction):
 	"""
 	Give player targets \a Mana crystals.
 	"""
-	ARGS = ("TARGETS", "AMOUNT")
+	ARGS = ("TARGET", "AMOUNT")
 
 	def do(self, source, target, amount):
 		target.max_mana += amount
@@ -729,7 +750,7 @@ class GainEmptyMana(TargetedAction):
 	"""
 	Give player targets \a amount empty Mana crystals.
 	"""
-	ARGS = ("TARGETS", "AMOUNT")
+	ARGS = ("TARGET", "AMOUNT")
 
 	def do(self, source, target, amount):
 		target.max_mana += amount
@@ -740,7 +761,7 @@ class Give(TargetedAction):
 	"""
 	Give player targets card \a id.
 	"""
-	ARGS = ("TARGETS", "CARD")
+	ARGS = ("TARGET", "CARD")
 
 	def do(self, source, target, cards):
 		log.info("Giving %r to %s", cards, target)
@@ -762,7 +783,7 @@ class Hit(TargetedAction):
 	"""
 	Hit character targets by \a amount.
 	"""
-	ARGS = ("TARGETS", "AMOUNT")
+	ARGS = ("TARGET", "AMOUNT")
 
 	def do(self, source, target, amount):
 		amount = source.get_damage(amount, target)
@@ -775,7 +796,7 @@ class Heal(TargetedAction):
 	"""
 	Heal character targets by \a amount.
 	"""
-	ARGS = ("TARGETS", "AMOUNT")
+	ARGS = ("TARGET", "AMOUNT")
 
 	def do(self, source, target, amount):
 		if source.controller.outgoing_healing_adjustment:
@@ -788,14 +809,14 @@ class Heal(TargetedAction):
 			# Undamaged targets do not receive heals
 			log.info("%r heals %r for %i", source, target, amount)
 			target.damage -= amount
-			self.event_queue.append((source, EventListener.ON, target, amount))
+			self.queue_broadcast(self, (source, EventListener.ON, target, amount))
 
 
 class ManaThisTurn(TargetedAction):
 	"""
 	Give player targets \a amount Mana this turn.
 	"""
-	ARGS = ("TARGETS", "AMOUNT")
+	ARGS = ("TARGET", "AMOUNT")
 
 	def do(self, source, target, amount):
 		target.temp_mana += min(target.max_resources - target.mana, amount)
@@ -805,7 +826,7 @@ class Mill(TargetedAction):
 	"""
 	Mill \a count cards from the top of the player targets' deck.
 	"""
-	ARGS = ("TARGETS", "AMOUNT")
+	ARGS = ("TARGET", "AMOUNT")
 
 	def do(self, source, target, count):
 		target.mill(count)
@@ -815,7 +836,7 @@ class Morph(TargetedAction):
 	"""
 	Morph minion target into \a minion id
 	"""
-	ARGS = ("TARGETS", "CARD")
+	ARGS = ("TARGET", "CARD")
 
 	def get_target_args(self, source, target):
 		card = _eval_card(source, self._args[1])
@@ -840,16 +861,18 @@ class FillMana(TargetedAction):
 	"""
 	Refill \a amount mana crystals from player targets.
 	"""
-	ARGS = ("TARGETS", "AMOUNT")
+	ARGS = ("TARGET", "AMOUNT")
 
 	def do(self, source, target, amount):
 		target.used_mana -= amount
 
 
 class Retarget(TargetedAction):
-	ARGS = ("TARGETS", "CARDS")
+	ARGS = ("TARGET", "CARD")
 
 	def do(self, source, target, new_target):
+		if not new_target:
+			return
 		assert len(new_target) == 1
 		new_target = new_target[0]
 		if target.type in (CardType.HERO, CardType.MINION) and target.attacking:
@@ -877,7 +900,7 @@ class SetCurrentHealth(TargetedAction):
 	"""
 	Sets the current health of the character target to \a amount.
 	"""
-	ARGS = ("TARGETS", "AMOUNT")
+	ARGS = ("TARGET", "AMOUNT")
 
 	def do(self, source, target, amount):
 		log.info("Setting current health on %r to %i", target, amount)
@@ -889,7 +912,7 @@ class SetTag(TargetedAction):
 	"""
 	Sets targets' given tags.
 	"""
-	ARGS = ("TARGETS", "TAGS")
+	ARGS = ("TARGET", "TAGS")
 
 	def do(self, source, target, tags):
 		if isinstance(tags, dict):
@@ -904,7 +927,7 @@ class UnsetTag(TargetedAction):
 	"""
 	Unset targets' given tags.
 	"""
-	ARGS = ("TARGETS", "TAGS")
+	ARGS = ("TARGET", "TAGS")
 
 	def do(self, source, target, tags):
 		for tag in tags:
@@ -934,7 +957,7 @@ class Summon(TargetedAction):
 	Make player targets summon \a id onto their field.
 	This works for equipping weapons as well as summoning minions.
 	"""
-	ARGS = ("TARGETS", "CARDS")
+	ARGS = ("TARGET", "CARD")
 
 	def _broadcast(self, entity, source, at, *args):
 		# Prevent cards from triggering off their own summon
@@ -952,12 +975,12 @@ class Summon(TargetedAction):
 				continue
 			if card.controller != target:
 				card.controller = target
-			self.broadcast(source, EventListener.ON, target, card)
 			if card.zone != Zone.PLAY:
 				if source.type == CardType.MINION and source.zone == Zone.PLAY:
 					source_index = source.controller.field.index(source)
 					card._summon_index = source_index + ((self.trigger_index + 1) % 2)
 				card.zone = Zone.PLAY
+			self.queue_broadcast(self, (source, EventListener.ON, target, card))
 			self.broadcast(source, EventListener.AFTER, target, card)
 
 		return cards
@@ -967,7 +990,7 @@ class Shuffle(TargetedAction):
 	"""
 	Shuffle card targets into player target's deck.
 	"""
-	ARGS = ("TARGETS", "CARDS")
+	ARGS = ("TARGET", "CARD")
 
 	def do(self, source, target, cards):
 		log.info("%r shuffles into %s's deck", cards, target)
@@ -986,7 +1009,7 @@ class Swap(TargetedAction):
 	Swap minion target with \a other.
 	Behaviour is undefined when swapping more than two minions.
 	"""
-	ARGS = ("TARGETS", "OTHER")
+	ARGS = ("TARGET", "OTHER")
 
 	def get_target_args(self, source, target):
 		other = self.eval(self._args[1], source)
@@ -1007,7 +1030,7 @@ class Steal(TargetedAction):
 	Make the controller take control of targets.
 	The controller is the controller of the source of the action.
 	"""
-	ARGS = ("TARGETS", "CONTROLLER")
+	ARGS = ("TARGET", "CONTROLLER")
 
 	def get_target_args(self, source, target):
 		if len(self._args) > 1:

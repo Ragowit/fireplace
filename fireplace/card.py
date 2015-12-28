@@ -87,6 +87,10 @@ class BaseCard(BaseEntity):
 			caches[value].append(self)
 		self._zone = value
 
+		if value == Zone.PLAY:
+			self.play_counter = self.game.play_counter
+			self.game.play_counter += 1
+
 	def buff(self, target, buff, **kwargs):
 		"""
 		Summon \a buff and apply it to \a target
@@ -257,21 +261,22 @@ class PlayableCard(BaseCard, Entity, TargetableByAuras):
 		Queue a Play action on the card.
 		"""
 		if choose:
-			# This is a helper so we can do keeper.play(choose=id)
-			# instead of having to mess with keeper.choose_cards.filter(...)
-			return self.choose_cards.filter(id=choose)[0].play(target=target, index=index)
-		if self.choose_cards:
-			raise InvalidAction("Do not play %r! Play one of its Choose Cards instead" % (self))
+			choose = card = self.choose_cards.filter(id=choose)[0]
+			self.log("%r: choosing %r", self, choose)
+		else:
+			if self.choose_cards:
+				raise InvalidAction("%r requires a choice (one of %r)" % (self, self.choose_cards))
+			card = self
 		if not self.is_playable():
 			raise InvalidAction("%r isn't playable." % (self))
-		if self.has_target():
+		if card.has_target():
 			if not target:
 				raise InvalidAction("%r requires a target to play." % (self))
 			elif target not in self.targets:
 				raise InvalidAction("%r is not a valid target for %r." % (target, self))
 		elif target:
 			self.logger.warning("%r does not require a target, ignoring target %r", self, target)
-		self.game.queue_actions(self.controller, [actions.Play(self, target, index)])
+		self.game.queue_actions(self.controller, [actions.Play(self, target, index, choose)])
 		return self
 
 	def is_summonable(self) -> bool:
@@ -384,6 +389,7 @@ class LiveEntity(PlayableCard, Entity):
 
 class Character(LiveEntity):
 	health_attribute = "health"
+	cant_attack = boolean_property("cant_attack")
 	cant_be_targeted_by_opponents = boolean_property("cant_be_targeted_by_opponents")
 	cant_be_targeted_by_abilities = boolean_property("cant_be_targeted_by_abilities")
 	cant_be_targeted_by_hero_powers = boolean_property("cant_be_targeted_by_hero_powers")
@@ -392,7 +398,6 @@ class Character(LiveEntity):
 	def __init__(self, data):
 		self.frozen = False
 		self.attack_target = None
-		self.cant_attack = False
 		self.cannot_attack_heroes = False
 		self.num_attacks = 0
 		self.race = Race.INVALID
@@ -753,7 +758,7 @@ class Weapon(rules.WeaponRules, LiveEntity):
 
 
 class HeroPower(PlayableCard):
-	additional_activations = slot_property("additional_activations", sum)
+	additional_activations = int_property("additional_activations")
 	playable_zone = Zone.PLAY
 
 	def __init__(self, data):

@@ -123,6 +123,46 @@ def test_desert_camel():
 	assert goldshire2 in game.player2.field
 
 
+def test_djinni_of_zephyrs():
+	game = prepare_game()
+	game.player1.discard_hand()
+	game.player2.discard_hand()
+	statue = game.player1.give(ANIMATED_STATUE)
+	statue.play()
+	djinni = game.player1.give("LOE_053")
+	djinni.play()
+	game.player1.give(MOONFIRE).play(target=statue)
+	assert statue.damage == djinni.damage == 1
+
+	pwshield = game.player1.give("CS2_004")
+	pwshield.play(target=statue)
+	statue.max_health == 10 + 2
+	djinni.max_health == 6 + 2
+	assert len(game.player1.hand) == 1 + 1
+
+	# naturalize = game.player1.give("EX1_161")
+	# naturalize.play(target=statue)
+	# assert statue.dead
+	# assert djinni.dead
+	# assert len(game.player2.hand) == 2 + 2
+
+
+def test_eerie_statue():
+	game = prepare_game()
+	statue = game.player1.give("LOE_107")
+	statue.play()
+	assert not statue.can_attack()
+	game.end_turn(); game.end_turn()
+
+	assert statue.can_attack()
+	wisp = game.player1.give(WISP)
+	wisp.play()
+	assert statue.cant_attack
+	assert not statue.can_attack()
+	game.player1.give(MOONFIRE).play(target=wisp)
+	assert statue.can_attack()
+
+
 def test_entomb():
 	game = prepare_empty_game()
 	wisp = game.player1.give(WISP)

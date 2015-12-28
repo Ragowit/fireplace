@@ -1,11 +1,7 @@
 import random
 from hearthstone.enums import CardClass, CardType, GameTag
-from ..actions import Buff, Give, Summon
-from ..aura import Refresh
+from ..cards.utils import *
 from ..game import Game
-from ..cards.utils import RandomMinion
-from ..dsl.picker import RandomCardPicker
-from ..dsl.selector import ALL_PLAYERS
 
 
 class BlackrockShowdownBrawl(Game):
@@ -85,13 +81,12 @@ class BananaBrawl(Game):
 	celebrate!
 	"""
 
-	class RandomBanana(RandomCardPicker):
-		cards = ("EX1_014t", "TB_006", "TB_007", "TB_008")
+	RandomBanana = RandomID("EX1_014t", "TB_006", "TB_007", "TB_008")
 
 	def _schedule_death(self, card):
 		ret = super()._schedule_death(card)
 		if card.type == CardType.MINION:
-			ret.append(Give(card.controller, self.RandomBanana()))
+			ret.append(Give(card.controller, self.RandomBanana))
 		return ret
 
 
@@ -126,11 +121,11 @@ class GreatSummonerBrawl(Game):
 	for you!
 	"""
 
-	def _play(self, card, *args):
-		if card.type == CardType.SPELL:
-			action = Summon(card.controller, RandomMinion(cost=card.cost))
-			self.queue_actions(card.controller, [action])
-		return super()._play(card, *args)
+	base_events = [
+		Play(PLAYER, SPELL).on(
+			Summon(Play.PLAYER, RandomMinion(cost=COST(Play.CARD)))
+		)
+	]
 
 
 class CrossroadsEncounterBrawl(Game):
@@ -202,11 +197,11 @@ class MaskedBallBrawl(Game):
 	another fight!
 	"""
 
-	def _play(self, card, *args):
-		if card.type == CardType.MINION and card.cost >= 2:
-			action = Buff(card, "TB_Pilot1")
-			self.queue_actions(card, [action])
-		return super()._play(card, *args)
+	base_events = [
+		Play(PLAYER, MINION + (COST >= 2)).on(
+			Buff(Play.CARD, "TB_Pilot1")
+		)
+	]
 
 
 class GrandTournamentBrawl(Game):

@@ -46,13 +46,13 @@ class BRMA04_2:
 # Ignite Mana
 class BRMA05_2:
 	activate = (
-		(Attr(OPPONENT, GameTag.RESOURCES) <= Attr(OPPONENT, GameTag.RESOURCES_USED)) &
+		(MANA(OPPONENT) <= USED_MANA(OPPONENT)) &
 		Hit(ENEMY_HERO, 5)
 	)
 
 class BRMA05_2H:
 	activate = (
-		(Attr(OPPONENT, GameTag.RESOURCES) <= Attr(OPPONENT, GameTag.RESOURCES_USED)) &
+		(MANA(OPPONENT) <= USED_MANA(OPPONENT)) &
 		Hit(ENEMY_HERO, 10)
 	)
 
@@ -316,6 +316,11 @@ class BRMA11_3:
 # Chromatic Mutation (Unused)
 class BRMA12_8:
 	play = Morph(TARGET, "BRMA12_8t")
+
+
+# Recharge
+class BRMA14_11:
+	play = FillMana(CONTROLLER, USED_MANA(CONTROLLER))
 
 
 # DIE, INSECT!

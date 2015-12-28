@@ -14,6 +14,7 @@ from .utils import CardList
 class Player(Entity, TargetableByAuras):
 	Manager = PlayerManager
 	cant_overload = slot_property("cant_overload")
+	extra_battlecries = slot_property("extra_battlecries")
 	extra_deathrattles = slot_property("extra_deathrattles")
 	healing_double = slot_property("healing_double", sum)
 	hero_power_double = slot_property("hero_power_double", sum)
@@ -181,6 +182,20 @@ class Player(Entity, TargetableByAuras):
 
 	def fatigue(self):
 		return self.game.queue_actions(self, [Fatigue(self)])[0]
+
+	def pay_mana(self, amount: int) -> int:
+		"""
+		Make player pay \a amount mana.
+		Returns how much mana is spent, after temporary mana adjustments.
+		"""
+		if self.temp_mana:
+			# Coin, Innervate etc
+			used_temp = min(self.temp_mana, amount)
+			amount -= used_temp
+			self.temp_mana -= used_temp
+		self.log("%s pays %i mana", self, amount)
+		self.used_mana += amount
+		return amount
 
 	@property
 	def max_mana(self):

@@ -1122,6 +1122,13 @@ def test_far_sight():
 	assert card1.cost == max(card2.cost - 3, 0)
 
 
+def test_far_sight_fatigue():
+	game = prepare_empty_game()
+	farsight = game.player1.give("CS2_053")
+	farsight.play()  # Should not crash
+	assert not game.player1.hand
+
+
 def test_felguard():
 	game = prepare_game(game_class=Game)
 	for i in range(3):
@@ -2859,6 +2866,18 @@ def test_starfall_5_to_one():
 	starfall = game.player1.give("NEW1_007")
 	starfall.play(choose="NEW1_007b", target=snapjaw)
 	assert snapjaw.health == 2
+
+
+def test_starving_buzzard():
+	game = prepare_game()
+	game.player1.discard_hand()
+	buzzard = game.player1.give("CS2_237")
+	buzzard.play()
+	assert not game.player1.hand
+	game.player1.give(CHICKEN).play()
+	assert len(game.player1.hand) == 1
+	game.player1.give("NEW1_031").play()  # Animal Companion
+	assert len(game.player1.hand) == 2
 
 
 def test_stormwind_champion():

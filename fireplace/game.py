@@ -80,24 +80,6 @@ class BaseGame(Entity):
 	def attack(self, source, target):
 		return self.queue_actions(source, [Attack(source, target)])
 
-	def _play(self, card):
-		"""
-		Plays \a card from a Player's hand
-		"""
-		player = card.controller
-		self.log("%s plays %r", player, card)
-		cost = card.cost
-		if player.temp_mana:
-			# The coin, Innervate etc
-			used_temp = min(player.temp_mana, cost)
-			cost -= used_temp
-			player.temp_mana -= used_temp
-		player.used_mana += cost
-		player.last_card_played = card
-		card.play_counter = self.play_counter
-		self.play_counter += 1
-		card.zone = Zone.PLAY
-
 	def check_for_end_game(self):
 		"""
 		Check if one or more player is currently losing.

@@ -94,6 +94,16 @@ class LOE_050:
 	deathrattle = Summon(CONTROLLER, RandomMinion(cost=1))
 
 
+# Jungle Moonkin
+class LOE_051:
+	update = Refresh(ALL_PLAYERS, {GameTag.SPELLPOWER: +2})
+
+
+# Djinni of Zephyrs
+class LOE_053:
+	events = Play(CONTROLLER, SPELL, FRIENDLY_MINIONS - SELF).after(Battlecry(Play.CARD, SELF))
+
+
 # Anubisath Sentinel
 class LOE_061:
 	deathrattle = Buff(RANDOM_OTHER_FRIENDLY_MINION, "LOE_061e")
@@ -109,6 +119,26 @@ class LOE_073:
 
 # Fossilized (Unused)
 LOE_073e = buff(taunt=True)
+
+
+# Brann Bronzebeard:
+class LOE_077:
+	update = Refresh(CONTROLLER, {enums.EXTRA_BATTLECRIES: True})
+
+
+# Elise Starseeker
+class LOE_079:
+	play = Shuffle(CONTROLLER, "LOE_019t")
+
+
+# Map to the Golden Monkey
+class LOE_019t:
+	play = Shuffle(CONTROLLER, "LOE_019t2"), Draw(CONTROLLER)
+
+
+# Golden Monkey
+class LOE_019t2:
+	play = Morph(FRIENDLY + (IN_HAND | IN_DECK), RandomLegendaryMinion())
 
 
 # Summoning Stone
@@ -151,6 +181,11 @@ class LOEA16_5:
 	play = Summon(CONTROLLER, "LOEA16_5t")
 
 
+# Eerie Statue
+class LOE_107:
+	update = Find(ALL_MINIONS - SELF) & Refresh(SELF, {GameTag.CANT_ATTACK: True})
+
+
 # Ancient Shade
 class LOE_110:
 	play = Shuffle(CONTROLLER, "LOE_110t")
@@ -189,6 +224,19 @@ class LOE_026:
 # Entomb
 class LOE_104:
 	play = Steal(TARGET), Shuffle(CONTROLLER, TARGET)
+
+
+# Explorer's Hat
+class LOE_105:
+	play = Buff(TARGET, "LOE_105")
+
+class LOE_105e:
+	deathrattle = Give(OWNER_CONTROLLER, "LOE_105")
+	tags = {
+		GameTag.ATK: +1,
+		GameTag.HEALTH: +1,
+		GameTag.DEATHRATTLE: True,
+	}
 
 
 # Excavated Evil
