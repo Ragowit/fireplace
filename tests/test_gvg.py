@@ -88,10 +88,14 @@ def test_bouncing_blade():
 	acolyte = game.player1.give("EX1_007")
 	acolyte.play()
 	game.player1.discard_hand()
-	blade = game.player1.give("GVG_050")
-	blade.play()
+	game.player1.give("GVG_050").play()
 	assert acolyte.dead
 	assert len(game.player1.hand) == 3
+
+	wisp1 = game.player1.summon(WISP)
+	wisp2 = game.player2.summon(WISP)
+	game.player1.give("GVG_050").play()
+	assert wisp1.dead ^ wisp2.dead
 
 
 def test_bouncing_blade_commanding_shout():
@@ -728,15 +732,16 @@ def test_mimirons_head():
 	game.end_turn(); game.end_turn()
 
 	assert not head.dead
+	assert head.race == Race.MECHANICAL
+	assert len(game.player1.field) == 1
 	dummy1 = game.player1.give(TARGET_DUMMY)
 	dummy1.play()
 	dummy2 = game.player1.give(TARGET_DUMMY)
 	dummy2.play()
-	dummy3 = game.player1.give(TARGET_DUMMY)
-	dummy3.play()
 	game.end_turn()
 
 	assert not head.dead
+	assert len(game.player1.field) == 3
 	game.end_turn()
 
 	assert head.dead
@@ -960,6 +965,7 @@ def test_tinkertown_technician():
 	game.player1.discard_hand()
 	game.player1.give(WISP).play()
 	tech = game.player1.give("GVG_102")
+	assert not tech.powered_up
 	tech.play()
 	assert tech.atk == tech.health == 3
 	assert len(game.player1.hand) == 0
@@ -967,6 +973,7 @@ def test_tinkertown_technician():
 	dummy = game.player1.give(TARGET_DUMMY)
 	dummy.play()
 	tech2 = game.player1.give("GVG_102")
+	assert tech2.powered_up
 	tech2.play()
 	assert tech2.atk == tech2.health == 4
 	assert len(game.player1.hand) == 1

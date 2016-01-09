@@ -40,7 +40,8 @@ class KettleManager:
 		pass
 
 	def game_step(self, step, next_step):
-		pass
+		DEBUG("Game.STEP changes to %r (next step is %r)", step, next_step)
+		self.refresh_full_state()
 
 	def add_to_state(self, entity):
 		state = self.game_state[entity.entity_id] = {}
@@ -58,21 +59,30 @@ class KettleManager:
 		# Don't have a way of getting entities by ID in fireplace yet
 		state[GameTag.ENTITY_ID] = entity
 
+	def refresh_tag(self, entity, tag):
+		state = self.game_state[entity.entity_id]
+		value = entity.tags.get(tag, 0)
+		if isinstance(value, str):
+			return
+		if not value:
+			if state.get(tag, 0):
+				self.tag_change(entity, tag, 0)
+				del state[tag]
+		elif int(value) != state.get(tag, 0):
+			self.tag_change(entity, tag, int(value))
+			state[tag] = int(value)
+
+	def refresh_full_state(self):
+		for entity in self.game_state:
+			self.refresh_state(entity)
+
 	def refresh_state(self, entity_id):
 		assert entity_id in self.game_state
-		state = self.game_state[entity_id]
-		entity = state[GameTag.ENTITY_ID]
+		entity = self.game_state[entity_id][GameTag.ENTITY_ID]
+		state = self.game_state[entity.entity_id]
 
-		for tag, value in entity.tags.items():
-			if isinstance(value, str):
-				continue
-			if not value:
-				if state.get(tag, 0):
-					self.tag_change(entity, tag, 0)
-					del state[tag]
-			elif int(value) != state.get(tag, 0):
-				self.tag_change(entity, tag, int(value))
-				state[tag] = int(value)
+		for tag in entity.tags:
+			self.refresh_tag(entity, tag)
 
 		zone_pos = self.get_zone_position(entity)
 		if zone_pos != state.get(GameTag.ZONE_POSITION):
@@ -82,8 +92,49 @@ class KettleManager:
 				del state[GameTag.ZONE_POSITION]
 			self.tag_change(entity, GameTag.ZONE_POSITION, zone_pos)
 
+	def get_options(self, entity):
+		ret = []
+		if entity.zone == Zone.HAND:
+			if entity.type in (CardType.SPELL, CardType.MINION, CardType.WEAPON):
+				if entity.is_playable():
+					ret.append({
+						"Type": OptionType.POWER,
+						"MainOption": {
+							"ID": entity,
+							"Targets": entity.targets,
+						},
+					})
+
+		elif entity.zone == Zone.PLAY:
+			if entity.type == CardType.HERO_POWER:
+				if entity.is_usable():
+					ret.append({
+						"Type": OptionType.POWER,
+						"MainOption": {
+							"ID": entity,
+							"Targets": entity.targets,
+						}
+					})
+			elif entity.type in (CardType.HERO, CardType.MINION):
+				if entity.can_attack():
+					ret.append({
+						"Type": OptionType.POWER,
+						"MainOption": {
+							"ID": entity,
+							"Targets": entity.attack_targets,
+						}
+					})
+
+		return ret
+
 	def refresh_options(self):
+		DEBUG("Refreshing options...")
 		self.options = [{"Type": OptionType.END_TURN}]
+
+		for entity in self.game.current_player.actionable_entities:
+			for option in self.get_options(entity):
+				self.options.append(option)
+
 		payload = {
 			"Type": "Options",
 			"Options": self.options,
@@ -111,14 +162,38 @@ class KettleManager:
 		self.add_to_state(self.game)
 		self.queued_data.append(self.game_entity(self.game))
 
+	def get_entity(self, id):
+		if not id:
+			return None
+		return self.game_state[id][GameTag.ENTITY_ID]
+
 	def process_send_option(self, data):
+		DEBUG("Processing send option, data=%r", data)
 		option = self.options[data["Index"]]
 		if option["Type"] == OptionType.END_TURN:
 			self.game.end_turn()
+
+			# CURRENT_PLAYER needs to change before turn. TODO: is this needed?
+			self.refresh_tag(self.game.current_player.opponent, GameTag.CURRENT_PLAYER)
+			self.refresh_tag(self.game.current_player, GameTag.CURRENT_PLAYER)
+			self.refresh_tag(self.game, GameTag.TURN)
+		elif option["Type"] == OptionType.POWER:
+			entity = option["MainOption"]["ID"]
+			target = self.get_entity(data["Target"])
+			DEBUG("Using POWER entity %r target %r", entity, target)
+			DEBUG("data=%r", data)
+			if entity.zone == Zone.HAND:
+				entity.play(target=target)
+			elif entity.zone == Zone.PLAY:
+				if entity.type == CardType.HERO_POWER:
+					entity.use(target=target)
+				elif entity.type in (CardType.HERO, CardType.MINION):
+					entity.attack(target=target)
 		else:
 			raise NotImplementedError
 
 	def tag_change(self, entity, tag, value):
+		DEBUG("Queueing a tag change for entity %r: %r -> %r", entity, tag, value)
 		payload = {
 			"Type": "TagChange",
 			"TagChange": {
@@ -171,8 +246,7 @@ class Kettle(socketserver.BaseRequestHandler):
 		manager = self.create_game(payload)
 
 		while True:
-			for entity in manager.game_state:
-				manager.refresh_state(entity)
+			manager.refresh_full_state()
 			manager.refresh_options()
 			self.send_payload(manager)
 			packet = self.read_packet()

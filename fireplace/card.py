@@ -29,6 +29,7 @@ def Card(id):
 
 class BaseCard(BaseEntity):
 	Manager = CardManager
+	delayed_destruction = False
 
 	def __init__(self, data):
 		self.data = data
@@ -162,12 +163,12 @@ class PlayableCard(BaseCard, Entity, TargetableByAuras):
 		"""
 		Returns True whether the card is "powered up".
 		"""
+		if not self.data.scripts.powered_up:
+			return False
 		for script in self.data.scripts.powered_up:
 			if not script.check(self):
-				break
-		else:
-			return True
-		return False
+				return False
+		return True
 
 	@property
 	def entities(self):
@@ -196,7 +197,7 @@ class PlayableCard(BaseCard, Entity, TargetableByAuras):
 		If the card is in PLAY, it is instead scheduled to be destroyed, and it will
 		be moved to the GRAVEYARD on the next Death event.
 		"""
-		if self.zone == Zone.PLAY:
+		if self.delayed_destruction:
 			self.log("Marking %r for imminent death", self)
 			self.to_be_destroyed = True
 		else:
@@ -365,6 +366,10 @@ class LiveEntity(PlayableCard, Entity):
 		return self.zone == Zone.GRAVEYARD or self.to_be_destroyed
 
 	@property
+	def delayed_destruction(self):
+		return self.zone == Zone.PLAY
+
+	@property
 	def to_be_destroyed(self):
 		return getattr(self, self.health_attribute) == 0 or self._to_be_destroyed
 
@@ -422,6 +427,8 @@ class Character(LiveEntity):
 		return (taunts or targets).filter(attackable=True)
 
 	def can_attack(self, target=None):
+		if self.controller.choice:
+			return False
 		if not self.zone == Zone.PLAY:
 			return False
 		if self.cant_attack:
@@ -499,6 +506,11 @@ class Hero(Character):
 			# NOTE: As of 9786, Windfury is retained even when the weapon is exhausted.
 			return self.controller.weapon.windfury or ret
 		return ret
+
+	def _destroy(self):
+		super()._destroy()
+		if self.power:
+			self.power.destroy()
 
 	def _getattr(self, attr, i):
 		ret = super()._getattr(attr, i)

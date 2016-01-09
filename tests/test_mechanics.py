@@ -187,6 +187,37 @@ def test_charge():
 	assert watcher.can_attack()
 
 
+def test_choices():
+	game = prepare_game()
+	wisp = game.player1.give(WISP)
+	wisp.play()
+	moonfire = game.player1.give(MOONFIRE)
+	game.player1.give(LIGHTS_JUSTICE).play()
+	game.end_turn(); game.end_turn()
+
+	assert wisp.can_attack()
+	assert moonfire.is_playable()
+	assert game.player1.hero.can_attack()
+	assert game.player1.hero.power.is_usable()
+
+	tracking = game.player1.give("DS1_184")
+	tracking.play()
+	assert game.player1.choice
+
+	assert not wisp.can_attack()
+	assert not moonfire.is_playable()
+	assert not game.player1.hero.can_attack()
+	assert not game.player1.hero.power.is_usable()
+
+	game.player1.choice.choose(random.choice(game.player1.choice.cards))
+	assert not game.player1.choice
+
+	assert wisp.can_attack()
+	assert moonfire.is_playable()
+	assert game.player1.hero.can_attack()
+	assert game.player1.hero.power.is_usable()
+
+
 def test_combo():
 	game = prepare_game()
 	game.end_turn()
@@ -587,6 +618,20 @@ def test_positioning():
 	assert flametongue.atk == 0, flametongue.atk
 	assert flametongue.adjacent_minions == [wisp3, wisp4]
 	assert wisp4.atk == 3, wisp4.atk
+
+
+def test_powered_up():
+	game = prepare_game()
+	minion = game.player1.give(WISP)
+	spell = game.player1.give(MOONFIRE)
+	weapon = game.player1.give(LIGHTS_JUSTICE)
+	killcommand = game.player1.give("EX1_539")
+	assert not minion.powered_up
+	assert not spell.powered_up
+	assert not weapon.powered_up
+	assert not killcommand.powered_up
+	game.player1.summon(CHICKEN)
+	assert killcommand.powered_up
 
 
 def test_silence():

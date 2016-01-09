@@ -816,6 +816,37 @@ def test_deathwing():
 	assert not deathwing.dead
 
 
+def test_defender_of_argus():
+	game = prepare_game()
+	defender1 = game.player1.give("EX1_093")
+	assert defender1.atk == 2
+	assert defender1.health == 3
+	assert not defender1.taunt
+	defender1.play()
+	assert defender1.atk == 2
+	assert defender1.health == 3
+	assert not defender1.taunt
+	game.end_turn(); game.end_turn()
+
+	defender2 = game.player1.give("EX1_093")
+	defender2.play()
+	assert game.player1.field == [defender1, defender2]
+	assert defender1.atk == 2 + 1
+	assert defender1.health == 3 + 1
+	assert defender1.taunt
+	game.end_turn(); game.end_turn()
+
+	defender3 = game.player1.give("EX1_093")
+	defender3.play(index=1)
+	assert game.player1.field == [defender1, defender3, defender2]
+	assert defender1.atk == 2 + 1 + 1
+	assert defender1.health == 3 + 1 + 1
+	assert defender1.taunt
+	assert defender2.atk == 2 + 1
+	assert defender2.health == 3 + 1
+	assert defender2.taunt
+
+
 def test_defias():
 	game = prepare_game()
 	defias1 = game.current_player.give("EX1_131")
@@ -1138,6 +1169,19 @@ def test_felguard():
 	felguard.play()
 	assert game.player1.max_mana == 3
 	assert game.player1.mana == 1
+
+
+def test_frostwolf_warlord():
+	game = prepare_game()
+	warlord1 = game.player1.give("CS2_226")
+	warlord1.play()
+	assert not warlord1.buffs
+	assert warlord1.health == warlord1.atk == 4
+	game.player2.summon(WISP)
+	warlord2 = game.player1.give("CS2_226")
+	warlord2.play()
+	assert warlord2.buffs
+	assert warlord2.health == warlord2.atk == 4 + 1
 
 
 def test_frothing_berserker():
@@ -1596,11 +1640,13 @@ def test_imp_master():
 def test_kill_command():
 	game = prepare_game(HUNTER, HUNTER)
 	kc = game.player1.give("EX1_539")
+	assert not kc.powered_up
 	kc.play(target=game.player1.opponent.hero)
 	assert game.player2.hero.health == 30 - 3
 
 	game.player1.give(CHICKEN).play()
 	kc = game.player1.give("EX1_539")
+	assert kc.powered_up
 	kc.play(target=game.player1.hero)
 	assert game.player1.hero.health == 30 - 5
 
