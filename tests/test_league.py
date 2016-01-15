@@ -100,6 +100,25 @@ def test_curse_of_rafaam():
 	assert game.player2.hero.health == 30 - 2 - 2
 
 
+def test_cursed_blade():
+	game = prepare_game()
+	blade = game.player1.give("LOE_118")
+	blade.play()
+	game.player1.give(MOONFIRE).play(target=game.player1.hero)
+	assert game.player1.hero.health == 30 - (1*2)
+
+
+def test_cursed_blade_bolf_ramshield():
+	game = prepare_game()
+	blade = game.player1.give("LOE_118")
+	blade.play()
+	bolf = game.player1.give("AT_124")
+	bolf.play()
+	game.player1.give(MOONFIRE).play(target=game.player1.hero)
+	assert game.player1.hero.health == 30
+	assert bolf.damage == 2
+
+
 def test_desert_camel():
 	game = prepare_empty_game()
 	goldshire1 = game.player1.give(GOLDSHIRE_FOOTMAN)
@@ -140,11 +159,23 @@ def test_djinni_of_zephyrs():
 	djinni.max_health == 6 + 2
 	assert len(game.player1.hand) == 1 + 1
 
-	# naturalize = game.player1.give("EX1_161")
-	# naturalize.play(target=statue)
-	# assert statue.dead
-	# assert djinni.dead
-	# assert len(game.player2.hand) == 2 + 2
+	# Djinni can trigger on minions that are "dead" (eg. killed by the spell)
+	naturalize = game.player1.give("EX1_161")
+	naturalize.play(target=statue)
+	assert len(game.player2.hand) == 2 + 2
+	assert statue.dead
+	assert djinni.dead
+
+
+def test_djinni_of_zephyrs_untargeted():
+	game = prepare_game()
+	game.player1.discard_hand()
+
+	djinni = game.player1.give("LOE_053")
+	djinni.play()
+	arcaneint = game.player1.give("CS2_023")
+	arcaneint.play()
+	assert len(game.player1.hand) == 2
 
 
 def test_eerie_statue():
@@ -219,6 +250,20 @@ def test_excavated_evil():
 	assert game.player1.hero.health == game.player2.hero.health == 30
 	assert len(game.player2.deck) == 1
 	assert game.player2.deck[0].id == "LOE_111"
+
+
+def test_explorers_hat():
+	game = prepare_empty_game()
+	wisp = game.player1.give(WISP).play()
+	game.player1.give("LOE_105").play(target=wisp)
+	assert wisp.health == 2
+	game.end_turn()
+
+	assert len(game.player1.hand) == 0
+	game.player2.give(MOONFIRE).play(target=wisp)
+	game.player2.give(MOONFIRE).play(target=wisp)
+	assert wisp.dead
+	assert len(game.player1.hand) == 1
 
 
 def test_fossilized_devilsaur():
@@ -435,6 +480,41 @@ def test_wobbling_runts():
 	runts.destroy()
 	assert len(game.player1.field) == 3
 	assert game.player1.field == ["LOE_089t", "LOE_089t2", "LOE_089t3"]
+
+
+def test_jeweled_scarab():
+	game = prepare_game()
+	wisp = game.player1.give(WISP)
+	wisp.play()
+	moonfire = game.player1.give(MOONFIRE)
+	game.player1.give(LIGHTS_JUSTICE).play()
+	game.end_turn(); game.end_turn()
+
+	assert wisp.can_attack()
+	assert moonfire.is_playable()
+	assert game.player1.hero.can_attack()
+	assert game.player1.hero.power.is_usable()
+
+	jeweled_scarab = game.player1.give("LOE_029")
+	jeweled_scarab.play()
+	assert game.player1.choice
+
+	assert not wisp.can_attack()
+	assert not moonfire.is_playable()
+	assert not game.player1.hero.can_attack()
+	assert not game.player1.hero.power.is_usable()
+
+	assert len(game.player1.choice.cards) == 3
+	for card in game.player1.choice.cards:
+		assert card.cost == 3
+
+	game.player1.choice.choose(random.choice(game.player1.choice.cards))
+	assert not game.player1.choice
+
+	assert wisp.can_attack()
+	assert moonfire.is_playable()
+	assert game.player1.hero.can_attack()
+	assert game.player1.hero.power.is_usable()
 
 
 ##

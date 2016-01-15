@@ -74,9 +74,14 @@ class BaseCard(BaseEntity):
 
 	def _set_zone(self, value):
 		old = self.zone
+
+		if old == value:
+			self.logger.warning("%r attempted a same-zone move in %r", self, old)
+			return
+
 		if old:
 			self.logger.debug("%r moves from %r to %r", self, old, value)
-		assert old != value
+
 		caches = {
 			Zone.HAND: self.controller.hand,
 			Zone.DECK: self.controller.deck,
@@ -324,6 +329,7 @@ class LiveEntity(PlayableCard, Entity):
 	atk = int_property("atk")
 	cant_be_damaged = boolean_property("cant_be_damaged")
 	immune_while_attacking = slot_property("immune_while_attacking")
+	incoming_damage_multiplier = slot_property("incoming_damage_multiplier")
 	max_health = int_property("max_health")
 
 	def __init__(self, data):
@@ -333,6 +339,11 @@ class LiveEntity(PlayableCard, Entity):
 		self.forgetful = False
 		self.predamage = 0
 		self.turns_in_play = 0
+
+	def _set_zone(self, zone):
+		super()._set_zone(zone)
+		# See issue #283 (Malorne, Anu'barak)
+		self._to_be_destroyed = False
 
 	@property
 	def immune(self):
@@ -381,10 +392,11 @@ class LiveEntity(PlayableCard, Entity):
 	def killed_this_turn(self):
 		return self in self.game.minions_killed_this_turn
 
-	def _hit(self, source, amount):
+	def _hit(self, amount):
 		if self.immune:
-			self.log("%r is immune to %i damage from %r", self, amount, source)
+			self.log("%r is immune to %i damage", self, amount)
 			return 0
+
 		self.damage += amount
 		return amount
 
@@ -526,8 +538,8 @@ class Hero(Character):
 				self.controller.summon(self.data.hero_power)
 		super()._set_zone(value)
 
-	def _hit(self, source, amount):
-		amount = super()._hit(source, amount)
+	def _hit(self, amount):
+		amount = super()._hit(amount)
 		if self.armor:
 			reduced_damage = min(amount, self.armor)
 			self.log("%r loses %r armor instead of damage", self, reduced_damage)
@@ -618,13 +630,13 @@ class Minion(Character):
 
 		super()._set_zone(value)
 
-	def _hit(self, source, amount):
+	def _hit(self, amount):
 		if self.divine_shield:
 			self.divine_shield = False
 			self.log("%r's divine shield prevents %i damage.", self, amount)
 			return 0
 
-		amount = super()._hit(source, amount)
+		amount = super()._hit(amount)
 
 		if self.health < self.min_health:
 			self.log("%r has HEALTH_MINIMUM of %i", self, self.min_health)

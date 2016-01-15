@@ -101,7 +101,7 @@ class LOE_051:
 
 # Djinni of Zephyrs
 class LOE_053:
-	events = Play(CONTROLLER, SPELL, FRIENDLY_MINIONS - SELF).after(Battlecry(Play.CARD, SELF))
+	events = Play(CONTROLLER, SPELL, FRIENDLY + MINION - SELF).after(Battlecry(Play.CARD, SELF))
 
 
 # Anubisath Sentinel
@@ -228,10 +228,10 @@ class LOE_104:
 
 # Explorer's Hat
 class LOE_105:
-	play = Buff(TARGET, "LOE_105")
+	play = Buff(TARGET, "LOE_105e")
 
 class LOE_105e:
-	deathrattle = Give(OWNER_CONTROLLER, "LOE_105")
+	deathrattle = Give(CONTROLLER, "LOE_105")
 	tags = {
 		GameTag.ATK: +1,
 		GameTag.HEALTH: +1,
@@ -280,3 +280,11 @@ class LOE_027:
 			Reveal(SELF), Destroy(Play.CARD)
 		)
 	)
+
+
+##
+# Weapons
+
+# Cursed Blade
+class LOE_118:
+	update = Refresh(FRIENDLY_HERO, {GameTag.INCOMING_DAMAGE_MULTIPLIER: 1})

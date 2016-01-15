@@ -110,6 +110,9 @@ class Action:  # Lawsuit
 			if match is None:
 				# Allow matching Action(None, None, z) to Action(x, y, z)
 				continue
+			if arg is None:
+				# We got an arg of None and a match not None. Bad.
+				return False
 			# this stuff is stupidslow
 			res = match.eval([arg], source)
 			if not res or res[0] is not arg:
@@ -542,10 +545,12 @@ class Predamage(TargetedAction):
 	ARGS = ("TARGET", "AMOUNT")
 
 	def do(self, source, target, amount):
+		for i in range(target.incoming_damage_multiplier):
+			amount *= 2
 		target.predamage = amount
 		if amount:
 			self.broadcast(source, EventListener.ON, target, amount)
-			return source.game.trigger_actions(source, [Damage(target, amount)])[0][0]
+			return source.game.trigger_actions(source, [Damage(target)])[0][0]
 		return 0
 
 
@@ -555,8 +560,11 @@ class Damage(TargetedAction):
 	"""
 	ARGS = ("TARGET", "AMOUNT")
 
+	def get_target_args(self, source, target):
+		return [target.predamage]
+
 	def do(self, source, target, amount):
-		amount = target._hit(source, target.predamage)
+		amount = target._hit(target.predamage)
 		target.predamage = 0
 		if source.type == CardType.MINION and source.stealthed:
 			# TODO this should be an event listener of sorts

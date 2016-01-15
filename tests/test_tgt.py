@@ -1,6 +1,30 @@
 from utils import *
 
 
+def test_anubarak():
+	game = prepare_empty_game()
+	anubarak = game.player1.give("AT_036")
+	anubarak.play()
+	game.player1.discard_hand()
+	assert len(game.player1.field) == 1
+	assert len(game.player1.hand) == 0
+	anubarak.destroy()
+	assert len(game.player1.field) == 1
+	assert len(game.player1.hand) == 1
+	token = game.player1.field[0]
+	assert token.id == "AT_036t"
+	anubarak = game.player1.hand[0]
+	assert anubarak.id == "AT_036"
+	game.end_turn(); game.end_turn()
+
+	# Test for issue #283: play Anub'arak again
+	anubarak.play()
+	assert len(game.player1.field) == 2
+	assert anubarak in game.player1.field
+	assert token in game.player1.field
+	assert len(game.player1.hand) == 0
+
+
 def test_aviana():
 	game = prepare_game()
 	aviana = game.player1.give("AT_045")
@@ -463,6 +487,43 @@ def test_skycapn_kragg():
 	assert game.player1.mana == 10
 	kragg.play()
 	assert game.player1.mana == 10 - 6
+
+
+def test_the_skeleton_knight():
+	game = prepare_empty_game()
+	sk = game.player1.give("AT_128")
+	sk.play()
+
+	# prepare joust
+	deathwing = game.player1.give("NEW1_030")
+	deathwing.shuffle_into_deck()
+	wisp = game.player2.give(WISP)
+	wisp.shuffle_into_deck()
+
+	# Joust deathwing vs wisp
+	sk.destroy()
+	assert len(game.player1.field) == 0
+	assert game.player1.hand.contains("AT_128")
+
+
+def test_the_skeleton_knight_full_hand():
+	game = prepare_empty_game()
+	sk = game.player1.give("AT_128")
+	sk.play()
+
+	# prepare joust
+	deathwing = game.player1.give("NEW1_030")
+	deathwing.shuffle_into_deck()
+	wisp = game.player2.give(WISP)
+	wisp.shuffle_into_deck()
+
+	for i in range(10):
+		game.player1.give(WISP)
+	assert len(game.player1.hand) == 10
+
+	sk.destroy()
+	assert len(game.player1.field) == 0
+	assert not game.player1.hand.contains("AT_128")
 
 
 def test_tiny_knight_of_evil():
