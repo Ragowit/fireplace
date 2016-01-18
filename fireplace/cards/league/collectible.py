@@ -50,6 +50,13 @@ class LOE_018:
 LOE_018e = buff(atk=1)
 
 
+# Unearthed Raptor
+class LOE_019:
+	play = Buff(SELF, "LOE_019e").then(CopyDeathrattles(Buff.BUFF, TARGET))
+
+LOE_019e = buff(deathrattle=True)
+
+
 # Desert Camel
 class LOE_020:
 	play = (
@@ -119,6 +126,11 @@ class LOE_073:
 
 # Fossilized (Unused)
 LOE_073e = buff(taunt=True)
+
+
+# Sir Finley Mrrgglton
+class LOE_076:
+	play = GenericChoice(CONTROLLER, RandomEntourage() * 3)
 
 
 # Brann Bronzebeard:
@@ -287,4 +299,7 @@ class LOE_027:
 
 # Cursed Blade
 class LOE_118:
-	update = Refresh(FRIENDLY_HERO, {GameTag.INCOMING_DAMAGE_MULTIPLIER: 1})
+	update = Refresh(FRIENDLY_HERO, buff="LOE_118e")
+
+class LOE_118e:
+	tags = {GameTag.INCOMING_DAMAGE_MULTIPLIER: True}

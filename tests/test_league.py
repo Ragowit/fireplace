@@ -427,6 +427,20 @@ def test_rumbling_elemental():
 	assert wisp1.dead ^ (game.player2.hero.health == 28)
 
 
+def test_sir_finley_mrrgglton():
+	game = prepare_game(PRIEST, PRIEST)
+	finley = game.player1.give("LOE_076")
+	assert game.player1.hero.power.id == "CS1h_001"
+	finley.play()
+	assert game.player1.choice
+	assert len(game.player1.choice.cards) == 3
+	for card in game.player1.choice.cards:
+		assert card.type == CardType.HERO_POWER
+	new_power = game.player1.choice.cards[0]
+	game.player1.choice.choose(new_power)
+	assert game.player1.hero.power is new_power
+
+
 def test_summoning_stone():
 	game = prepare_game()
 	stone = game.player1.give("LOE_086")
@@ -470,6 +484,25 @@ def test_tunnel_trogg():
 	assert dustdevil.overload == 2
 	dustdevil.play()
 	assert trogg.atk == 3
+
+
+def test_unearthed_raptor():
+	game = prepare_game()
+	lepergnome = game.player1.give("EX1_029")
+	lepergnome.play()
+	raptor = game.player1.give("LOE_019")
+	raptor.play(target=lepergnome)
+	assert raptor.buffs
+	assert raptor.has_deathrattle
+	assert len(raptor.deathrattles) == 1
+	assert raptor.deathrattles[0] == lepergnome.deathrattles[0]
+	raptor2 = game.player1.give("LOE_019")
+	raptor2.play(target=raptor)
+	assert raptor2.deathrattles[0] == lepergnome.deathrattles[0]
+	raptor.destroy()
+	assert game.player2.hero.health == 30 - 2
+	raptor2.destroy()
+	assert game.player2.hero.health == 30 - 2 - 2
 
 
 def test_wobbling_runts():

@@ -152,6 +152,22 @@ class BRMA12_10:
 	activate = Discard(RANDOM(FRIENDLY_HAND))
 
 
+# True Form
+class BRMA13_2:
+	activate = (
+		Summon(CONTROLLER, "BRMA13_3"),
+		Draw(CONTROLLER) * 2,
+		GainArmor(CONTROLLER, 30)
+	)
+
+class BRMA13_2H:
+	activate = (
+		Summon(CONTROLLER, "BRMA13_3H"),
+		Draw(CONTROLLER) * 2,
+		GainArmor(CONTROLLER, 30)
+	)
+
+
 # Wild Magic
 class BRMA13_4:
 	activate = Give(CONTROLLER, RandomSpell(card_class=ENEMY_CLASS))
@@ -200,6 +216,18 @@ class BRMA14_10H:
 	activate = Summon(CONTROLLER, RandomEntourage())
 
 
+# The Alchemist
+class BRMA15_2:
+	events = Summon(ALL_PLAYERS, MINION).on(Buff(Summon.CARD, "BRMA15_2e"))
+
+BRMA15_2e = custom_card(AttackHealthSwapBuff())
+
+class BRMA15_2H:
+	events = (
+		Summon(ALL_PLAYERS, MINION).on(Buff(Summon.CARD, "BRMA15_2e")),
+		Summon(CONTROLLER, MINION).on(Buff(Summon.CARD, "BRMA15_2He"))
+	)
+
 # Potion of Might (The Alchemist)
 BRMA15_2He = buff(+2, +2)
 
@@ -218,6 +246,14 @@ class BRMA17_5:
 
 class BRMA17_5H:
 	activate = Summon(CONTROLLER, "BRMA17_6H") * 2
+
+
+# Nefarian Strikes!
+class BRMA17_8:
+	activate = Hit(ENEMY_HERO, 1) * RandomNumber(0, 1, 2, 3, 4, 20)
+
+class BRMA17_8H:
+	activate = Hit(ENEMY_HERO, 1) * RandomNumber(0, 1, 2, 3, 4, 20)
 
 
 ##

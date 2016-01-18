@@ -329,7 +329,7 @@ class LiveEntity(PlayableCard, Entity):
 	atk = int_property("atk")
 	cant_be_damaged = boolean_property("cant_be_damaged")
 	immune_while_attacking = slot_property("immune_while_attacking")
-	incoming_damage_multiplier = slot_property("incoming_damage_multiplier")
+	incoming_damage_multiplier = int_property("incoming_damage_multiplier")
 	max_health = int_property("max_health")
 
 	def __init__(self, data):
@@ -364,12 +364,8 @@ class LiveEntity(PlayableCard, Entity):
 		if deathrattle:
 			ret.append(deathrattle)
 		for buff in self.buffs:
-			if buff.has_deathrattle:
-				deathrattle = buff.get_actions("deathrattle")
-				if deathrattle:
-					ret.append(deathrattle)
-				else:
-					raise NotImplementedError("Missing deathrattle script for %r" % (buff))
+			for deathrattle in buff.deathrattles:
+				ret.append(deathrattle)
 		return ret
 
 	@property
@@ -704,6 +700,7 @@ class Enchantment(BaseCard):
 	atk = int_property("atk")
 	cost = int_property("cost")
 	has_deathrattle = boolean_property("has_deathrattle")
+	incoming_damage_multiplier = int_property("incoming_damage_multiplier")
 	max_health = int_property("max_health")
 	spellpower = int_property("spellpower")
 
@@ -712,7 +709,20 @@ class Enchantment(BaseCard):
 
 	def __init__(self, data):
 		self.one_turn_effect = False
+		self.additional_deathrattles = []
 		super().__init__(data)
+
+	@property
+	def deathrattles(self):
+		if not self.has_deathrattle:
+			return []
+		ret = self.additional_deathrattles[:]
+		deathrattle = self.get_actions("deathrattle")
+		if deathrattle:
+			ret.append(deathrattle)
+		if not ret:
+			raise NotImplementedError("Missing deathrattle script for %r" % (self))
+		return ret
 
 	def _getattr(self, attr, i):
 		i += getattr(self, "_" + attr, 0)

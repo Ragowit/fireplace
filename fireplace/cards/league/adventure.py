@@ -16,27 +16,27 @@ class LOEA02_02h:
 
 # Wish for Power
 class LOEA02_03:
-	play = Discover(RandomSpell())
+	play = Discover(CONTROLLER, RandomSpell())
 
 
 # Wish for Valor
 class LOEA02_04:
-	play = Discover(RandomCollectible(cost=4))
+	play = Discover(CONTROLLER, RandomCollectible(cost=4))
 
 
 # Wish for Glory
 class LOEA02_05:
-	play = Discover(RandomMinion())
+	play = Discover(CONTROLLER, RandomMinion())
 
 
 # Wish for More Wishes
 class LOEA02_06:
-	play = Discover(RandomWish)
+	play = Give(CONTROLLER, RandomWish) * 2
 
 
 # Wish for Companionship
 class LOEA02_10:
-	play = Discover(RandomID("NEW1_032", "NEW1_033", "NEW1_034"))
+	play = Discover(CONTROLLER, RandomID("NEW1_032", "NEW1_033", "NEW1_034"))
 
 
 # Leokk (Unused)
@@ -139,6 +139,14 @@ class LOEA04_31b:
 	pass
 
 
+# Seething Statue
+class LOEA04_25:
+	events = OWN_TURN_END.on(Hit(ENEMY_CHARACTERS, 2))
+
+class LOEA04_25h:
+	events = OWN_TURN_END.on(Hit(ENEMY_CHARACTERS, 5))
+
+
 ##
 # Chieftain Scarvash
 
@@ -196,6 +204,29 @@ class LOEA07_28:
 
 
 ##
+# Archaedas
+
+# Stonesculpting
+class LOEA06_02:
+	activate = Summon(ALL_PLAYERS, "LOEA06_02t")
+
+class LOEA06_02h:
+	activate = Summon(CONTROLLER, "LOEA06_02t"), Summon(OPPONENT, "LOEA06_02th")
+
+
+# Animate Earthen
+class LOEA06_03:
+	play = Buff(FRIENDLY_MINIONS, "LOEA06_03e")
+
+LOEA06_03e = buff(+1, +1, taunt=True)
+
+class LOEA06_03h:
+	play = Buff(FRIENDLY_MINIONS, "LOEA06_03eh")
+
+LOEA06_03eh = buff(+3, +3, taunt=True)
+
+
+##
 # Lord Slitherspear
 
 # Enraged!
@@ -244,6 +275,25 @@ class LOEA10_5:
 
 class LOEA10_5H:
 	play = Summon(CONTROLLER, Copy(RANDOM(KILLED + MURLOC) * 5))
+
+
+##
+# Skelesaurus Hex
+
+# Ancient Power
+class LOEA13_2:
+	activate = Give(ALL_PLAYERS, RandomCollectible()).then(Buff(Give.CARD, "LOEA13_2e"))
+
+class LOEA13_2H:
+	activate = Give(CONTROLLER, RandomCollectible()).then(Buff(Give.CARD, "LOEA13_2e"))
+
+@custom_card
+class LOEA13_2e:
+	tags = {
+		GameTag.CARDNAME: "Ancient Power buff",
+		GameTag.CARDTYPE: CardType.ENCHANTMENT,
+	}
+	cost = SET(0)
 
 
 ##
@@ -380,6 +430,18 @@ class LOEA16_24H:
 	events = OWN_TURN_END.on(Draw(CONTROLLER) * 2)
 
 
+# Skelesaurus Hex
+class LOEA16_26:
+	events = OWN_TURN_END.on(
+		Give(ALL_PLAYERS, RandomCollectible()).then(Buff(Give.CARD, "LOEA13_2e"))
+	)
+
+class LOEA16_26H:
+	events = OWN_TURN_END.on(
+		Give(CONTROLLER, RandomCollectible()).then(Buff(Give.CARD, "LOEA13_2e"))
+	)
+
+
 # Blessing of the Sun
 class LOEA16_20:
 	play = Buff(TARGET, "LOEA16_20e")
@@ -388,9 +450,9 @@ LOEA16_20e = buff(immune=True)
 
 
 ##
-# Unused
+# Misc.
 
-# Eye of Hakkar
+# Eye of Hakkar (Unused)
 class LOE_008:
 	play = Summon(CONTROLLER, RANDOM(ENEMY_DECK + SECRET))
 
@@ -398,7 +460,15 @@ class LOE_008H:
 	play = Summon(CONTROLLER, RANDOM(ENEMY_DECK + SECRET))
 
 
-# Boneraptor
+# Looming Presence
+class LOEA_01:
+	play = Draw(CONTROLLER) * 2, GainArmor(FRIENDLY_HERO, 4)
+
+class LOEA_01H:
+	play = Draw(CONTROLLER) * 3, GainArmor(FRIENDLY_HERO, 6)
+
+
+# Boneraptor (Unused)
 class LOEA15_3:
 	play = Steal(ENEMY_WEAPON)
 

@@ -280,6 +280,8 @@ class GenericChoice(GameAction):
 		cards = self._args[1]
 		if isinstance(cards, Selector):
 			cards = cards.eval(source.game, source)
+		elif isinstance(cards, LazyValue):
+			cards = cards.evaluate(source)
 		return player, cards
 
 	def do(self, source, player, cards):
@@ -289,8 +291,13 @@ class GenericChoice(GameAction):
 
 	def choose(self, card):
 		for _card in self.cards:
-			if _card is card and len(self.player.hand) < self.player.max_hand_size:
-				_card.zone = Zone.HAND
+			if _card is card:
+				if card.type == CardType.HERO_POWER:
+					_card.zone = Zone.PLAY
+				elif len(self.player.hand) < self.player.max_hand_size:
+					_card.zone = Zone.HAND
+				else:
+					_card.discard()
 			else:
 				_card.discard()
 		self.player.choice = None
@@ -506,15 +513,24 @@ class TargetedAction(Action):
 class Buff(TargetedAction):
 	"""
 	Buff character targets with Enchantment \a id
+	NOTE: Any Card can buff any other Card. The controller of the
+	Card that buffs the target becomes the controller of the buff.
 	"""
 	ARGS = ("TARGET", "BUFF")
+
+	def get_target_args(self, source, target):
+		buff = self._args[1]
+		buff = source.controller.card(buff)
+		buff.source = source
+		return [buff]
 
 	def do(self, source, target, buff):
 		kwargs = self._kwargs.copy()
 		for k, v in kwargs.items():
 			if isinstance(v, LazyValue):
-				kwargs[k] = v.evaluate(source)
-		return source.buff(target, buff, **kwargs)
+				v = v.evaluate(source)
+			setattr(buff, k, v)
+		return buff.apply(target)
 
 
 class Bounce(TargetedAction):
@@ -528,6 +544,18 @@ class Bounce(TargetedAction):
 		else:
 			log.info("%r is bounced back to %s's hand", target, target.controller)
 			target.zone = Zone.HAND
+
+
+class CopyDeathrattles(TargetedAction):
+	"""
+	Copy the deathrattles from a card onto the target
+	"""
+	ARGS = ("TARGET", "DEATHRATTLES")
+
+	def do(self, source, target, entities):
+		for entity in entities:
+			for deathrattle in entity.deathrattles:
+				target.additional_deathrattles.append(deathrattle)
 
 
 class Counter(TargetedAction):
@@ -657,8 +685,8 @@ class Discover(TargetedAction):
 	ARGS = ("TARGET", "CARDS")
 
 	def get_target_args(self, source, target):
-		picker = self._args[1]
-		cards = picker.evaluate(source, count=3)
+		picker = self._args[1] * 3
+		cards = picker.evaluate(source)
 		return [[target.card(card) for card in cards]]
 
 	def do(self, source, target, cards):
@@ -1030,6 +1058,22 @@ class Swap(TargetedAction):
 			orig = target.zone
 			target.zone = other.zone
 			other.zone = orig
+
+
+class SwapHealth(TargetedAction):
+	"""
+	Swap health between two minions using \a buff.
+	"""
+	ARGS = ("TARGET", "OTHER", "BUFF")
+
+	def do(self, source, target, other, buff):
+		other = other[0]
+		buff1 = source.controller.card(buff)
+		buff1.health = other.health
+		buff2 = source.controller.card(buff)
+		buff2.health = target.health
+		buff1.apply(target)
+		buff2.apply(other)
 
 
 class Steal(TargetedAction):
