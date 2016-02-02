@@ -207,6 +207,19 @@ class LOE_110t:
 	draw = Destroy(SELF), Hit(FRIENDLY_HERO, 7), Draw(CONTROLLER)
 
 
+# Reliquary Seeker
+class LOE_116:
+	powered_up = Count(FRIENDLY_MINIONS) == 6
+	play = (Count(FRIENDLY_MINIONS) == 7) & Buff(SELF, "LOE_009e")
+
+LOE_009e = buff(+4, +4)
+
+
+# Animated Armor
+class LOE_119:
+	update = Refresh(FRIENDLY_HERO, {GameTag.HEAVILY_ARMORED: True})
+
+
 ##
 # Spells
 

@@ -179,6 +179,12 @@ class PlayableCard(BaseCard, Entity, TargetableByAuras):
 	def entities(self):
 		return chain([self], self.buffs)
 
+	@property
+	def zone_position(self):
+		if self.zone == Zone.HAND:
+			return self.controller.hand.index(self)
+		return None
+
 	def _set_zone(self, zone):
 		old_zone = self.zone
 		super()._set_zone(zone)
@@ -406,6 +412,7 @@ class Character(LiveEntity):
 	cant_be_targeted_by_opponents = boolean_property("cant_be_targeted_by_opponents")
 	cant_be_targeted_by_abilities = boolean_property("cant_be_targeted_by_abilities")
 	cant_be_targeted_by_hero_powers = boolean_property("cant_be_targeted_by_hero_powers")
+	heavily_armored = boolean_property("heavily_armored")
 	min_health = boolean_property("min_health")
 
 	def __init__(self, data):
@@ -415,6 +422,13 @@ class Character(LiveEntity):
 		self.num_attacks = 0
 		self.race = Race.INVALID
 		super().__init__(data)
+
+	@property
+	def events(self):
+		ret = super().events
+		if self.heavily_armored:
+			ret += rules.HEAVILY_ARMORED
+		return ret
 
 	@property
 	def attackable(self):
@@ -575,7 +589,7 @@ class Minion(Character):
 	def adjacent_minions(self):
 		assert self.zone is Zone.PLAY, self.zone
 		ret = CardList()
-		index = self.controller.field.index(self)
+		index = self.zone_position
 		left = self.controller.field[:index]
 		right = self.controller.field[index + 1:]
 		if left:
@@ -610,6 +624,12 @@ class Minion(Character):
 		if self.enraged:
 			ret += self.data.scripts.enrage
 		return ret
+
+	@property
+	def zone_position(self):
+		if self.zone == Zone.PLAY:
+			return self.controller.field.index(self)
+		return super().zone_position
 
 	def _set_zone(self, value):
 		if value == Zone.PLAY:
@@ -678,6 +698,12 @@ class Secret(Spell):
 	@property
 	def exhausted(self):
 		return self.zone == Zone.SECRET and self.controller.current_player
+
+	@property
+	def zone_position(self):
+		if self.zone == Zone.SECRET:
+			return self.controller.secrets.index(self)
+		return super().zone_position
 
 	def _set_zone(self, value):
 		if value == Zone.PLAY:

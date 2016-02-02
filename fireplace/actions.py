@@ -113,10 +113,15 @@ class Action:  # Lawsuit
 			if arg is None:
 				# We got an arg of None and a match not None. Bad.
 				return False
-			# this stuff is stupidslow
-			res = match.eval([arg], source)
-			if not res or res[0] is not arg:
-				return False
+			if callable(match):
+				res = match(arg)
+				if not res:
+					return False
+			else:
+				# this stuff is stupidslow
+				res = match.eval([arg], source)
+				if not res or res[0] is not arg:
+					return False
 		return True
 
 
@@ -211,7 +216,17 @@ class Concede(GameAction):
 	ARGS = ("PLAYER", )
 
 	def do(self, source, player):
-		player.playstate = PlayState.QUIT
+		player.playstate = PlayState.CONCEDED
+
+
+class Disconnect(GameAction):
+	"""
+	Make \a player disconnect
+	"""
+	ARGS = ("PLAYER", )
+
+	def do(self, source, player):
+		player.playstate = PlayState.DISCONNECTED
 
 
 class Deaths(GameAction):

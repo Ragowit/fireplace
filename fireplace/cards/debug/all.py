@@ -130,6 +130,11 @@ class XXX_025:
 	pass
 
 
+# Enable Emotes
+class XXX_026:
+	pass
+
+
 # Server Crash
 class XXX_027:
 	def play(self):
@@ -139,6 +144,11 @@ class XXX_027:
 # Opponent Concede
 class XXX_029:
 	play = Concede(OPPONENT)
+
+
+# Opponent Disconnect
+class XXX_030:
+	play = Disconnect(OPPONENT)
 
 
 # Become Hogger

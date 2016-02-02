@@ -16,6 +16,16 @@ def test_ancient_shade():
 	assert game.player1.hero.health == 30 - 7
 
 
+def test_animated_armor():
+	game = prepare_game()
+	armor = game.player1.give("LOE_119")
+	armor.play()
+	game.player1.give(MOONFIRE).play(target=game.player1.hero)
+	assert game.player1.hero.damage == 1
+	game.player1.give(DAMAGE_5).play(target=game.player1.hero)
+	assert game.player1.hero.damage == 1 + 1
+
+
 def test_anubisath_sentinel():
 	game = prepare_game()
 	wisp = game.player2.summon(WISP)
@@ -315,6 +325,15 @@ def test_huge_toad():
 	assert game.player1.hero.health + dummy.health == 30 + 2 - 1
 
 
+def test_jungle_moonkin():
+	game = prepare_game()
+	moonkin = game.player1.give("LOE_051")
+	moonkin.play()
+	statue = game.player2.summon(ANIMATED_STATUE)
+	game.player1.give(MOONFIRE).play(target=statue)
+	assert statue.health == 7
+
+
 def test_keeper_of_uldaman():
 	game = prepare_game()
 	wisp = game.player1.give(WISP)
@@ -364,6 +383,25 @@ def test_obsidian_destroyer():
 	scarab = game.player1.field[1]
 	assert scarab.id == "LOE_009t"
 	assert scarab.taunt
+
+
+def test_reliquary_seeker():
+	game = prepare_game()
+	for i in range(6):
+		game.player2.summon(WISP)
+	seeker1 = game.player1.give("LOE_116")
+	assert not seeker1.powered_up
+	seeker1.play()
+	assert not seeker1.buffs
+	for i in range(5):
+		game.player1.give(WISP).play()
+	assert len(game.player1.field) == 6
+	seeker2 = game.player1.give("LOE_116")
+	assert seeker2.powered_up
+	seeker2.play()
+	assert seeker2.buffs
+	assert seeker2.atk == seeker1.atk + 4
+	assert seeker2.health == seeker1.health + 4
 
 
 def test_reno_jackson():

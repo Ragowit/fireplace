@@ -147,6 +147,11 @@ class LOEA04_25h:
 	events = OWN_TURN_END.on(Hit(ENEMY_CHARACTERS, 5))
 
 
+# Rolling Boulder
+class LOE_024t:
+	events = OWN_TURN_END.on(Destroy(LEFT_OF(SELF)))
+
+
 ##
 # Chieftain Scarvash
 
@@ -262,10 +267,10 @@ class LOEA09_7H:
 # Giantfin
 
 # Mrglmrgl MRGL!
-class LOEA16_2:
+class LOEA10_2:
 	activate = DrawUntil(CONTROLLER, Count(ENEMY_HAND))
 
-class LOEA16_2H:
+class LOEA10_2H:
 	activate = Draw(CONTROLLER) * 2
 
 
@@ -297,6 +302,17 @@ class LOEA13_2e:
 
 
 ##
+# The Steel Sentinel
+
+# Platemail Armor
+class LOEA14_2:
+	update = Refresh(FRIENDLY_HERO, {GameTag.HEAVILY_ARMORED: True})
+
+class LOEA14_2H:
+	update = Refresh(FRIENDLY_CHARACTERS, {GameTag.HEAVILY_ARMORED: True})
+
+
+##
 # Arch-Thief Rafaam
 
 # Unstable Portal
@@ -317,6 +333,14 @@ class LOEA09_4H:
 
 ##
 # Rafaam Unleashed
+
+# Staff of Origination
+class LOEA16_2:
+	update = Refresh(FRIENDLY_HERO, {GameTag.CANT_BE_DAMAGED: True})
+
+class LOEA16_2H:
+	update = Refresh(FRIENDLY_HERO, {GameTag.CANT_BE_DAMAGED: True})
+
 
 # Rummage
 class LOEA16_16:
@@ -339,6 +363,9 @@ class LOEA16_7:
 # Putress' Vial
 class LOEA16_8:
 	play = Destroy(RANDOM_ENEMY_MINION)
+
+# Putressed (Unused)
+LOEA16_8a = AttackHealthSwapBuff()
 
 
 # Lothar's Left Greave
@@ -440,6 +467,14 @@ class LOEA16_26H:
 	events = OWN_TURN_END.on(
 		Give(CONTROLLER, RandomCollectible()).then(Buff(Give.CARD, "LOEA13_2e"))
 	)
+
+
+# The Steel Sentinel
+class LOEA16_27:
+	tags = {GameTag.HEAVILY_ARMORED: True}
+
+class LOEA16_27H:
+	tags = {GameTag.HEAVILY_ARMORED: True}
 
 
 # Blessing of the Sun
