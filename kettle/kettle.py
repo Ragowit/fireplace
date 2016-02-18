@@ -6,7 +6,10 @@ import socketserver
 import struct
 import sys
 from argparse import ArgumentParser
-from hearthstone.enums import CardType, GameTag, OptionType, Zone
+from hearthstone.enums import (
+	CardType, ChoiceType, GameTag, OptionType, Step, Zone
+)
+from fireplace import actions
 from fireplace.game import BaseGame as Game
 from fireplace.player import Player
 from fireplace.utils import CardList
@@ -33,11 +36,22 @@ class KettleManager:
 		self.game_state = {}
 		self.queued_data = []
 
-	def action(self, type, args):
-		pass
+	def action_start(self, type, source, index, target):
+		DEBUG("Beginning new action %r (%r, %r, %r)", type, source, index, target)
+		packet = {
+			"SubType": type,
+			"EntityID": source.entity_id,
+			"Index": index,
+			"Target": target.entity_id if target else 0,
+		}
+		payload = {"Type": "ActionStart", "ActionStart": packet}
+		self.queued_data.append(payload)
 
-	def action_end(self, type, args):
-		pass
+	def action_end(self, type, source):
+		DEBUG("Ending action %r", type)
+		self.refresh_full_state()
+		payload = {"Type": "ActionEnd"}
+		self.queued_data.append(payload)
 
 	def game_step(self, step, next_step):
 		DEBUG("Game.STEP changes to %r (next step is %r)", step, next_step)
@@ -51,10 +65,6 @@ class KettleManager:
 			if isinstance(value, str):
 				continue
 			state[tag] = int(value)
-
-		zone_pos = self.get_zone_position(entity)
-		if zone_pos:
-			state[GameTag.ZONE_POSITION] = zone_pos
 
 		# Don't have a way of getting entities by ID in fireplace yet
 		state[GameTag.ENTITY_ID] = entity
@@ -73,8 +83,11 @@ class KettleManager:
 			state[tag] = int(value)
 
 	def refresh_full_state(self):
-		for entity in self.game_state:
-			self.refresh_state(entity)
+		if self.game.step < Step.BEGIN_MULLIGAN:
+			return
+		for entity in self.game:
+			if entity.entity_id in self.game_state:
+				self.refresh_state(entity.entity_id)
 
 	def refresh_state(self, entity_id):
 		assert entity_id in self.game_state
@@ -83,14 +96,6 @@ class KettleManager:
 
 		for tag in entity.tags:
 			self.refresh_tag(entity, tag)
-
-		zone_pos = self.get_zone_position(entity)
-		if zone_pos != state.get(GameTag.ZONE_POSITION):
-			if zone_pos:
-				state[GameTag.ZONE_POSITION] = zone_pos
-			else:
-				del state[GameTag.ZONE_POSITION]
-			self.tag_change(entity, GameTag.ZONE_POSITION, zone_pos)
 
 	def get_options(self, entity):
 		ret = []
@@ -127,8 +132,24 @@ class KettleManager:
 
 		return ret
 
+	def refresh_choices(self):
+		choice = self.game.current_player.choice
+		DEBUG("Queuing choice %r (cards: %r)", choice, choice.cards)
+		self.choices = {
+			"ChoiceType": ChoiceType.GENERAL,
+			"CountMin": choice.min_count,
+			"CountMax": choice.max_count,
+			"Entities": [e.entity_id for e in choice.cards],
+			"Source": choice.source.entity_id,
+			"PlayerId": 1,
+		}
+		payload = {"Type": "EntityChoices", "EntityChoices": self.choices}
+		self.queued_data.append(payload)
+
 	def refresh_options(self):
 		DEBUG("Refreshing options...")
+		if self.game.current_player.choice:
+			return self.refresh_choices()
 		self.options = [{"Type": OptionType.END_TURN}]
 
 		for entity in self.game.current_player.actionable_entities:
@@ -140,15 +161,6 @@ class KettleManager:
 			"Options": self.options,
 		}
 		self.queued_data.append(payload)
-
-	def get_zone_position(self, entity):
-		if entity.zone == Zone.HAND:
-			return entity.controller.hand.index(entity) + 1
-		elif entity.zone == Zone.PLAY:
-			if entity.type == CardType.MINION:
-				return entity.controller.field.index(entity) + 1
-			else:
-				return 1
 
 	def new_entity(self, entity):
 		self.add_to_state(entity)
@@ -172,25 +184,33 @@ class KettleManager:
 		option = self.options[data["Index"]]
 		if option["Type"] == OptionType.END_TURN:
 			self.game.end_turn()
-
-			# CURRENT_PLAYER needs to change before turn. TODO: is this needed?
-			self.refresh_tag(self.game.current_player.opponent, GameTag.CURRENT_PLAYER)
-			self.refresh_tag(self.game.current_player, GameTag.CURRENT_PLAYER)
-			self.refresh_tag(self.game, GameTag.TURN)
 		elif option["Type"] == OptionType.POWER:
 			entity = option["MainOption"]["ID"]
-			target = self.get_entity(data["Target"])
-			DEBUG("Using POWER entity %r target %r", entity, target)
+			kwargs = {
+				"target": self.get_entity(data["Target"]),
+			}
+			DEBUG("Using POWER entity %r **%r", entity, kwargs)
 			DEBUG("data=%r", data)
 			if entity.zone == Zone.HAND:
-				entity.play(target=target)
+				func = entity.play
+				kwargs["index"] = data["Position"]
 			elif entity.zone == Zone.PLAY:
 				if entity.type == CardType.HERO_POWER:
-					entity.use(target=target)
+					func = entity.use
 				elif entity.type in (CardType.HERO, CardType.MINION):
-					entity.attack(target=target)
+					func = entity.attack
+			func(**kwargs)
 		else:
 			raise NotImplementedError
+
+	def process_choose_entities(self, data):
+		DEBUG("Processing choose entities, data=%r", data)
+		entities = []
+		for entity_id in data:
+			# No need to assert, fireplace will raise InvalidAction
+			# assert entity_id in self.choices["Entities"]
+			entities.append(self.get_entity(entity_id))
+		self.game.current_player.choice.choose(*entities)
 
 	def tag_change(self, entity, tag, value):
 		DEBUG("Queueing a tag change for entity %r: %r -> %r", entity, tag, value)
@@ -255,6 +275,12 @@ class Kettle(socketserver.BaseRequestHandler):
 
 			if packet["Type"] == "SendOption":
 				manager.process_send_option(packet["SendOption"])
+			elif packet["Type"] == "ChooseEntities":
+				manager.process_choose_entities(packet["ChooseEntities"])
+			elif packet["Type"] == "Concede":
+				player = manager.game.players[packet["Concede"] - 1]
+				player.concede()
+				manager.refresh_full_state()
 			else:
 				raise NotImplementedError
 
@@ -281,11 +307,10 @@ class Kettle(socketserver.BaseRequestHandler):
 		player_data = payload["Players"]
 		players = []
 		for player in player_data:
-			p = Player(player["Name"])
 			# Shuffle the cards to prevent information leaking
 			cards = player["Cards"]
 			random.shuffle(cards)
-			p.prepare_deck(cards, player["Hero"])
+			p = Player(player["Name"], cards, player["Hero"])
 			players.append(p)
 
 		INFO("Initializing a Kettle game with players=%r", players)

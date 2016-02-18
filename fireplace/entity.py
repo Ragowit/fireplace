@@ -36,11 +36,8 @@ class BaseEntity(object):
 
 	@property
 	def update_scripts(self):
-		ret = []
 		if self.data and not self.ignore_scripts:
-			for script in self.data.scripts.update:
-				ret.append(script)
-		return ret
+			yield from self.data.scripts.update
 
 	def log(self, message, *args):
 		self.logger.info(message, *args)
@@ -71,8 +68,7 @@ class BaseEntity(object):
 					actions += action(self, *args)
 			else:
 				actions.append(action)
-		# XXX This is racey. Replace with something more solid.
-		source.game.queue_actions(self, actions, event_args=args)
+		source.game.trigger(self, actions, args)
 		if event.once:
 			self._events.remove(event)
 
@@ -105,7 +101,7 @@ class BuffableEntity(BaseEntity):
 		if self.buffs:
 			self.log("Clearing buffs from %r", self)
 			for buff in self.buffs[:]:
-				buff.destroy()
+				buff.remove()
 
 
 class Entity(BuffableEntity):

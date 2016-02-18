@@ -1,5 +1,5 @@
 from itertools import chain
-from hearthstone.enums import CardType, PlayReq, Race, Rarity, Step, Zone
+from hearthstone.enums import CardType, PlayReq, PlayState, Race, Rarity, Step, Zone
 from . import actions, cards, rules
 from .aura import TargetableByAuras
 from .entity import BaseEntity, Entity, boolean_property, int_property, slot_property
@@ -85,6 +85,7 @@ class BaseCard(BaseEntity):
 		caches = {
 			Zone.HAND: self.controller.hand,
 			Zone.DECK: self.controller.deck,
+			Zone.DISCARD: self.controller.discarded,
 			Zone.GRAVEYARD: self.controller.graveyard
 		}
 		if caches.get(old) is not None:
@@ -181,9 +182,12 @@ class PlayableCard(BaseCard, Entity, TargetableByAuras):
 
 	@property
 	def zone_position(self):
+		"""
+		Returns the card's position (1-indexed) in its zone, or 0 if not available.
+		"""
 		if self.zone == Zone.HAND:
-			return self.controller.hand.index(self)
-		return None
+			return self.controller.hand.index(self) + 1
+		return 0
 
 	def _set_zone(self, zone):
 		old_zone = self.zone
@@ -200,19 +204,7 @@ class PlayableCard(BaseCard, Entity, TargetableByAuras):
 				self.choose_cards.append(card)
 
 	def destroy(self):
-		return self.game.queue_actions(self, [actions.Destroy(self), actions.Deaths()])
-
-	def _destroy(self):
-		"""
-		Destroy a card.
-		If the card is in PLAY, it is instead scheduled to be destroyed, and it will
-		be moved to the GRAVEYARD on the next Death event.
-		"""
-		if self.delayed_destruction:
-			self.log("Marking %r for imminent death", self)
-			self.to_be_destroyed = True
-		else:
-			self.zone = Zone.GRAVEYARD
+		return self.game.cheat_action(self, [actions.Destroy(self), actions.Deaths()])
 
 	def discard(self):
 		self.log("Discarding %r" % (self))
@@ -230,11 +222,10 @@ class PlayableCard(BaseCard, Entity, TargetableByAuras):
 			if self.game.step > Step.BEGIN_MULLIGAN:
 				# Proc the draw script, but only if we are past mulligan
 				actions = self.get_actions("draw")
-				if actions:
-					self.game.queue_actions(self, actions)
+				self.game.trigger(self, actions, event_args=None)
 
 	def heal(self, target, amount):
-		return self.game.queue_actions(self, [actions.Heal(target, amount)])
+		return self.game.cheat_action(self, [actions.Heal(target, amount)])
 
 	def is_playable(self):
 		if self.controller.choice:
@@ -288,7 +279,7 @@ class PlayableCard(BaseCard, Entity, TargetableByAuras):
 				raise InvalidAction("%r is not a valid target for %r." % (target, self))
 		elif target:
 			self.logger.warning("%r does not require a target, ignoring target %r", self, target)
-		self.game.queue_actions(self.controller, [actions.Play(self, target, index, choose)])
+		self.game.play_card(self, target, index, choose)
 		return self
 
 	def is_summonable(self) -> bool:
@@ -302,13 +293,13 @@ class PlayableCard(BaseCard, Entity, TargetableByAuras):
 		"""
 		Morph the card into another card
 		"""
-		return self.game.queue_actions(self, [actions.Morph(self, into)])
+		return self.game.cheat_action(self, [actions.Morph(self, into)])
 
 	def shuffle_into_deck(self):
 		"""
 		Shuffle the card into the controller's deck
 		"""
-		return self.game.queue_actions(self.controller, [actions.Shuffle(self.controller, self)])
+		return self.game.cheat_action(self, [actions.Shuffle(self.controller, self)])
 
 	def has_target(self):
 		if self.has_combo and PlayReq.REQ_TARGET_FOR_COMBO in self.requirements:
@@ -345,11 +336,14 @@ class LiveEntity(PlayableCard, Entity):
 		self.forgetful = False
 		self.predamage = 0
 		self.turns_in_play = 0
+		self.turn_killed = -1
 
 	def _set_zone(self, zone):
 		super()._set_zone(zone)
 		# See issue #283 (Malorne, Anu'barak)
 		self._to_be_destroyed = False
+		if zone == Zone.GRAVEYARD:
+			self.turn_killed = self.game.turn
 
 	@property
 	def immune(self):
@@ -392,7 +386,7 @@ class LiveEntity(PlayableCard, Entity):
 
 	@property
 	def killed_this_turn(self):
-		return self in self.game.minions_killed_this_turn
+		return self.turn_killed == self.game.turn
 
 	def _hit(self, amount):
 		if self.immune:
@@ -403,7 +397,7 @@ class LiveEntity(PlayableCard, Entity):
 		return amount
 
 	def hit(self, amount):
-		return self.game.queue_actions(self, [actions.Hit(self, amount)])
+		return self.game.cheat_action(self, [actions.Hit(self, amount)])
 
 
 class Character(LiveEntity):
@@ -414,6 +408,7 @@ class Character(LiveEntity):
 	cant_be_targeted_by_hero_powers = boolean_property("cant_be_targeted_by_hero_powers")
 	heavily_armored = boolean_property("heavily_armored")
 	min_health = boolean_property("min_health")
+	taunt = boolean_property("taunt")
 
 	def __init__(self, data):
 		self.frozen = False
@@ -503,7 +498,7 @@ class Character(LiveEntity):
 		return super().targets
 
 	def set_current_health(self, amount):
-		return self.game.queue_actions(self, [actions.SetCurrentHealth(self, amount)])
+		return self.game.cheat_action(self, [actions.SetCurrentHealth(self, amount)])
 
 
 class Hero(Character):
@@ -514,12 +509,12 @@ class Hero(Character):
 
 	@property
 	def entities(self):
-		ret = [self]
+		yield self
 		if self.power:
-			ret.append(self.power)
+			yield self.power
 		if self.controller.weapon:
-			ret.append(self.controller.weapon)
-		return chain(ret, self.buffs)
+			yield self.controller.weapon
+		yield from self.buffs
 
 	@property
 	def windfury(self):
@@ -528,11 +523,6 @@ class Hero(Character):
 			# NOTE: As of 9786, Windfury is retained even when the weapon is exhausted.
 			return self.controller.weapon.windfury or ret
 		return ret
-
-	def _destroy(self):
-		super()._destroy()
-		if self.power:
-			self.power.destroy()
 
 	def _getattr(self, attr, i):
 		ret = super()._getattr(attr, i)
@@ -546,6 +536,11 @@ class Hero(Character):
 			self.controller.hero = self
 			if self.data.hero_power:
 				self.controller.summon(self.data.hero_power)
+		elif value == Zone.GRAVEYARD:
+			if self.power:
+				self.power.zone = Zone.GRAVEYARD
+			if self.controller.hero is self:
+				self.controller.playstate = PlayState.LOSING
 		super()._set_zone(value)
 
 	def _hit(self, amount):
@@ -563,7 +558,6 @@ class Minion(Character):
 	has_inspire = boolean_property("has_inspire")
 	spellpower = int_property("spellpower")
 	stealthed = boolean_property("stealthed")
-	taunt = boolean_property("taunt")
 
 	silenceable_attributes = (
 		"always_wins_brawls", "aura", "cant_attack", "cant_be_targeted_by_abilities",
@@ -620,10 +614,9 @@ class Minion(Character):
 
 	@property
 	def update_scripts(self):
-		ret = super().update_scripts
+		yield from super().update_scripts
 		if self.enraged:
-			ret += self.data.scripts.enrage
-		return ret
+			yield from self.data.scripts.enrage
 
 	@property
 	def zone_position(self):
@@ -637,6 +630,8 @@ class Minion(Character):
 				self.controller.field.insert(self._summon_index, self)
 			else:
 				self.controller.field.append(self)
+		elif value == Zone.GRAVEYARD:
+			self.controller.minions_killed_this_turn += 1
 
 		if self.zone == Zone.PLAY:
 			self.log("%r is removed from the field", self)
@@ -661,7 +656,7 @@ class Minion(Character):
 		return amount
 
 	def bounce(self):
-		return self.game.queue_actions(self, [actions.Bounce(self)])
+		return self.game.cheat_action(self, [actions.Bounce(self)])
 
 	def is_summonable(self):
 		summonable = super().is_summonable()
@@ -670,7 +665,7 @@ class Minion(Character):
 		return summonable
 
 	def silence(self):
-		return self.game.queue_actions(self, [actions.Silence(self)])
+		return self.game.cheat_action(self, [actions.Silence(self)])
 
 
 class Spell(PlayableCard):
@@ -777,9 +772,8 @@ class Enchantment(BaseCard):
 			target.damage = 0
 		self.zone = Zone.PLAY
 
-	def destroy(self):
+	def remove(self):
 		self.zone = Zone.REMOVEDFROMGAME
-	_destroy = destroy
 
 
 class Weapon(rules.WeaponRules, LiveEntity):
@@ -810,7 +804,8 @@ class Weapon(rules.WeaponRules, LiveEntity):
 	def _set_zone(self, zone):
 		if zone == Zone.PLAY:
 			if self.controller.weapon:
-				self.controller.weapon.destroy()
+				self.log("Destroying old weapon %r", self.controller.weapon)
+				self.game.trigger(self, [actions.Destroy(self.controller.weapon)], event_args=None)
 			self.controller.weapon = self
 		elif self.zone == Zone.PLAY:
 			self.controller.weapon = None

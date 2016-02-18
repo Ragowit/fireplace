@@ -24,27 +24,31 @@ class Player(Entity, TargetableByAuras):
 	spellpower_adjustment = slot_property("spellpower", sum)
 	type = CardType.PLAYER
 
-	def __init__(self, name):
+	def __init__(self, name, deck, hero):
+		self.starting_deck = deck
+		self.starting_hero = hero
 		self.data = None
 		self.name = name
 		self.hero = None
 		super().__init__()
 		self.deck = Deck()
 		self.hand = CardList()
+		self.discarded = CardList()
 		self.field = CardList()
 		self.graveyard = CardList()
 		self.secrets = CardList()
 		self.choice = None
-		self.start_hand_size = 4
 		self.max_hand_size = 10
 		self.max_resources = 10
 		self.cant_draw = False
 		self.cant_fatigue = False
 		self.fatigue_counter = 0
 		self.last_card_played = None
+		self.cards_drawn_this_turn = 0
 		self.overloaded = 0
 		self.overload_locked = 0
 		self._max_mana = 0
+		self._start_hand_size = 3
 		self.playstate = PlayState.INVALID
 		self.temp_mana = 0
 		self.timeout = 75
@@ -74,6 +78,15 @@ class Player(Entity, TargetableByAuras):
 		return mana
 
 	@property
+	def max_mana(self):
+		return self._max_mana
+
+	@max_mana.setter
+	def max_mana(self, amount):
+		self._max_mana = min(self.max_resources, max(0, amount))
+		self.log("%s is now at %i mana crystals", self, self._max_mana)
+
+	@property
 	def heropower_damage(self):
 		return sum(minion.heropower_damage for minion in self.field)
 
@@ -84,34 +97,40 @@ class Player(Entity, TargetableByAuras):
 		return aura_power + minion_power
 
 	@property
+	def start_hand_size(self):
+		if not self.first_player:
+			# Give the second player an extra card
+			return self._start_hand_size + 1
+		return self._start_hand_size
+
+	@property
 	def characters(self):
 		return CardList(chain([self.hero] if self.hero else [], self.field))
 
 	@property
 	def entities(self):
-		ret = []
 		for entity in self.field:
-			ret += entity.entities
-		ret += self.secrets
-		ret += self.buffs
-		return CardList(chain(list(self.hero.entities) if self.hero else [], ret, [self]))
+			yield from entity.entities
+		yield from self.secrets
+		yield from self.buffs
+		if self.hero:
+			yield from self.hero.entities
+		yield self
 
 	@property
 	def live_entities(self):
-		ret = self.field[:]
+		yield from self.field
 		if self.hero:
-			ret.append(self.hero)
+			yield self.hero
 		if self.weapon:
-			ret.append(self.weapon)
-		return ret
+			yield self.weapon
 
 	@property
 	def actionable_entities(self):
-		ret = CardList(chain(self.characters, self.hand))
+		yield from self.characters
+		yield from self.hand
 		if self.hero.power:
-			ret.append(self.hero.power)
-
-		return ret
+			yield self.hero.power
 
 	@property
 	def minion_slots(self):
@@ -128,8 +147,19 @@ class Player(Entity, TargetableByAuras):
 		self.game.manager.new_entity(card)
 		return card
 
-	def concede(self):
-		return self.game.queue_actions(self, [Concede(self)])
+	def prepare_for_game(self):
+		self.summon(self.starting_hero)
+		for id in self.starting_deck:
+			self.card(id, zone=Zone.DECK)
+		self.shuffle_deck()
+		self.playstate = PlayState.PLAYING
+
+		# Draw initial hand (but not any more than what we have in the deck)
+		hand_size = min(len(self.deck), self.start_hand_size)
+		starting_hand = random.sample(self.deck, hand_size)
+		# It's faster to move cards directly to the hand instead of drawing
+		for card in starting_hand:
+			card.zone = Zone.HAND
 
 	def get_spell_damage(self, amount: int) -> int:
 		"""
@@ -140,14 +170,6 @@ class Player(Entity, TargetableByAuras):
 		amount <<= self.controller.spellpower_double
 		return amount
 
-	def give(self, id):
-		cards = self.game.queue_actions(self, [Give(self, id)])[0]
-		return cards[0][0]
-
-	def prepare_deck(self, cards, hero):
-		self.starting_deck = cards
-		self.starting_hero = hero
-
 	def discard_hand(self):
 		self.log("%r discards their entire hand!", self)
 		# iterate the list in reverse so we don't skip over cards in the process
@@ -155,12 +177,30 @@ class Player(Entity, TargetableByAuras):
 		for card in self.hand[::-1]:
 			card.discard()
 
+	def pay_mana(self, amount: int) -> int:
+		"""
+		Make player pay \a amount mana.
+		Returns how much mana is spent, after temporary mana adjustments.
+		"""
+		if self.temp_mana:
+			# Coin, Innervate etc
+			used_temp = min(self.temp_mana, amount)
+			amount -= used_temp
+			self.temp_mana -= used_temp
+		self.log("%s pays %i mana", self, amount)
+		self.used_mana += amount
+		return amount
+
+	def shuffle_deck(self):
+		self.log("%r shuffles their deck", self)
+		random.shuffle(self.deck)
+
 	def draw(self, count=1):
 		if self.cant_draw:
 			self.log("%s tries to draw %i cards, but can't draw", self, count)
 			return None
 
-		ret = self.game.queue_actions(self, [Draw(self) * count])[0]
+		ret = self.game.cheat_action(self, [Draw(self) * count])[0]
 		if count == 1:
 			if not ret[0]:  # fatigue
 				return None
@@ -183,38 +223,20 @@ class Player(Entity, TargetableByAuras):
 				count -= 1
 			return ret
 
+	def give(self, id):
+		cards = self.game.cheat_action(self, [Give(self, id)])[0]
+		return cards[0][0]
+
+	def concede(self):
+		ret = self.game.cheat_action(self, [Concede(self)])
+		self.game.check_for_end_game()
+		return ret
+
 	def fatigue(self):
-		return self.game.queue_actions(self, [Fatigue(self)])[0]
-
-	def pay_mana(self, amount: int) -> int:
-		"""
-		Make player pay \a amount mana.
-		Returns how much mana is spent, after temporary mana adjustments.
-		"""
-		if self.temp_mana:
-			# Coin, Innervate etc
-			used_temp = min(self.temp_mana, amount)
-			amount -= used_temp
-			self.temp_mana -= used_temp
-		self.log("%s pays %i mana", self, amount)
-		self.used_mana += amount
-		return amount
-
-	@property
-	def max_mana(self):
-		return self._max_mana
-
-	@max_mana.setter
-	def max_mana(self, amount):
-		self._max_mana = min(self.max_resources, max(0, amount))
-		self.log("%s is now at %i mana crystals", self, self._max_mana)
+		return self.game.cheat_action(self, [Fatigue(self)])[0]
 
 	def steal(self, card):
-		return self.game.queue_actions(self, [Steal(card)])
-
-	def shuffle_deck(self):
-		self.log("%r shuffles their deck", self)
-		random.shuffle(self.deck)
+		return self.game.cheat_action(self, [Steal(card)])
 
 	def summon(self, card):
 		"""
@@ -222,5 +244,5 @@ class Player(Entity, TargetableByAuras):
 		"""
 		if isinstance(card, str):
 			card = self.card(card, zone=Zone.PLAY)
-		self.game.queue_actions(self, [Summon(self, card)])
+		self.game.cheat_action(self, [Summon(self, card)])
 		return card

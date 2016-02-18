@@ -31,22 +31,48 @@ def test_baron_rivendare():
 	gnome = game.player1.give("EX1_029")
 	gnome.play()
 	assert not game.player1.extra_deathrattles
-	rivendare = game.player1.summon("FP1_031")
+	rivendare = game.player1.give("FP1_031")
+	rivendare.play()
 	assert game.player1.extra_deathrattles
 	game.player1.give(MOONFIRE).play(target=gnome)
 	assert game.player2.hero.health == 26
+
+
+def test_baron_rivendare_soul_of_the_forest():
+	game = prepare_game()
+	rivendare = game.player1.give("FP1_031")
+	rivendare.play()
 	wisp = game.player1.give(WISP)
 	wisp.play()
-	assert not wisp.has_deathrattle
 	sotf = game.player1.give("EX1_158")
 	sotf.play()
 	assert len(game.player1.field) == 2
+	assert wisp.has_deathrattle
+	assert rivendare.has_deathrattle
 	game.player1.give(MOONFIRE).play(target=wisp)
 	assert wisp.dead
 	assert rivendare.zone == Zone.PLAY
 	assert len(game.player1.field) == 3  # Rivendare and two treants
-	rivendare.destroy()
+	game.player1.give(DESTROY).play(target=rivendare)
 	assert len(game.player1.field) == 3  # Only one treant spawns
+
+
+def test_baron_rivendare_sylvanas():
+	# Test for bug #266
+	# When stolen, Rivendare should not apply EXTRA_DEATHRATTLES fast
+	# enough to cause a second Steal
+	game = prepare_game()
+	sylvanas = game.player1.give("EX1_016")
+	sylvanas.play()
+	game.end_turn()
+
+	rivendare1 = game.player2.give("FP1_031")
+	rivendare1.play()
+	rivendare2 = game.player2.give("FP1_031")
+	rivendare2.play()
+	sylvanas.destroy()
+	assert len(game.player1.field) == len(game.player2.field) == 1
+	assert rivendare1.controller != rivendare2.controller
 
 
 def test_deaths_bite():
@@ -72,6 +98,17 @@ def test_deaths_bite():
 	assert wisp.dead
 	assert wisp2.dead
 	assert token.health == 2
+
+
+def test_deaths_bite_replace():
+	game = prepare_game()
+	wisp = game.player1.give(WISP)
+	wisp.play()
+	deathsbite = game.player1.give("FP1_021")
+	deathsbite.play()
+	weapon = game.player1.give(LIGHTS_JUSTICE)
+	weapon.play()
+	assert wisp.dead
 
 
 def test_deathlord():
@@ -421,6 +458,25 @@ def test_stalagg_feugen_both_killed():
 	assert len(game.player2.field) == 1
 	assert game.player1.field[0].id == "FP1_014t"
 	assert game.player2.field[0].id == "FP1_014t"
+
+
+def test_stalagg_feugen_sap_destroy():
+	game = prepare_game()
+	stalagg = game.player1.give("FP1_014")
+	stalagg.destroy()
+	feugen = game.player1.give("FP1_015")
+	feugen.play()
+	game.player1.discard_hand()
+	for i in range(10):
+		game.player1.give(WISP)
+	assert len(game.player1.hand) == 10
+	game.end_turn()
+
+	sap = game.player2.give("EX1_581")
+	sap.play(target=feugen)
+	assert feugen.dead
+	assert len(game.player1.field) == 1
+	assert game.player1.field[0].id == "FP1_014t"
 
 
 def test_stoneskin_gargoyle():

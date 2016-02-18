@@ -15,7 +15,7 @@ class AuraBuff:
 		self.tags.update(tags)
 		self.tick = self.source.game.tick
 
-	def destroy(self):
+	def remove(self):
 		log.info("Destroying %r", self)
 		self.entity.slots.remove(self)
 		self.source.game.active_aura_buffs.remove(self)
@@ -57,11 +57,9 @@ class Refresh:
 
 class TargetableByAuras:
 	def refresh_buff(self, source, id):
-		for slot in self.slots[:]:
-			if slot.source is source:
-				self.slots.remove(slot)
-				self.slots.append(slot)
-				slot.tick = source.game.tick
+		for buff in self.buffs:
+			if buff.source is source and buff.id == id:
+				buff.tick = source.game.tick
 				break
 		else:
 			log.info("Aura from %r buffs %r with %r", source, self, id)
@@ -70,12 +68,9 @@ class TargetableByAuras:
 			source.game.active_aura_buffs.append(buff)
 
 	def refresh_tags(self, source, tags):
-		for slot in self.slots[:]:
+		for slot in self.slots:
 			if slot.source is source:
 				slot.update_tags(tags)
-				# Move the buff position at the end again
-				self.slots.remove(slot)
-				self.slots.append(slot)
 				break
 		else:
 			buff = AuraBuff(source, self)

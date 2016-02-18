@@ -2,8 +2,8 @@ import random
 import time
 from calendar import timegm
 from itertools import chain
-from hearthstone.enums import CardType, PlayState, State, Step, Zone
-from .actions import Attack, BeginTurn, Death, EndTurn, EventListener, Hit
+from hearthstone.enums import CardType, PlayState, PowSubType, State, Step, Zone
+from .actions import Attack, BeginTurn, Death, EndTurn, EventListener, Play
 from .card import THE_COIN
 from .entity import Entity
 from .managers import GameManager
@@ -23,20 +23,19 @@ class BaseGame(Entity):
 		for player in players:
 			player.game = self
 		self.state = State.INVALID
-		self.step = None
-		self.next_step = None
+		self.step = Step.BEGIN_FIRST
+		self.next_step = Step.BEGIN_SHUFFLE
 		self.turn = 0
 		self.current_player = None
-		self.minions_killed_this_turn = CardList()
-		self.no_aura_refresh = False
 		self.tick = 0
 		self.active_aura_buffs = CardList()
+		self._action_stack = 0
 
 	def __repr__(self):
 		return "%s(players=%r)" % (self.__class__.__name__, self.players)
 
 	def __iter__(self):
-		return self.all_entities.__iter__()
+		return chain(self.entities, self.hands, self.decks, self.graveyard, self.discarded)
 
 	@property
 	def game(self):
@@ -51,16 +50,16 @@ class BaseGame(Entity):
 		return CardList(chain(self.players[0].deck, self.players[1].deck))
 
 	@property
+	def discarded(self):
+		return CardList(chain(self.players[0].discarded, self.players[1].discarded))
+
+	@property
 	def hands(self):
 		return CardList(chain(self.players[0].hand, self.players[1].hand))
 
 	@property
 	def characters(self):
 		return CardList(chain(self.players[0].characters, self.players[1].characters))
-
-	@property
-	def all_entities(self):
-		return CardList(chain(self.entities, self.hands, self.decks, self.graveyard))
 
 	@property
 	def graveyard(self):
@@ -74,11 +73,80 @@ class BaseGame(Entity):
 	def live_entities(self):
 		return CardList(chain(self.players[0].live_entities, self.players[1].live_entities))
 
-	def filter(self, *args, **kwargs):
-		return self.all_entities.filter(*args, **kwargs)
+	@property
+	def minions_killed_this_turn(self):
+		return self.players[0].minions_killed_this_turn + self.players[1].minions_killed_this_turn
+
+	def action_start(self, type, source, index, target):
+		self.manager.action_start(type, source, index, target)
+		if type != PowSubType.PLAY:
+			self._action_stack += 1
+
+	def action_end(self, type, source):
+		self.manager.action_end(type, source)
+		if type != PowSubType.PLAY:
+			self._action_stack -= 1
+		if not self._action_stack:
+			self.log("Empty stack, refreshing auras and processing deaths")
+			self.refresh_auras()
+			self.process_deaths()
+
+	def action_block(self, source, actions, type, index=-1, target=None, event_args=None):
+		self.action_start(type, source, index, target)
+		if actions:
+			ret = self.queue_actions(source, actions, event_args)
+		else:
+			ret = []
+		self.action_end(type, source)
+		return ret
 
 	def attack(self, source, target):
-		return self.queue_actions(source, [Attack(source, target)])
+		type = PowSubType.ATTACK
+		actions = [Attack(source, target)]
+		return self.action_block(source, actions, type, target=target)
+
+	def joust(self, source, challenger, defender, actions):
+		type = PowSubType.JOUST
+		return self.action_block(source, actions, type, event_args=[challenger, defender])
+
+	def main_power(self, source, actions, target):
+		type = PowSubType.POWER
+		return self.action_block(source, actions, type, target=target)
+
+	def play_card(self, card, target, index, choose):
+		type = PowSubType.PLAY
+		actions = [Play(card, target, index, choose)]
+		return self.action_block(card, actions, type, index, target)
+
+	def process_deaths(self):
+		type = PowSubType.DEATHS
+		cards = []
+		for card in self.live_entities:
+			if card.to_be_destroyed:
+				cards.append(card)
+
+		actions = []
+		if cards:
+			self.action_start(type, self, -1, None)
+			for card in cards:
+				card.zone = Zone.GRAVEYARD
+				actions.append(Death(card))
+			self.check_for_end_game()
+			self.action_end(type, self)
+			self.trigger(self, actions, event_args=None)
+
+	def trigger(self, source, actions, event_args):
+		"""
+		Perform actions as a result of an event listener (TRIGGER)
+		"""
+		type = PowSubType.TRIGGER
+		return self.action_block(source, actions, type, event_args=event_args)
+
+	def cheat_action(self, source, actions):
+		"""
+		Perform actions as if a card had just triggered them
+		"""
+		return self.trigger(source, actions, event_args=None)
 
 	def check_for_end_game(self):
 		"""
@@ -105,34 +173,6 @@ class BaseGame(Entity):
 			self.state = State.COMPLETE
 			raise GameOver("The game has ended.")
 
-	def process_deaths(self):
-		actions = []
-		for card in self.live_entities:
-			if card.to_be_destroyed:
-				actions += self._schedule_death(card)
-
-		self.check_for_end_game()
-
-		if actions:
-			self.queue_actions(self, actions)
-
-	def _schedule_death(self, card):
-		"""
-		Prepare a card for its death. Will run any related Death
-		trigger attached to the Game object.
-		Returns a list of actions to perform during the death sweep.
-		"""
-		self.logger.debug("Scheduling death for %r", card)
-		card.ignore_events = True
-		card.zone = Zone.GRAVEYARD
-		if card.type == CardType.MINION:
-			self.minions_killed_this_turn.append(card)
-			card.controller.minions_killed_this_turn += 1
-		elif card.type == CardType.HERO:
-			card.controller.playstate = PlayState.LOSING
-
-		return [Death(card)]
-
 	def queue_actions(self, source, actions, event_args=None):
 		"""
 		Queue a list of \a actions for processing from \a source.
@@ -141,7 +181,6 @@ class BaseGame(Entity):
 		source.event_args = event_args
 		ret = self.trigger_actions(source, actions)
 		source.event_args = None
-		self.refresh_auras()
 		return ret
 
 	def trigger_actions(self, source, actions):
@@ -175,9 +214,6 @@ class BaseGame(Entity):
 		return self.players[0], self.players[1]
 
 	def refresh_auras(self):
-		if self.no_aura_refresh:
-			return
-
 		refresh_queue = []
 		for entity in self.entities:
 			for script in entity.update_scripts:
@@ -192,9 +228,12 @@ class BaseGame(Entity):
 		for entity, action in refresh_queue:
 			action.trigger(entity)
 
-		for buff in self.active_aura_buffs[:]:
+		buffs_to_destroy = []
+		for buff in self.active_aura_buffs:
 			if buff.tick < self.tick:
-				buff.destroy()
+				buffs_to_destroy.append(buff)
+		for buff in buffs_to_destroy:
+			buff.remove()
 
 		self.tick += 1
 
@@ -205,26 +244,19 @@ class BaseGame(Entity):
 			player.zone = Zone.PLAY
 			self.manager.new_entity(player)
 
-		for player in self.players:
-			player.summon(player.starting_hero)
-			for id in player.starting_deck:
-				player.card(id, zone=Zone.DECK)
-			player.shuffle_deck()
-			player.playstate = PlayState.PLAYING
-			player.cards_drawn_this_turn = 0
-
 		first, second = self.pick_first_player()
 		self.player1 = first
 		self.player1.first_player = True
 		self.player2 = second
 		self.player2.first_player = False
-		self.player1.draw(self.player1.start_hand_size - 1)
-		self.player2.draw(self.player1.start_hand_size)
+
+		for player in self.players:
+			player.prepare_for_game()
 
 	def start(self):
 		self.log("Starting game %r", self)
 		self.state = State.RUNNING
-		self.step = Step.MAIN_BEGIN
+		self.step = Step.BEGIN_DRAW
 		self.zone = Zone.PLAY
 		self.prepare()
 		self.manager.start_game()
@@ -247,19 +279,20 @@ class BaseGame(Entity):
 				character.frozen = False
 		for buff in self.entities.filter(one_turn_effect=True):
 			self.log("Ending One-Turn effect: %r", buff)
-			buff.destroy()
+			buff.remove()
 		self.begin_turn(self.current_player.opponent)
 
 	def begin_turn(self, player):
 		return self.queue_actions(self, [BeginTurn(player)])
 
 	def _begin_turn(self, player):
-		self.manager.step(self.next_step, Step.MAIN_START)
+		self.manager.step(self.next_step, Step.MAIN_READY)
 		self.turn += 1
 		self.log("%s begins turn %i", player, self.turn)
-		self.manager.step(self.next_step, Step.MAIN_ACTION)
 		self.current_player = player
-		self.minions_killed_this_turn = CardList()
+		self.manager.step(self.next_step, Step.MAIN_START_TRIGGERS)
+		self.manager.step(self.next_step, Step.MAIN_START)
+		self.manager.step(self.next_step, Step.MAIN_ACTION)
 
 		for p in self.players:
 			p.cards_drawn_this_turn = 0

@@ -1,5 +1,5 @@
 from inspect import isclass
-from hearthstone.enums import CardType, Mulligan, PlayState, Zone
+from hearthstone.enums import CardType, Mulligan, PlayState, Step, Zone
 from .dsl import LazyValue, Selector
 from .entity import Entity
 from .logging import log
@@ -149,10 +149,7 @@ class ActionArg(LazyValue):
 class GameAction(Action):
 	def trigger(self, source):
 		args = self.get_args(source)
-		source.game.manager.action(self, source, *args)
 		self.do(source, *args)
-		source.game.manager.action_end(self, source, *args)
-		source.game.process_deaths()
 
 
 class Attack(GameAction):
@@ -166,11 +163,13 @@ class Attack(GameAction):
 		return ret
 
 	def do(self, source, attacker, defender):
+		log.info("%r attacks %r", attacker, defender)
 		attacker.attack_target = defender
 		defender.defending = True
 		source.game.proposed_attacker = attacker
 		source.game.proposed_defender = defender
-		log.info("%r attacks %r", attacker, defender)
+		source.game.manager.step(Step.MAIN_COMBAT, Step.MAIN_ACTION)
+		source.game.refresh_auras()  # XXX Needed for Gorehowl
 		self.broadcast(source, EventListener.ON, attacker, defender)
 
 		defender = source.game.proposed_defender
@@ -278,9 +277,7 @@ class Joust(GameAction):
 
 	def do(self, source, challenger, defender):
 		log.info("Jousting %r vs %r", challenger, defender)
-		for action in self.callback:
-			log.debug("%r joust callback: %r", self, action)
-			source.game.queue_actions(source, [action], event_args=[challenger, defender])
+		source.game.joust(source, challenger, defender, self.callback)
 
 
 class GenericChoice(GameAction):
@@ -297,14 +294,23 @@ class GenericChoice(GameAction):
 			cards = cards.eval(source.game, source)
 		elif isinstance(cards, LazyValue):
 			cards = cards.evaluate(source)
+
+		for card in cards:
+			card.zone = Zone.SETASIDE
+
 		return player, cards
 
 	def do(self, source, player, cards):
 		player.choice = self
+		self.source = source
 		self.player = player
 		self.cards = cards
+		self.min_count = 1
+		self.max_count = 1
 
 	def choose(self, card):
+		if card not in self.cards:
+			raise InvalidAction("%r is not a valid choice (one of %r)" % (card, self.cards))
 		for _card in self.cards:
 			if _card is card:
 				if card.type == CardType.HERO_POWER:
@@ -356,6 +362,7 @@ class Play(GameAction):
 		return (source, ) + super().get_args(source)
 
 	def do(self, source, player, card, target, index, choose):
+		player = source.controller
 		log.info("%s plays %r (target=%r, index=%r)", player, card, target, index)
 
 		player.pay_mana(card.cost)
@@ -363,18 +370,16 @@ class Play(GameAction):
 		card.target = target
 		card._summon_index = index
 
-		player.game.no_aura_refresh = True
 		card.zone = Zone.PLAY
 
 		# NOTE: A Play is not a summon! But it sure looks like one.
 		# We need to fake a Summon broadcast.
 		summon_action = Summon(player, card)
 
-		self.queue_broadcast(summon_action, (player, EventListener.ON, player, card))
+		if card.type in (CardType.MINION, CardType.WEAPON):
+			self.queue_broadcast(summon_action, (player, EventListener.ON, player, card))
 		self.broadcast(player, EventListener.ON, player, card, target)
 		self.resolve_broadcasts()
-		player.game.no_aura_refresh = False
-		player.game.refresh_auras()
 
 		# "Can't Play" (aka Counter) means triggers don't happen either
 		if not card.cant_play:
@@ -383,12 +388,10 @@ class Play(GameAction):
 
 			# If the play action transforms the card (eg. Druid of the Claw), we
 			# have to broadcast the morph result as minion instead.
-			if card.morphed:
-				played_minion = card.morphed
-			else:
-				played_minion = card
-			summon_action.broadcast(player, EventListener.AFTER, player, played_minion)
-			self.broadcast(player, EventListener.AFTER, player, played_minion, target)
+			played_card = card.morphed or card
+			if played_card.type in (CardType.MINION, CardType.WEAPON):
+				summon_action.broadcast(player, EventListener.AFTER, player, played_card)
+			self.broadcast(player, EventListener.AFTER, player, played_card, target)
 
 		player.combo = True
 		player.last_card_played = card
@@ -407,24 +410,18 @@ class Activate(GameAction):
 		return (source, ) + super().get_args(source)
 
 	def do(self, source, player, heropower, target=None):
-		ret = []
-
 		self.broadcast(source, EventListener.ON, player, heropower, target)
 
 		actions = heropower.get_actions("activate")
-		if actions:
-			ret += source.game.queue_actions(heropower, actions)
+		source.game.main_power(heropower, actions, target)
 
 		for minion in player.field.filter(has_inspire=True):
 			actions = minion.get_actions("inspire")
 			if actions is None:
 				raise NotImplementedError("Missing inspire script for %r" % (minion))
-			if actions:
-				ret += source.game.queue_actions(minion, actions)
+			source.game.trigger(minion, actions, event_args=None)
 
 		heropower.activations_this_turn += 1
-
-		return ret
 
 
 class Overload(GameAction):
@@ -508,7 +505,6 @@ class TargetedAction(Action):
 			args = self.get_args(source)
 			targets = self.get_targets(source, args[0])
 			args = args[1:]
-			source.game.manager.action(self, source, targets, *args)
 			log.info("%r triggering %r targeting %r", source, self, targets)
 			for target in targets:
 				target_args = self.get_target_args(source, target)
@@ -517,8 +513,6 @@ class TargetedAction(Action):
 				for action in self.callback:
 					log.info("%r queues up callback %r", self, action)
 					ret += source.game.queue_actions(source, [action], event_args=[target] + target_args)
-
-			source.game.manager.action_end(self, source, targets, *self._args)
 
 		self.resolve_broadcasts()
 
@@ -663,14 +657,11 @@ class Battlecry(TargetedAction):
 			log.info("Activating %r action targeting %r", card, target)
 			actions = card.get_actions("play")
 
-		if actions:
-			source.target = target
-			source.game.queue_actions(source, actions)
+		source.target = target
+		source.game.main_power(source, actions, target)
 
-			if player.extra_battlecries and card.has_battlecry:
-				source.game.queue_actions(source, actions)
-
-		source.game.process_deaths()
+		if player.extra_battlecries and card.has_battlecry:
+			source.game.main_power(source, actions, target)
 
 		if card.overload:
 			source.game.queue_actions(card, [Overload(player, card.overload)])
@@ -681,7 +672,17 @@ class Destroy(TargetedAction):
 	Destroy character targets.
 	"""
 	def do(self, source, target):
-		target._destroy()
+		if target.delayed_destruction:
+			#  If the card is in PLAY, it is instead scheduled to be destroyed
+			# It will be moved to the graveyard on the next Death event
+			log.info("%r marks %r for imminent death", source, target)
+			target.to_be_destroyed = True
+		else:
+			log.info("%r destroys %r", source, target)
+			if target.type == CardType.ENCHANTMENT:
+				target.remove()
+			else:
+				target.zone = Zone.GRAVEYARD
 
 
 class Discard(TargetedAction):
