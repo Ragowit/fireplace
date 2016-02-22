@@ -27,7 +27,7 @@ from fireplace import cards
 from fireplace.cards.heroes import *
 from fireplace.deck import Deck
 from hearthstone.enums import CardType, Rarity, PlayState
-from fireplace.game import BaseGame
+from fireplace.game import Game
 from fireplace.player import Player
 
 #logging.getLogger().setLevel(logging.DEBUG)
@@ -71,22 +71,23 @@ class HearthState:
         self.game = None
 
         # Simple Arcane Missiles lethal test
-        #self.player1 = Player(name="one")
-        #self.player2 = Player(name="two")
-        #self.hero1 = MAGE 
         #self.deck1 = ["EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277",
         #              "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277",
         #              "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277",
         #              "EX1_277", "EX1_277", "EX1_277"]
-        #self.player1.prepare_deck(self.deck1, self.hero1)
-        #self.hero2 = MAGE
+        #self.hero1 = MAGE 
+        #self.player1 = Player("one", self.deck1, self.hero1)
         #self.deck2 = ["EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277",
         #              "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277",
         #              "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277", "EX1_277",
         #              "EX1_277", "EX1_277", "EX1_277"]
-        #self.player2.prepare_deck(self.deck2, self.hero2)
+        #self.hero2 = MAGE
+        #self.player2 = Player("two", self.deck2, self.hero2)
         #self.game = Game(players=(self.player1, self.player2))
         #self.game.start()
+        #for player in self.game.players:
+        #    if player.choice:
+        #        player.choice.choose()
         #self.game.players[0].hero.hit(24)
         #self.game.players[1].hero.hit(24)
 
@@ -123,7 +124,7 @@ class HearthState:
             if move[0] == MOVE.PRE_GAME:
                 self.player1 = Player("one", self.deck1, self.hero1)
                 self.player2 = Player("two", self.deck2, self.hero2)
-                self.game = BaseGame(players=(self.player1, self.player2))
+                self.game = Game(players=(self.player1, self.player2))
                 self.game.start()
                 
                 # TODO: Mulligan
@@ -263,13 +264,13 @@ class HearthState:
         """ Get the game result from the viewpoint of playerjm.
         """
         if self.game.players[0].hero.health <= 0 and self.game.players[1].hero.health <= 0:
-            return 0.5
-        elif self.game.players[playerjm - 1].hero.health <= 0:
-            return (self.game.turn - 100) / 2
-        elif self.game.players[2 - playerjm].hero.health <= 0:
-            return 100 - self.game.turn
+            return 0.1
+        elif self.game.players[playerjm - 1].hero.health <= 0: # loss
+            return 0
+        elif self.game.players[2 - playerjm].hero.health <= 0: # win
+            return pow(0.99, self.game.turn)
         else:  # Should not be possible to get here unless we terminate the game early.
-            return 0.5
+            return 0.1
 
     def __repr__(self):
         try:
@@ -428,9 +429,9 @@ def UCTPlayGame():
         print(state.deck1)
         print(state.deck2)
         print()
-    if state.GetResult(state.playerJustMoved) >= 1.0:
+    if state.GetResult(state.playerJustMoved) > 0.1:
         print("Player " + str(state.playerJustMoved) + " wins!")
-    elif state.GetResult(state.playerJustMoved) <= 0.0:
+    elif state.GetResult(state.playerJustMoved) == 0:
         print("Player " + str(3 - state.playerJustMoved) + " wins!")
     else: print("Nobody wins!")
 
