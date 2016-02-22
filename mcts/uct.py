@@ -26,8 +26,8 @@ from enum import Enum
 from fireplace import cards
 from fireplace.cards.heroes import *
 from fireplace.deck import Deck
-from hearthstone.enums import CardType, Rarity, PlayState, Mulligan
-from fireplace.game import Game
+from hearthstone.enums import CardType, Rarity, PlayState
+from fireplace.game import BaseGame
 from fireplace.player import Player
 
 #logging.getLogger().setLevel(logging.DEBUG)
@@ -43,6 +43,7 @@ class MOVE(Enum):
     HERO_ATTACK = 7
     PLAY_CARD = 8
     MULLIGAN = 9
+    CHOICE = 10
 
 class HearthState:
     """ A state of the game, i.e. the game board.
@@ -120,12 +121,15 @@ class HearthState:
 
         try:
             if move[0] == MOVE.PRE_GAME:
-                self.player1 = Player(name="one")
-                self.player2 = Player(name="two")
-                self.player1.prepare_deck(self.deck1, self.hero1)
-                self.player2.prepare_deck(self.deck2, self.hero2)
-                self.game = Game(players=(self.player1, self.player2))
+                self.player1 = Player("one", self.deck1, self.hero1)
+                self.player2 = Player("two", self.deck2, self.hero2)
+                self.game = BaseGame(players=(self.player1, self.player2))
                 self.game.start()
+                
+                # TODO: Mulligan
+                for player in self.game.players:
+                    if player.choice:
+                        player.choice.choose()
             elif move[0] == MOVE.PICK_CLASS:
                 self.hero2 = move[1]
             elif move[0] == MOVE.PICK_CARD:
@@ -155,6 +159,8 @@ class HearthState:
             elif move[0] == MOVE.HERO_ATTACK:
                 hero = self.game.current_player.hero
                 hero.attack(hero.targets[move[3]])
+            elif move[0] == MOVE.CHOICE:
+                self.game.current_player.choice.choose(move[3])
             else:
                 raise NameError("DoMove ran into unclassified card", move)
         except:
@@ -209,10 +215,9 @@ class HearthState:
                     continue
                 elif deck.count(card.id) < Deck.MAX_UNIQUE_CARDS:
                     valid_moves.append([MOVE.PICK_CARD, card])
-        elif self.game.current_player.mulligan_state == Mulligan.INPUT:
-            for i in range(len(self.game.current_player.choice.cards) + 1):
-                for combo in itertools.combinations(self.game.current_player.choice.cards, i):
-                    valid_moves.append([MOVE.MULLIGAN, combo])
+        elif self.game.current_player.choice is not None:
+            for c in range(len(self.game.current_player.choice.cards)):
+                valid_moves.append([MOVE.CHOICE, None, None, c])
         else:
             # Play card
             for card in self.game.current_player.hand:
