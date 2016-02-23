@@ -161,7 +161,7 @@ class HearthState:
                 hero = self.game.current_player.hero
                 hero.attack(hero.targets[move[3]])
             elif move[0] == MOVE.CHOICE:
-                self.game.current_player.choice.choose(move[3])
+                self.game.current_player.choice.choose(move[1])
             else:
                 raise NameError("DoMove ran into unclassified card", move)
         except:
@@ -217,8 +217,8 @@ class HearthState:
                 elif deck.count(card.id) < Deck.MAX_UNIQUE_CARDS:
                     valid_moves.append([MOVE.PICK_CARD, card])
         elif self.game.current_player.choice is not None:
-            for c in range(len(self.game.current_player.choice.cards)):
-                valid_moves.append([MOVE.CHOICE, None, None, c])
+            for card in self.game.current_player.choice.cards:
+                valid_moves.append([MOVE.CHOICE, card])
         else:
             # Play card
             for card in self.game.current_player.hand:
