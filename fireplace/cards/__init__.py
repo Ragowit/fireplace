@@ -3,7 +3,7 @@ from pkg_resources import resource_filename
 from hearthstone import cardxml
 from hearthstone.enums import CardType
 from ..logging import log
-from ..rules import FORGETFUL, POISONOUS
+from ..rules import POISONOUS
 from ..utils import get_script_definition
 
 
@@ -74,12 +74,19 @@ class CardDB(dict):
 		if not hasattr(card.scripts.Hand.update, "__iter__"):
 			card.scripts.Hand.update = (card.scripts.Hand.update, )
 
+		# Set choose one cards
+		if hasattr(carddef, "choose"):
+			card.choose_cards = carddef.choose[:]
+		else:
+			card.choose_cards = []
+
+		if hasattr(carddef, "tags"):
+			for tag, value in carddef.tags.items():
+				card.tags[tag] = value
+
 		# Set some additional events based on the base tags...
 		if card.poisonous:
 			card.scripts.events.append(POISONOUS)
-
-		if card.forgetful:
-			card.scripts.events.append(FORGETFUL)
 
 		return card
 

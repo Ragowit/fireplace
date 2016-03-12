@@ -18,12 +18,9 @@ PREFIXES = {
 
 SOLVED_KEYWORDS = [
 	"Windfury", "Charge", "Divine Shield", "Taunt", "Stealth",
-	"Mega-Windfury",
-	"Can't be targeted by spells or Hero Powers",
-	"Destroy any minion damaged by this minion.",
-	"50% chance to attack the wrong enemy",
-	r"Can't attack heroes\.",
+	r"Can't be targeted by spells or Hero Powers\.",
 	r"Can't attack\.",
+	"Destroy any minion damaged by this minion.",
 	r"Your Hero Power deals \d+ extra damage.",
 	r"Spell Damage \+\d+",
 	r"Overload: \(\d+\)",
@@ -41,12 +38,11 @@ DUMMY_CARDS = (
 	"NEW1_025e",  # Bolstered (Unused)
 	"TU4c_005",  # Hidden Gnome
 	"TU4c_007",  # Mukla's Big Brother
-	"XXX_009e",  # Empty Enchant
-	"XXX_058e",  # Weapon Nerf Enchant
 
 	# Dynamic buffs set by their parent
 	"CS2_236e",  # Divine Spirit
 	"EX1_304e",  # Consume (Void Terror)
+	"LOE_030e"  # Hollow (Unused)
 	"NEW1_018e",  # Treasure Crazed (Bloodsail Raider)
 )
 

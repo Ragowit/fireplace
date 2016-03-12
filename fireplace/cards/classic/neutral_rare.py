@@ -36,6 +36,7 @@ class EX1_044:
 
 EX1_044e = buff(+1, +1)
 
+
 # Coldlight Oracle
 class EX1_050:
 	play = Draw(ALL_PLAYERS) * 2
