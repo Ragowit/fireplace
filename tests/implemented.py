@@ -28,7 +28,6 @@ SOLVED_KEYWORDS = [
 
 DUMMY_CARDS = (
 	"PlaceholderCard",  # Placeholder Card
-	"CS1_113e",  # Mind Control
 	"CS2_022e",  # Polymorph
 	"EX1_246e",  # Hexxed
 	"EX1_345t",  # Shadow of Nothing
@@ -42,7 +41,7 @@ DUMMY_CARDS = (
 	# Dynamic buffs set by their parent
 	"CS2_236e",  # Divine Spirit
 	"EX1_304e",  # Consume (Void Terror)
-	"LOE_030e"  # Hollow (Unused)
+	"LOE_030e",  # Hollow (Unused)
 	"NEW1_018e",  # Treasure Crazed (Bloodsail Raider)
 )
 
@@ -81,6 +80,7 @@ def main():
 		args.implemented = True
 		args.unimplemented = True
 
+	cards.db.initialize()
 	for id in sorted(cards.db):
 		card = cards.db[id]
 		description = cleanup_description(card.description)

@@ -8,27 +8,22 @@ from ..utils import get_script_definition
 
 
 class CardDB(dict):
-	def __init__(self, filename):
-		self.filename = filename
+	def __init__(self):
 		self.initialized = False
 
-	def __getitem__(self, *args):
-		if not self.initialized:
-			self.initialize()
-		return super().__getitem__(*args)
-
-	def __iter__(self):
-		if not self.initialized:
-			self.initialize()
-		return super().__iter__()
-
 	@staticmethod
-	def merge(id, card):
+	def merge(id, card, carddef=None):
 		"""
 		Find the xmlcard and the card definition of \a id
 		Then return a merged class of the two
 		"""
-		carddef = get_script_definition(id)
+		if card is None:
+			card = cardxml.CardXML()
+			card.id = id
+
+		if carddef is None:
+			carddef = get_script_definition(id)
+
 		if carddef:
 			card.scripts = type(id, (carddef, ), {})
 		else:
@@ -93,10 +88,7 @@ class CardDB(dict):
 	def initialize(self):
 		log.info("Initializing card database")
 		self.initialized = True
-		if not os.path.exists(self.filename):
-			raise RuntimeError("%r does not exist. Create it with `bootstrap`." % (self.filename))
-
-		db, xml = cardxml.load(self.filename)
+		db, xml = cardxml.load()
 		for id, card in db.items():
 			self[id] = self.merge(id, card)
 
@@ -138,6 +130,5 @@ class CardDB(dict):
 # For every card, we will "merge" the class with its Python definition if
 # it exists.
 if "db" not in globals():
-	xmlfile = resource_filename("fireplace", "CardDefs.xml")
-	db = CardDB(xmlfile)
+	db = CardDB()
 	filter = db.filter
