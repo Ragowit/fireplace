@@ -39,10 +39,12 @@ class NEW1_005:
 
 # Master of Disguise
 class NEW1_014:
-	play = Stealth(TARGET)
+	play = Buff(TARGET - STEALTH, "NEW1_014e")
 
-# Disguised (Unused)
-NEW1_014e = buff(stealth=True)
+# Disguised
+class NEW1_014e:
+	tags = {GameTag.STEALTH: True}
+	events = OWN_TURN_BEGIN.on(Unstealth(OWNER), Destroy(SELF))
 
 
 ##
@@ -86,7 +88,7 @@ class CS2_077:
 
 # Blade Flurry
 class CS2_233:
-	play = Hit(ENEMY_CHARACTERS, ATK(FRIENDLY_WEAPON)), Destroy(FRIENDLY_WEAPON)
+	play = Hit(ENEMY_MINIONS, ATK(FRIENDLY_WEAPON)), Destroy(FRIENDLY_WEAPON)
 
 
 # Eviscerate

@@ -25,6 +25,34 @@ def test_anubarak():
 	assert len(game.player1.hand) == 0
 
 
+def test_astral_communion():
+	game = prepare_game(game_class=Game)
+	game.player1.discard_hand()
+	astral = game.player1.give("AT_043")
+	game.player1.give(INNERVATE).play()
+	game.player1.give(INNERVATE).play()
+	for i in range(5):
+		game.player1.give(WISP)
+	assert game.player1.max_mana == 1
+	assert game.player1.mana == 5
+	astral.play()
+	assert not game.player1.hand
+	assert game.player1.mana == game.player1.max_mana == 10
+
+
+def test_astral_communion_full_mana():
+	game = prepare_game()
+	assert game.player1.mana == 10
+	astral = game.player1.give("AT_043")
+	for i in range(5):
+		game.player1.give(WISP)
+	astral.play()
+	assert len(game.player1.hand) == 1
+	assert game.player1.hand[0].id == "CS2_013t"
+	assert game.player1.max_mana == 10
+	assert game.player1.mana == 6
+
+
 def test_aviana():
 	game = prepare_game()
 	aviana = game.player1.give("AT_045")
@@ -33,20 +61,18 @@ def test_aviana():
 	deathwing = game.player1.give("NEW1_030")
 	assert deathwing.cost == 10
 	molten = game.player1.give("EX1_620")
-	assert molten.cost == 20
+	assert molten.cost == 25
 	game.player1.give(MOONFIRE).play(game.player1.hero)
-	assert molten.cost == 19
+	assert molten.cost == 25 - 1
 	aviana.play()
 	for minion in (wisp1, deathwing, molten):
 		assert minion.cost == 1
-
 	wisp2 = game.player2.give(WISP)
 	assert wisp2.cost == 0
-
 	aviana.destroy()
 	assert wisp1.cost == 0
 	assert deathwing.cost == 10
-	assert molten.cost == 19
+	assert molten.cost == 25 - 1
 
 
 def test_beneath_the_grounds():
@@ -89,6 +115,29 @@ def test_burgle():
 	assert game.player1.hand[0].type != CardType.HERO
 	assert game.player1.hand[1].card_class == game.player2.hero.card_class
 	assert game.player1.hand[1].type != CardType.HERO
+
+
+def test_dalaran_aspirant():
+	game = prepare_game(ROGUE, ROGUE)
+	aspirant = game.player1.give("AT_006")
+	aspirant.play()
+	assert aspirant.spellpower == game.player1.spellpower == 0
+	game.player1.hero.power.use()
+	assert aspirant.spellpower == game.player1.spellpower == 1
+	game.end_turn(); game.end_turn()
+
+	game.player1.hero.power.use()
+	assert aspirant.spellpower == game.player1.spellpower == 2
+	game.player1.give(MOONFIRE).play(target=game.player2.hero)
+	assert game.player2.hero.health == 30 - 3
+	game.end_turn()
+
+	# Steal the aspirant (HearthSim/hs-bugs#412)
+	game.player2.give(MIND_CONTROL).play(target=aspirant)
+	assert game.player1.spellpower == 0
+	assert aspirant.spellpower == game.player2.spellpower == 2
+	game.player2.give(MOONFIRE).play(target=game.player1.hero)
+	assert game.player1.hero.health == 30 - 3
 
 
 def test_dark_bargain():

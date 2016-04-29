@@ -327,6 +327,10 @@ class GenericChoice(GameAction):
 class MulliganChoice(GameAction):
 	ARGS = ("PLAYER", )
 
+	def __init__(self, *args, callback):
+		super().__init__(*args)
+		self.callback = callback
+
 	def do(self, source, player):
 		player.mulligan_state = Mulligan.INPUT
 		player.choice = self
@@ -344,6 +348,9 @@ class MulliganChoice(GameAction):
 		self.player.shuffle_deck()
 		self.player.mulligan_state = Mulligan.DONE
 
+		if self.player.opponent.mulligan_state == Mulligan.DONE:
+			self.callback()
+
 
 class Play(GameAction):
 	"""
@@ -358,14 +365,11 @@ class Play(GameAction):
 			return
 		return super()._broadcast(entity, source, at, *args)
 
-	def get_args(self, source):
-		return (source, ) + super().get_args(source)
-
-	def do(self, source, player, card, target, index, choose):
-		player = source.controller
+	def do(self, source, card, target, index, choose):
+		player = source
 		log.info("%s plays %r (target=%r, index=%r)", player, card, target, index)
 
-		player.pay_mana(card.cost)
+		player.pay_cost(card.cost)
 
 		card.target = target
 		card._summon_index = index
@@ -797,14 +801,13 @@ class GainMana(TargetedAction):
 		target.max_mana += amount
 
 
-class GainEmptyMana(TargetedAction):
+class SpendMana(TargetedAction):
 	"""
-	Give player targets \a amount empty Mana crystals.
+	Make player targets spend \a amount Mana.
 	"""
 	ARGS = ("TARGET", "AMOUNT")
 
 	def do(self, source, target, amount):
-		target.max_mana += amount
 		target.used_mana += amount
 
 
@@ -850,8 +853,7 @@ class Heal(TargetedAction):
 	ARGS = ("TARGET", "AMOUNT")
 
 	def do(self, source, target, amount):
-		if source.controller.outgoing_healing_adjustment:
-			# "healing as damage" (hack-ish)
+		if source.controller.healing_as_damage:
 			return source.game.queue_actions(source, [Hit(target, amount)])
 
 		amount <<= source.controller.healing_double
@@ -898,12 +900,14 @@ class Morph(TargetedAction):
 
 	def do(self, source, target, card):
 		log.info("Morphing %r into %r", target, card)
-		target.clear_buffs()
 		target_zone = target.zone
-		target.zone = Zone.SETASIDE
 		if card.zone != target_zone:
+			# Transfer the zone position
+			card._summon_index = target.zone_position
 			# In-place morph is OK, eg. in the case of Lord Jaraxxus
 			card.zone = target_zone
+		target.clear_buffs()
+		target.zone = Zone.SETASIDE
 		target.morphed = card
 		return card
 

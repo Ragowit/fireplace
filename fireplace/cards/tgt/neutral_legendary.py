@@ -64,7 +64,7 @@ class AT_132:
 		"DS1h_292_H1": "DS1h_292_H1_AT_132",
 		"CS2_034": "AT_132_MAGE",
 		"CS2_101": "AT_132_PALADIN",
-		"CS2_101_H": "AT_132_PALADIN",
+		"CS2_101_H": "CS2_101_H1_AT_132",
 		"CS1h_001": "AT_132_PRIEST",
 		"CS2_083b": "AT_132_ROGUE",
 		"CS2_049": "AT_132_SHAMAN",
@@ -73,7 +73,6 @@ class AT_132:
 		"CS2_102_H1": "CS2_102_H1_AT_132",
 	}
 
-	def play(self):
-		upgrade = AT_132.HERO_POWER_MAP.get(self.controller.hero.power.id)
-		if upgrade:
-			yield Summon(CONTROLLER, upgrade)
+	play = Switch(FRIENDLY_HERO_POWER, {
+		k: Summon(CONTROLLER, v) for k, v in HERO_POWER_MAP.items()
+	})

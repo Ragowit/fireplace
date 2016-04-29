@@ -13,6 +13,11 @@ class CS2_034_H1:
 	activate = CS2_034.activate
 
 
+# Fireblast (Khadgar)
+class CS2_034_H2:
+	activate = CS2_034.activate
+
+
 ##
 # Minions
 
@@ -164,7 +169,9 @@ class EX1_294:
 class EX1_295:
 	secret = Predamage(FRIENDLY_HERO).on(
 		Lethal(FRIENDLY_HERO, Predamage.AMOUNT) & (
-			Reveal(SELF), Buff(FRIENDLY_HERO, "EX1_295o")
+			Reveal(SELF),
+			Buff(FRIENDLY_HERO, "EX1_295o"),
+			Predamage(FRIENDLY_HERO, 0)
 		)
 	)
 

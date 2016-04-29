@@ -115,8 +115,9 @@ class BaseGame(Entity):
 
 	def play_card(self, card, target, index, choose):
 		type = PowSubType.PLAY
+		player = card.controller
 		actions = [Play(card, target, index, choose)]
-		return self.action_block(card, actions, type, index, target)
+		return self.action_block(player, actions, type, index, target)
 
 	def process_deaths(self):
 		type = PowSubType.DEATHS
@@ -237,7 +238,11 @@ class BaseGame(Entity):
 
 		self.tick += 1
 
-	def prepare(self):
+	def setup(self):
+		self.log("Setting up game %r", self)
+		self.state = State.RUNNING
+		self.step = Step.BEGIN_DRAW
+		self.zone = Zone.PLAY
 		self.players[0].opponent = self.players[1]
 		self.players[1].opponent = self.players[0]
 		for player in self.players:
@@ -252,14 +257,10 @@ class BaseGame(Entity):
 
 		for player in self.players:
 			player.prepare_for_game()
+		self.manager.start_game()
 
 	def start(self):
-		self.log("Starting game %r", self)
-		self.state = State.RUNNING
-		self.step = Step.BEGIN_DRAW
-		self.zone = Zone.PLAY
-		self.prepare()
-		self.manager.start_game()
+		self.setup()
 		self.begin_turn(self.player1)
 
 	def end_turn(self):
@@ -330,29 +331,31 @@ class CoinRules:
 		self.log("Tossing the coin... %s wins!", winner)
 		return winner, winner.opponent
 
-	def start(self):
-		super().start()
-		self.log("%s gets The Coin (%s)", self.player2, THE_COIN)
-		self.player2.give(THE_COIN)
+	def begin_turn(self, player):
+		if self.turn == 0:
+			self.log("%s gets The Coin (%s)", self.player2, THE_COIN)
+			self.player2.give(THE_COIN)
+		super().begin_turn(player)
 
 
 class MulliganRules:
 	"""
 	Performs a Mulligan phase when the Game starts.
-	Currently just a dummy phase.
+	Only begin the game after both Mulligans have been chosen.
 	"""
 
 	def start(self):
 		from .actions import MulliganChoice
-
+		self.setup()
 		self.next_step = Step.BEGIN_MULLIGAN
-		super().start()
-
 		self.log("Entering mulligan phase")
 		self.step, self.next_step = self.next_step, Step.MAIN_READY
 
 		for player in self.players:
-			self.queue_actions(self, [MulliganChoice(player)])
+			self.queue_actions(self, [MulliganChoice(player, callback=self.mulligan_done)])
+
+	def mulligan_done(self):
+		self.begin_turn(self.player1)
 
 
 class Game(MulliganRules, CoinRules, BaseGame):

@@ -51,7 +51,7 @@ class EX1_350:
 # Auchenai Soulpriest
 class EX1_591:
 	update = Refresh(CONTROLLER, {
-		GameTag.OUTGOING_HEALING_ADJUSTMENT: -1,
+		GameTag.EMBRACE_THE_SHADOW: True,
 	})
 
 
@@ -166,13 +166,11 @@ class EX1_624:
 
 # Shadowform
 class EX1_625:
-	def play(self):
-		if self.controller.hero.power.id == "EX1_625t":
-			yield Summon(CONTROLLER, "EX1_625t2")
-		elif self.controller.hero.power.id == "EX1_625t2":
-			pass
-		else:
-			yield Summon(CONTROLLER, "EX1_625t")
+	play = Switch(FRIENDLY_HERO_POWER, {
+		"EX1_625t": Summon(CONTROLLER, "EX1_625t2"),
+		"EX1_625t2": (),
+		None: Summon(CONTROLLER, "EX1_625t"),
+	})
 
 # Mind Spike
 class EX1_625t:

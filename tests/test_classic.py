@@ -163,7 +163,7 @@ def test_ancient_of_lore():
 
 	ancient1 = game.player1.give("NEW1_008")
 	ancient1.play(choose="NEW1_008a")  # Draw 2 Cards
-	assert len(game.player1.hand) == 2
+	assert len(game.player1.hand) == 1
 	assert game.player1.hero.health == 30 - 10
 	game.end_turn(); game.end_turn()
 
@@ -233,16 +233,19 @@ def test_arcane_golem():
 	assert game.player1.max_mana == 4
 	assert game.player2.max_mana == 3
 	golem.play()
-	assert golem.charge
 	assert game.player1.max_mana == 4
 	assert game.player2.max_mana == 4
 
 
 def test_arcane_missiles():
 	game = prepare_game()
+	wisp = game.player2.summon(WISP)
 	missiles = game.player1.give("EX1_277")
 	missiles.play()
-	assert game.player2.hero.health == 27
+	if wisp.dead:
+		assert game.player2.hero.health == 28
+	else:
+		assert game.player2.hero.health == 27
 
 
 def test_archmage_antonidas():
@@ -287,8 +290,12 @@ def test_armorsmith():
 
 def test_avenging_wrath():
 	game = prepare_game()
+	wisp = game.player2.summon(WISP)
 	game.player1.give("EX1_384").play()
-	assert game.player2.hero.health == 30 - 8
+	if wisp.dead:
+		assert game.player2.hero.health == 30 - 7
+	else:
+		assert game.player2.hero.health == 30 - 8
 	game.end_turn()
 
 	# Summon Malygos and test that spellpower only increases dmg by 5
@@ -441,6 +448,23 @@ def test_big_game_hunter():
 	assert bgh2.has_target()
 	bgh2.play(target=wargolem)
 	assert wargolem.dead
+
+
+def test_blade_flurry():
+	game = prepare_game(ROGUE, ROGUE)
+	game.player1.give(WISP).play()
+	game.player1.give(WISP).play()
+	game.end_turn()
+
+	game.player2.give(WISP).play()
+	flurry = game.player2.give("CS2_233")
+	assert not flurry.is_playable()
+	game.player2.hero.power.use()
+	assert flurry.is_playable()
+	flurry.play()
+	assert not game.player1.field
+	assert len(game.player2.field) == 1
+	assert game.player1.hero.health == game.player2.hero.health == 30
 
 
 def test_blessing_of_wisdom():
@@ -1237,12 +1261,7 @@ def test_flame_leviathan():
 def test_force_of_nature():
 	game = prepare_game()
 	game.player1.give("EX1_571").play()
-	assert len(game.player1.field) == 3
-	assert len(game.player1.field.filter(id="EX1_tk9")) == 3
-	game.player1.field[0].attack(game.player2.hero)
-	assert game.player2.hero.health == 30 - 2
-	game.end_turn()
-	assert len(game.player1.field) == 0
+	assert game.player1.field == ["EX1_tk9"] * 3
 
 
 def test_gadgetzan_auctioneer():
@@ -1917,11 +1936,15 @@ def test_master_of_disguise():
 	game = prepare_game()
 	wisp = game.player1.give(WISP)
 	wisp.play()
-	masterofdisguise = game.player1.give("NEW1_014")
-	masterofdisguise.play(target=wisp)
+	mod = game.player1.give("NEW1_014")
+	mod.play(target=wisp)
 	assert wisp.stealthed
-	game.end_turn(); game.end_turn()
+	game.end_turn()
+
 	assert wisp.stealthed
+	game.end_turn()
+
+	assert not wisp.stealthed
 
 
 def test_mana_wraith():
@@ -2068,18 +2091,18 @@ def test_mirror_image():
 def test_molten_giant():
 	game = prepare_game()
 	molten = game.current_player.give("EX1_620")
-	assert molten.cost == 20
-	game.current_player.give(MOONFIRE).play(target=game.current_player.hero)
-	assert molten.cost == 19
-	game.current_player.give(MOONFIRE).play(target=game.current_player.hero)
-	assert molten.cost == 18
-	game.current_player.give(MOONFIRE).play(target=game.current_player.hero)
-	assert molten.cost == 17
+	assert molten.cost == 25
+	game.current_player.give(MOONFIRE).play(target=game.player1.hero)
+	assert molten.cost == 25 - 1
+	game.current_player.give(MOONFIRE).play(target=game.player1.hero)
+	assert molten.cost == 25 - 2
+	game.current_player.give(MOONFIRE).play(target=game.player1.hero)
+	assert molten.cost == 25 - 3
 	game.end_turn()
 
-	assert molten.cost == 17
-	molten2 = game.current_player.give("EX1_620")
-	assert molten2.cost == 20
+	assert molten.cost == 25 - 3
+	molten2 = game.player2.give("EX1_620")
+	assert molten2.cost == 25
 
 
 def test_mortal_coil():
@@ -2994,7 +3017,7 @@ def test_summoning_portal():
 	weapon = game.player1.give(LIGHTS_JUSTICE)
 	assert weapon.cost == 1
 	molten = game.player1.give("EX1_620")
-	assert molten.cost == 20
+	assert molten.cost == 25
 	goldshire = game.player1.give(GOLDSHIRE_FOOTMAN)
 	assert goldshire.cost == 1
 	frostwolf = game.player1.give("CS2_121")
@@ -3004,15 +3027,15 @@ def test_summoning_portal():
 	portal.play()
 	assert wisp.cost == 0
 	assert weapon.cost == 1
-	assert molten.cost == 18
+	assert molten.cost == 25 - 2
 	assert goldshire.cost == 1
 	assert frostwolf.cost == 1
 	game.player1.give(MOONFIRE).play(target=game.player1.hero)
-	assert molten.cost == 17
+	assert molten.cost == 25 - 3
 	portal2 = game.player1.give("EX1_315")
 	portal2.play()
 	assert wisp.cost == 0
-	assert molten.cost == 20 - 2 - 1 - 2
+	assert molten.cost == 25 - 2 - 1 - 2
 	assert goldshire.cost == 1
 	assert frostwolf.cost == 1
 

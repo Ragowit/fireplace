@@ -35,6 +35,8 @@ DISCOVER = lambda *args: Discover(CONTROLLER, *args)
 # 50% chance to attack the wrong enemy.
 FORGETFUL = Attack(SELF).on(COINFLIP & Retarget(SELF, RANDOM(ALL_CHARACTERS - Attack.DEFENDER - CONTROLLED_BY(SELF))))
 
+AT_MAX_MANA = lambda s: MANA(s) == 10
+
 
 class JoustHelper(Evaluator):
 	"""
@@ -100,6 +102,13 @@ def AttackHealthSwapBuff():
 	cls.apply = apply
 
 	return cls
+
+
+def GainEmptyMana(selector, amount):
+	"""
+	Helper to gain an empty mana crystal (gains mana, then spends it)
+	"""
+	return GainMana(selector, amount), SpendMana(selector, amount)
 
 
 def custom_card(cls):

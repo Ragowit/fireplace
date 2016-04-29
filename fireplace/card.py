@@ -389,10 +389,6 @@ class LiveEntity(PlayableCard, Entity):
 		return self.turn_killed == self.game.turn
 
 	def _hit(self, amount):
-		if self.immune:
-			self.log("%r is immune to %i damage", self, amount)
-			return 0
-
 		self.damage += amount
 		return amount
 
@@ -675,6 +671,7 @@ class Spell(PlayableCard):
 		super().__init__(data)
 
 	def get_damage(self, amount, target):
+		amount = super().get_damage(amount, target)
 		if not self.immune_to_spellpower:
 			amount = self.controller.get_spell_damage(amount)
 		if self.receives_double_spelldamage_bonus:
@@ -837,6 +834,7 @@ class HeroPower(PlayableCard):
 		return self.game.queue_actions(self.controller, [actions.Activate(self, self.target)])
 
 	def get_damage(self, amount, target):
+		amount = super().get_damage(amount, target)
 		amount += self.controller.heropower_damage
 		amount <<= self.controller.hero_power_double
 		return amount

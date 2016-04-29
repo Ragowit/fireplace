@@ -69,7 +69,7 @@ class NEW1_008:
 	choose = ("NEW1_008a", "NEW1_008b")
 
 class NEW1_008a:
-	play = Draw(CONTROLLER) * 2
+	play = Draw(CONTROLLER)
 
 class NEW1_008b:
 	play = Heal(TARGET, 5)
@@ -116,11 +116,11 @@ class CS2_012:
 
 # Wild Growth
 class CS2_013:
-	def play(self):
-		if self.controller.max_mana < self.controller.max_resources:
-			yield GainEmptyMana(CONTROLLER, 1)
-		else:
-			yield Give(CONTROLLER, "CS2_013t")
+	play = (
+		AT_MAX_MANA(CONTROLLER) &
+		Give(CONTROLLER, "CS2_013t") |
+		GainEmptyMana(CONTROLLER, 1)
+	)
 
 class CS2_013t:
 	play = Draw(CONTROLLER)
@@ -212,9 +212,6 @@ EX1_570e = buff(atk=4)
 # Force of Nature
 class EX1_571:
 	play = Summon(CONTROLLER, "EX1_tk9") * 3
-
-class EX1_tk9:
-	events = TURN_END.on(Destroy(SELF))
 
 
 # Savagery

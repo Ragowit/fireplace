@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import sys; sys.path.append("..")
 import random
+from fireplace import cards
 from fireplace.cards.heroes import *
 from fireplace.exceptions import GameOver
 from fireplace.game import Game
@@ -44,18 +45,18 @@ def play_full_game():
 					target = random.choice(card.targets)
 				print("Playing %r on %r" % (card, target))
 				card.play(target=target)
+
+				if player.choice:
+					choice = random.choice(player.choice.cards)
+					print("Choosing card %r" % (choice))
+					player.choice.choose(choice)
+
 				continue
 
 		# Randomly attack with whatever can attack
 		for character in player.characters:
 			if character.can_attack():
 				character.attack(random.choice(character.targets))
-			continue
-
-		if player.choice:
-			choice = random.choice(player.choice.cards)
-			print("Choosing card %r" % (choice))
-			player.choice.choose(choice)
 			continue
 
 		game.end_turn()
@@ -69,6 +70,7 @@ def test_full_game():
 
 
 def main():
+	cards.db.initialize()
 	if len(sys.argv) > 1:
 		numgames = sys.argv[1]
 		if not numgames.isdigit():

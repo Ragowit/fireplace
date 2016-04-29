@@ -18,17 +18,19 @@ KOBOLD_GEOMANCER = "CS2_142"
 SPELLBENDERT = "tt_010a"
 CHICKEN = "GVG_092t"
 IMP = "EX1_598"
-MURLOC = "LOEA10_3"
+MURLOC = "PRO_001at"
 WISP = "CS2_231"
 WHELP = "ds1_whelptoken"
 
 # Token spells
+INNERVATE = "EX1_169"
 MOONFIRE = "CS2_008"
 CIRCLE_OF_HEALING = "EX1_621"
 DREAM = "DREAM_04"
 SILENCE = "EX1_332"
 THE_COIN = "GAME_005"
 HAND_OF_PROTECTION = "EX1_371"
+MIND_CONTROL = "CS1_113"
 TIME_REWINDER = "PART_002"
 SOULFIRE = "EX1_308"
 UNSTABLE_PORTAL = "GVG_003"
@@ -83,12 +85,17 @@ def _empty_mulligan(game):
 			player.choice.choose()
 
 
-def prepare_game(hero1=None, hero2=None, exclude=(), game_class=BaseTestGame):
+def init_game(hero1=None, hero2=None, exclude=(), game_class=BaseTestGame):
 	log.info("Initializing a new game")
 	heroes = _select_heroes(hero1, hero2)
 	player1 = Player("Player1", *_draft(hero=heroes[0], exclude=exclude))
 	player2 = Player("Player2", *_draft(hero=heroes[1], exclude=exclude))
 	game = game_class(players=(player1, player2))
+	return game
+
+
+def prepare_game(*args, **kwargs):
+	game = init_game(*args, **kwargs)
 	game.start()
 	_empty_mulligan(game)
 
